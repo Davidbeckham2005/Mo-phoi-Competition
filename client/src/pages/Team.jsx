@@ -66,7 +66,15 @@ export default function Team() {
         setSession(s);
         setPass("");
       })
-      .catch((ex) => setErr(ex.message || "Đăng nhập thất bại."));
+      .catch((ex) => {
+        if (ex.status === 404) {
+          setErr("Server đang chạy bản cũ — hãy dừng (Ctrl+C) rồi chạy lại npm run dev.");
+        } else if (/fetch/i.test(ex.message || "")) {
+          setErr("Không gọi được máy chủ — hãy chắc chắn server đang chạy (cổng 3001).");
+        } else {
+          setErr(ex.message || "Đăng nhập thất bại.");
+        }
+      });
   }
 
   function buzz() {

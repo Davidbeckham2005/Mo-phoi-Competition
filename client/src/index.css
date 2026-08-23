@@ -214,13 +214,14 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: clamp(34px, 5vw, 52px);
-    height: clamp(34px, 5vw, 52px);
+    flex-shrink: 0;
+    width: clamp(28px, 3.8vw, 58px);
+    height: clamp(28px, 3.8vw, 58px);
     border-radius: 9999px;
     border: 2px dashed rgba(154, 167, 199, 0.4);
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: clamp(15px, 2vw, 22px);
+    font-size: clamp(13px, 1.8vw, 26px);
   }
   .ltr-open {
     border-style: solid;

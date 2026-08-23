@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n server,client -c cyan,magenta \"npm run server\" \"npm run client\"",
-    "server": "node server/index.js",
+    "server": "node --watch server/index.js",
     "client": "npm run dev --prefix client",
     "setup": "npm install && npm install --prefix client"
   },

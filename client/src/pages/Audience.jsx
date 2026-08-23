@@ -122,42 +122,61 @@ function Stage({ state }) {
     const cnv = state.cnv;
     const solved = p.rowsSolved || [false, false, false, false];
     const locked = p.rowsLocked || [false, false, false, false];
+    const media = cnv?.media;
     return (
-      <div className="text-center">
-        {/* Bảng mảnh ghép: 4 góc + ô trung tâm */}
-        <div className="inline-grid grid-cols-[1fr_auto_1fr] grid-rows-[1fr_auto_1fr] gap-3 mb-5">
-          {[0, 1, 2, 3].map((r) => (
-            <div
-              key={r}
-              className={`w-[clamp(64px,9vw,110px)] h-[clamp(48px,7vw,84px)] rounded-xl border-2 grid place-items-center font-display text-2xl ${
-                solved[r]
-                  ? "bg-gold/90 text-[#1a1400] border-gold shadow-[0_0_20px_rgba(255,214,10,0.35)]"
-                  : locked[r]
-                    ? "border-danger/60 text-danger/80 bg-danger/5"
-                    : "border-line text-mist bg-panel"
-              }`}
-              style={{ gridColumn: r === 0 || r === 2 ? 1 : 3, gridRow: r < 2 ? 1 : 3 }}
-            >
-              {solved[r] ? r + 1 : locked[r] ? "✕" : "?"}
+      <div className="w-full max-w-[1200px] mx-auto grid lg:grid-cols-2 gap-6 items-center">
+        {/* CỘT TRÁI — Bảng ảnh ghép */}
+        <div className="flex flex-col items-center justify-center gap-4 min-w-0">
+          {media?.url &&
+            (media.type === "video" ? (
+              <video src={media.url} controls className="max-h-[34vh] max-w-full rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)]" />
+            ) : (
+              <img src={media.url} alt="Ảnh ghép" className="max-h-[34vh] max-w-full object-contain rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)]" />
+            ))}
+          <div className="relative w-[clamp(250px,26vw,420px)] aspect-[16/10] rounded-2xl overflow-hidden ring-1 ring-line">
+            <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
+              {[0, 1, 2, 3].map((r) => (
+                <div
+                  key={r}
+                  className={`grid place-items-center font-display font-bold text-[clamp(28px,3.4vw,50px)] transition-colors ${
+                    solved[r]
+                      ? "bg-gold/90 text-[#1a1400]"
+                      : locked[r]
+                        ? "bg-danger/10 text-danger/80"
+                        : "bg-panel-solid text-mist"
+                  }`}
+                >
+                  {solved[r] ? r + 1 : locked[r] ? "✕" : "?"}
+                </div>
+              ))}
             </div>
-          ))}
-          <div
-            className={`w-[clamp(64px,9vw,110px)] h-[clamp(48px,7vw,84px)] rounded-xl border-2 grid place-items-center font-display text-2xl ${
-              p.centerRevealed
-                ? "bg-gold/90 text-[#1a1400] border-gold shadow-[0_0_20px_rgba(255,214,10,0.35)]"
-                : "border-line text-mist bg-panel"
-            }`}
-            style={{ gridColumn: 2, gridRow: 2 }}
-          >
-            {p.centerRevealed ? "★" : "?"}
+
+            {/* Đường chia mảnh ghép */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute left-1/2 top-0 bottom-0 w-px bg-line" />
+              <div className="absolute top-1/2 left-0 right-0 h-px bg-line" />
+            </div>
+
+            {/* Ô trung tâm nằm chồng lên điểm gặp nhau của 4 mảnh */}
+            <div
+              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[38%] h-[46%] rounded-xl border-2 grid place-items-center font-display font-bold text-[clamp(22px,2.6vw,38px)] ${
+                p.centerRevealed
+                  ? "bg-gold text-[#1a1400] border-gold shadow-[0_0_26px_rgba(255,214,10,0.45)]"
+                  : "bg-night border-line text-mist"
+              }`}
+            >
+              {p.centerRevealed ? "★" : "?"}
+            </div>
           </div>
         </div>
 
-        {/* Các hàng ngang dạng ô tròn ký tự */}
-        <div className="flex flex-col items-center gap-2">
+        {/* CỘT PHẢI — Danh mục từ khóa */}
+        <div className="flex flex-col items-center gap-2.5">
           {(cnv?.rows || []).map((row, i) => (
             <div key={i} className="flex items-center gap-3">
-              <span className="text-mist text-sm w-4">{i + 1}</span>
+              <span className={`text-sm w-14 shrink-0 text-right ${row.status === "open" ? "text-gold" : row.status === "locked" ? "text-danger/80" : "text-mist"}`}>
+                Hàng {i + 1}
+              </span>
               <div className="flex gap-1.5">
                 {row.status === "open"
                   ? row.word.replace(/\s/g, "").split("").map((ch, j) => (
@@ -173,30 +192,33 @@ function Stage({ state }) {
               </div>
             </div>
           ))}
-        </div>
 
-        {p.centerRevealed && cnv?.centerHint && (
-          <div className="stage-note">★ {cnv.centerHint}</div>
-        )}
+          {/* Từ khóa */}
+          <div className="flex items-center justify-center gap-1.5 mt-2">
+            <span className="text-sm w-14 shrink-0 text-right text-gold">Từ khóa</span>
+            {p.keywordSolved && cnv?.keyword
+              ? cnv.keyword.split("").map((ch, j) => (
+                  <span key={j} className={`ltr ltr-kw ${/\s/.test(ch) ? "" : "ltr-gold"}`}>
+                    {/\s/.test(ch) ? "" : ch}
+                  </span>
+                ))
+              : Array.from({ length: cnv?.keywordLetterCount || 0 }, (_, j) => (
+                  <span key={j} className="ltr ltr-kw" />
+                ))}
+            {!!cnv?.keywordLetterCount && (
+              <span className="text-mist text-sm ml-2">{cnv.keywordLetterCount} chữ cái</span>
+            )}
+          </div>
 
-        {/* Từ khóa */}
-        <div className="flex items-center justify-center gap-1.5 mt-4 flex-wrap">
-          {p.keywordSolved && cnv?.keyword
-            ? cnv.keyword.split("").map((ch, j) => (
-                <span key={j} className={`ltr ltr-kw ${/\s/.test(ch) ? "" : "ltr-gold"}`}>
-                  {/\s/.test(ch) ? "" : ch}
-                </span>
-              ))
-            : Array.from({ length: cnv?.keywordLetterCount || 0 }, (_, j) => (
-                <span key={j} className="ltr ltr-kw" />
-              ))}
-          {!!cnv?.keywordLetterCount && (
-            <span className="text-mist text-sm ml-2">{cnv.keywordLetterCount} chữ cái</span>
+          {p.centerRevealed && cnv?.centerHint && (
+            <div className="stage-note mt-1">★ {cnv.centerHint}</div>
           )}
         </div>
 
-        {d.question && <div className="text-mist mt-3">{d.question}</div>}
-        {d.note && <div className="stage-note">{d.note}</div>}
+        <div className="md:col-span-2 text-center">
+          {d.question && <div className="text-mist">{d.question}</div>}
+          {d.note && <div className="stage-note">{d.note}</div>}
+        </div>
       </div>
     );
   }

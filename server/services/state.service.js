@@ -1,8 +1,9 @@
 import { getDb, ROUNDS } from "../models/store.js";
+import { cnvView } from "./game.service.js";
 
 export function publicState() {
   const d = getDb();
-  return {
+  const state = {
     // các cài đặt chung của giải 
     settings: {
       title: d.settings.title,
@@ -41,6 +42,10 @@ export function publicState() {
     // định nghĩa cấu trúc vòng thi
     rounds: ROUNDS,
   };
+  if (d.game.round === "vuot_cnv") {
+    state.cnv = cnvView(d);
+  }
+  return state;
 }
 
 export function adminState() {

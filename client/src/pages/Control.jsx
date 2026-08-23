@@ -203,13 +203,13 @@ export default function Control() {
             <button type="button" className="btn" disabled={showing && !revealed} onClick={() => act("question.show")}>
               Hiện câu hỏi
             </button>
-            <button type="button" className="btn btn-ghost" disabled={!showing && !revealed} onClick={() => act("question.hide")}>
+            <button type="button" className="btn btn-ghost" disabled={!showing} onClick={() => act("question.hide")}>
               Ẩn câu hỏi
             </button>
             <button type="button" className="btn btn-ok" disabled={!showing || revealed} onClick={() => act("question.reveal")}>
               Lật đáp án
             </button>
-            <button type="button" className="btn btn-ghost" disabled={!revealed} onClick={() => act("question.hideAnswer")}>
+            <button type="button" className="btn btn-ghost" disabled={!showing || !revealed} onClick={() => act("question.hideAnswer")}>
               Che đáp án
             </button>
             {g.round !== "vuot_cnv" && (
@@ -241,9 +241,11 @@ export default function Control() {
               <button
                 key={t.id}
                 type="button"
-                className="btn btn-ghost"
+                className="btn btn-ghost flex items-center gap-1.5"
+                style={{ borderColor: t.color, color: t.color }}
                 onClick={() => act("answer.mark", { correct: true, teamId: t.id })}
               >
+                <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: t.color }} />
                 {t.name} +{pts}
               </button>
             ))}
@@ -437,17 +439,21 @@ export default function Control() {
         <b>Bảng điểm</b>
         <div className="flex flex-col gap-3 mt-3">
           {(state.teams || []).map((t) => (
-            <div key={t.id} className="rounded-xl border p-3 bg-panel-solid" style={{ borderColor: t.color }}>
+            <div
+              key={t.id}
+              className={`rounded-xl border border-line bg-panel-solid p-3 ${g.currentTeam === t.id ? "ring-1 ring-gold/70" : ""}`}
+              style={{ borderLeft: `6px solid ${t.color}` }}
+            >
               <div className="flex justify-between items-center">
-                <b>{t.name}</b>
-                <span className="font-display text-2xl font-bold" style={{ color: t.color }}>{t.score}</span>
+                <b style={{ color: t.color }}>{t.name}</b>
+                <span className="font-display text-2xl font-bold">{t.score}</span>
               </div>
-              <div className="flex gap-2 mt-2">
+              <div className="flex gap-2 mt-2 items-center">
                 <input type="number" value={delta} onChange={(e) => setDelta(e.target.value)} className="w-16!" />
-                <button type="button" className="btn btn-ok" onClick={() => act("score.add", { teamId: t.id, points: Number(delta) })}>
+                <button type="button" className="btn btn-ok flex-1" onClick={() => act("score.add", { teamId: t.id, points: Number(delta) })}>
                   +
                 </button>
-                <button type="button" className="btn btn-danger" onClick={() => act("score.add", { teamId: t.id, points: -Number(delta) })}>
+                <button type="button" className="btn btn-danger flex-1" onClick={() => act("score.add", { teamId: t.id, points: -Number(delta) })}>
                   −
                 </button>
               </div>

@@ -10,6 +10,10 @@ export async function request(path, { method = "GET", body, pin } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Lỗi kết nối máy chủ.");
+  if (!res.ok) {
+    const err = new Error(data.error || `Máy chủ trả lời lỗi ${res.status}.`);
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }

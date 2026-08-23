@@ -39,7 +39,7 @@
   }
 
   // Góc nhìn Vòng 2 cho thí sinh/khán giả: số ô chữ mỗi hàng + từ chỉ khi đã mở
-  function cnvView(db) {
+  export function cnvView(db) {
     const p = db.game.puzzle || {};
     const cnv = db.questions.main.vuotCnv;
     return {
@@ -51,6 +51,7 @@
       keywordLetterCount: cnv.letterCount || String(cnv.keyword || "").replace(/\s/g, "").length,
       keyword: p.keywordSolved ? cnv.keyword : "",
       centerHint: p.centerRevealed ? cnv.centerHint : "",
+      media: cnv.media && cnv.media.url ? { type: cnv.media.type || "image", url: cnv.media.url } : null,
     };
   }
 
@@ -231,10 +232,26 @@
     return 30;
   }
 
+  // Đưa màn hình về bảng chính, xóa sạch câu hỏi/đáp án đang hiển thị
+  function resetDisplayToBoard() {
+    const game = g();
+    game.display.mode = game.round === "vuot_cnv" ? "puzzle" : "idle";
+    game.display.question = "";
+    game.display.options = [];
+    game.display.answer = "";
+    game.display.answerRevealed = false;
+    game.display.note = "";
+    game.questionStatus = "idle";
+  }
+
   export function showQuestion() {
     const game = g();
     const q = currentQuestion();
-    if (!q) return;
+    if (!q) {
+      const err = new Error("Chưa có câu hỏi phù hợp — hãy chọn đội/gói câu hỏi trước khi hiện.");
+      err.status = 400;
+      throw err;
+    }
     game.questionStatus = "showing";
     game.display.mode = "question";
     game.display.question = q.question;
@@ -268,6 +285,11 @@
 
   export function revealAnswer() {
     const game = g();
+    if (game.display.mode !== "question") {
+      const err = new Error("Chưa hiện câu hỏi — bấm “Hiện câu hỏi” trước khi lật đáp án.");
+      err.status = 400;
+      throw err;
+    }
     game.display.answerRevealed = true;
     game.questionStatus = "revealed";
     saveDb();
@@ -276,7 +298,9 @@
 
   export function hideAnswer() {
     const game = g();
+    if (!game.display.answerRevealed) return;
     game.display.answerRevealed = false;
+    game.questionStatus = "showing";
     saveDb();
     emit();
   }
@@ -296,7 +320,13 @@
     const game = g();
     const q = currentQuestion();
     const tid = teamId || game.currentTeam;
-    if (!q) return;
+    if (!q) {
+      // Chưa chọn câu hỏi: vẫn chấm điểm thủ công (+10 mặc định / không trừ)
+      if (correct) addScore(tid, 10);
+      saveDb();
+      emit();
+      return;
+    }
     let points = q.points || 10;
     if (game.round === "ve_dich") {
       points = game.veDich.packagePoints;
@@ -329,16 +359,18 @@
     } else if (game.round === "ve_dich" && game.veDich.star && tid === game.currentTeam) {
       addScore(tid, -game.veDich.packagePoints * 2);
     }
-    game.display.answerRevealed = true;
-    game.questionStatus = "revealed";
+    // Chỉ lật đáp án khi câu hỏi đang thực sự hiển thị trên màn hình
+    if (game.display.mode === "question") {
+      game.display.answerRevealed = true;
+      game.questionStatus = "revealed";
+    }
     saveDb();
     emit();
   }
 
   export function nextQuestion() {
     const game = g();
-    game.display.answerRevealed = false;
-    game.questionStatus = "idle";
+    resetDisplayToBoard();
     resetBuzzer();
     if (game.round === "khoi_dong") {
       const list = getDb().questions.main.khoiDong[game.currentTeam] || [];
@@ -368,7 +400,7 @@
 
   export function prevQuestion() {
     const game = g();
-    game.display.answerRevealed = false;
+    resetDisplayToBoard();
     if (game.round === "khoi_dong") {
       if (game.questionIndex > 0) game.questionIndex -= 1;
     } else if (game.round === "vuot_cnv") {
@@ -530,6 +562,7 @@
 
   export function solveKeyword(teamId, correct) {
     const game = g();
+    if (!teamId) return;
     const pts = keywordPoints();
     if (correct) {
       game.puzzle.keywordSolved = true;
