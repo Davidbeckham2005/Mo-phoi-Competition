@@ -1,0 +1,66 @@
+CREATE TABLE IF NOT EXISTS settings (
+  id TINYINT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  subtitle VARCHAR(500) NOT NULL DEFAULT '',
+  pin VARCHAR(50) NOT NULL,
+  prelim_duration INT NOT NULL DEFAULT 900,
+  prelim_question_count INT NOT NULL DEFAULT 30,
+  top_n INT NOT NULL DEFAULT 16,
+  prelim_open TINYINT(1) NOT NULL DEFAULT 0,
+  show_live_ranking TINYINT(1) NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS teams (
+  id VARCHAR(8) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  color VARCHAR(20) NOT NULL,
+  accent VARCHAR(20) NOT NULL,
+  score INT NOT NULL DEFAULT 0,
+  member_ids TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS contestants (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  student_id VARCHAR(50) NOT NULL,
+  school VARCHAR(255) NOT NULL DEFAULT '',
+  class_name VARCHAR(50) NOT NULL DEFAULT '',
+  started_at BIGINT NULL,
+  submitted_at BIGINT NULL,
+  question_order TEXT NOT NULL,
+  answers TEXT NOT NULL,
+  score INT NOT NULL DEFAULT 0,
+  correct_count INT NOT NULL DEFAULT 0,
+  time_spent INT NOT NULL DEFAULT 0,
+  rank_num INT NULL,
+  qualified TINYINT(1) NOT NULL DEFAULT 0,
+  team_id VARCHAR(8) NULL,
+  UNIQUE KEY uk_contestants_student_id (student_id)
+);
+
+CREATE TABLE IF NOT EXISTS questions_so_khao (
+  id VARCHAR(50) PRIMARY KEY,
+  question TEXT NOT NULL,
+  options TEXT NOT NULL,
+  answer VARCHAR(8) NOT NULL,
+  topic VARCHAR(100) NOT NULL DEFAULT '',
+  sort_order INT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS questions_main (
+  id TINYINT PRIMARY KEY,
+  data TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS media (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  url VARCHAR(500) NOT NULL,
+  type VARCHAR(20) NOT NULL,
+  created_at BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS game_state (
+  id TINYINT PRIMARY KEY,
+  data TEXT NOT NULL
+);

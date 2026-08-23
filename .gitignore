@@ -1,0 +1,10 @@
+node_modules
+client/node_modules
+server/data/db.json
+server/uploads/*
+!server/uploads/.gitkeep
+.DS_Store
+dist
+client/dist
+.env
+server/data/cuoc_thi.sqlite

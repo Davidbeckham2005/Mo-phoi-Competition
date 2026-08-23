@@ -1,0 +1,133 @@
+{
+  "khoiDong": {
+    "a": [
+      { "id": "kd-a-1", "question": "Thủ đô của Việt Nam là thành phố nào?", "answer": "Hà Nội", "points": 10 },
+      { "id": "kd-a-2", "question": "Năm 1070, Văn Miếu được xây dựng dưới triều vua nào?", "answer": "Lý Thánh Tông", "points": 10 },
+      { "id": "kd-a-3", "question": "Hành tinh nào được gọi là \"hành tinh đỏ\"?", "answer": "Sao Hỏa", "points": 10 },
+      { "id": "kd-a-4", "question": "Tác giả \"Truyện Kiều\" tên thật là gì?", "answer": "Nguyễn Du", "points": 10 },
+      { "id": "kd-a-5", "question": "Công thức tính diện tích hình tròn là gì?", "answer": "πr²", "points": 10 },
+      { "id": "kd-a-6", "question": "Sông Hồng còn có tên gọi nào khác?", "answer": "Sông Cái", "points": 10 }
+    ],
+    "b": [
+      { "id": "kd-b-1", "question": "Chiến thắng Bạch Đằng năm 938 do ai lãnh đạo?", "answer": "Ngô Quyền", "points": 10 },
+      { "id": "kd-b-2", "question": "Khí nào chiếm khoảng 78% thành phần không khí?", "answer": "Nitơ", "points": 10 },
+      { "id": "kd-b-3", "question": "Tác phẩm \"Lão Hạc\" của nhà văn nào?", "answer": "Nam Cao", "points": 10 },
+      { "id": "kd-b-4", "question": "Đỉnh Fansipan thuộc dãy núi nào?", "answer": "Hoàng Liên Sơn", "points": 10 },
+      { "id": "kd-b-5", "question": "1 hecta bằng bao nhiêu mét vuông?", "answer": "10000", "points": 10 },
+      { "id": "kd-b-6", "question": "Máy tính dùng hệ đếm nào làm nền tảng?", "answer": "Nhị phân", "points": 10 }
+    ],
+    "c": [
+      { "id": "kd-c-1", "question": "Ai là vị vua đầu tiên của nhà Nguyễn?", "answer": "Gia Long", "points": 10 },
+      { "id": "kd-c-2", "question": "Quang hợp xảy ra chủ yếu ở bộ phận nào của lá?", "answer": "Lục lạp", "points": 10 },
+      { "id": "kd-c-3", "question": "Bài thơ \"Đất nước\" trong trường ca \"Mặt đường khát vọng\" của tác giả nào?", "answer": "Nguyễn Khoa Điềm", "points": 10 },
+      { "id": "kd-c-4", "question": "Tết Nguyên đán theo âm lịch rơi vào tháng mấy?", "answer": "Tháng Giêng", "points": 10 },
+      { "id": "kd-c-5", "question": "Số Pi xấp xỉ 22 chia cho số nào?", "answer": "7", "points": 10 },
+      { "id": "kd-c-6", "question": "HTTP là viết tắt của cụm từ tiếng Anh nào?", "answer": "HyperText Transfer Protocol", "points": 10 }
+    ],
+    "d": [
+      { "id": "kd-d-1", "question": "Hà Nội được giải phóng vào ngày tháng năm nào (1954)?", "answer": "10/10/1954", "points": 10 },
+      { "id": "kd-d-2", "question": "Kim loại nào dẫn điện tốt nhất?", "answer": "Bạc", "points": 10 },
+      { "id": "kd-d-3", "question": "Nhân vật Chí Phèo xuất hiện trong tác phẩm nào?", "answer": "Chí Phèo", "points": 10 },
+      { "id": "kd-d-4", "question": "Việt Nam có bao nhiêu tỉnh, thành phố trực thuộc trung ương (tính đến 2025, sau sáp nhập)?", "answer": "34", "points": 10 },
+      { "id": "kd-d-5", "question": "Căn bậc hai của 144 bằng bao nhiêu?", "answer": "12", "points": 10 },
+      { "id": "kd-d-6", "question": "Đơn vị đo tần số là gì?", "answer": "Hertz", "points": 10 }
+    ]
+  },
+  "vuotCnv": {
+    "keyword": "RỒNG",
+    "hint": "Biểu tượng thiêng liêng trong văn hóa Việt",
+    "letterCount": 4,
+    "rows": [
+      {
+        "id": 1,
+        "question": "Loài bò sát không chân, thân dài, thường được nhắc trong câu \"rồng rắn lên mây\".",
+        "answer": "RẮN",
+        "points": 10,
+        "letterCount": 3
+      },
+      {
+        "id": 2,
+        "question": "Con sông gắn với chiến thắng của Ngô Quyền chống quân Nam Hán.",
+        "answer": "BẠCH ĐẰNG",
+        "points": 10,
+        "letterCount": 8
+      },
+      {
+        "id": 3,
+        "question": "Kinh thành của nhà Lý, nơi rồng vàng hiện lên theo truyền thuyết.",
+        "answer": "THĂNG LONG",
+        "points": 10,
+        "letterCount": 9
+      },
+      {
+        "id": 4,
+        "question": "Chất liệu quý thường dùng để trang trí rồng trên đồ thờ, ấn tín.",
+        "answer": "VÀNG",
+        "points": 10,
+        "letterCount": 4
+      }
+    ],
+    "centerHint": "Hình ảnh: rồng thời Lý uốn lượn trên mây.",
+    "media": { "type": "image", "url": "" }
+  },
+  "tangToc": [
+    {
+      "id": "tt-1",
+      "question": "Nhìn nhanh: đây là quốc kỳ của quốc gia nào? (đỏ, sao vàng năm cánh ở giữa)",
+      "answer": "Việt Nam",
+      "timeLimit": 10,
+      "mediaType": "text",
+      "mediaUrl": "",
+      "note": "Câu nhìn nhanh"
+    },
+    {
+      "id": "tt-2",
+      "question": "Sắp xếp các sự kiện theo thứ tự thời gian: A. Điện Biên Phủ (1954)  B. Tuyên ngôn Độc lập (1945)  C. Giải phóng miền Nam (1975). Hãy ghi thứ tự đúng (ví dụ: B-A-C).",
+      "answer": "B-A-C",
+      "timeLimit": 20,
+      "mediaType": "text",
+      "mediaUrl": "",
+      "note": "Sắp xếp"
+    },
+    {
+      "id": "tt-3",
+      "question": "Tìm số tiếp theo của dãy: 2, 3, 5, 8, 13, ...?",
+      "answer": "21",
+      "timeLimit": 30,
+      "mediaType": "text",
+      "mediaUrl": "",
+      "note": "IQ"
+    },
+    {
+      "id": "tt-4",
+      "question": "Gợi ý: Lăng nằm tại Hà Nội; vị lãnh tụ đọc Tuyên ngôn Độc lập năm 1945; tên thật Nguyễn Sinh Cung. Đây là ai?",
+      "answer": "Hồ Chí Minh",
+      "timeLimit": 40,
+      "mediaType": "text",
+      "mediaUrl": "",
+      "note": "Dữ kiện"
+    }
+  ],
+  "veDich": {
+    "a": [
+      { "id": "vd-a-10", "points": 10, "question": "Thủ đô của Pháp là thành phố nào?", "answer": "Paris" },
+      { "id": "vd-a-20", "points": 20, "question": "Ai là tác giả bản Tuyên ngôn Độc lập năm 1945 của Việt Nam?", "answer": "Hồ Chí Minh" },
+      { "id": "vd-a-30", "points": 30, "question": "Nêu tên cuộc cải cách giáo dục thi cử nổi tiếng thời Lý, mở khoa thi đầu tiên năm 1075.", "answer": "Khoa thi Minh Kinh bác học" }
+    ],
+    "b": [
+      { "id": "vd-b-10", "points": 10, "question": "Hành tinh lớn nhất hệ Mặt Trời là gì?", "answer": "Sao Mộc" },
+      { "id": "vd-b-20", "points": 20, "question": "Nhà Trần ba lần đánh thắng quân xâm lược nào?", "answer": "Nguyên Mông" },
+      { "id": "vd-b-30", "points": 30, "question": "Công thức hóa học của axit sunfuric là gì?", "answer": "H2SO4" }
+    ],
+    "c": [
+      { "id": "vd-c-10", "points": 10, "question": "Đơn vị đo điện trở là gì?", "answer": "Ohm" },
+      { "id": "vd-c-20", "points": 20, "question": "Tác giả \"Chí Phèo\" còn viết truyện ngắn nào kể về một ông lão và con chó Vàng?", "answer": "Lão Hạc" },
+      { "id": "vd-c-30", "points": 30, "question": "Năm nào Việt Nam gia nhập Liên Hợp Quốc?", "answer": "1977" }
+    ],
+    "d": [
+      { "id": "vd-d-10", "points": 10, "question": "Biển lớn nhất thế giới là gì?", "answer": "Thái Bình Dương" },
+      { "id": "vd-d-20", "points": 20, "question": "Ai lãnh đạo khởi nghĩa Lam Sơn?", "answer": "Lê Lợi" },
+      { "id": "vd-d-30", "points": 30, "question": "Trong tin học, DNS dùng để làm gì (nêu ngắn gọn)?", "answer": "Phân giải tên miền thành địa chỉ IP" }
+    ]
+  }
+}
