@@ -41,20 +41,21 @@ export default function Admin() {
       return;
     }
     load();
-  }, [nav]);
+  }, [nav]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!state) return <div className="page muted">Đang tải quản trị...</div>;
+  if (!state) return <div className="min-h-screen grid place-items-center text-mist">Đang tải quản trị…</div>;
 
   return (
-    <div className="page" style={{ width: "min(1200px, calc(100% - 24px))" }}>
-      <div className="topbar">
+    <div className="mx-auto w-[min(1200px,calc(100%-24px))] py-7 pb-16">
+      <div className="flex justify-between items-end gap-3 mb-6 flex-wrap">
         <div>
-          <Link to="/" className="muted">← Trang chủ</Link>
-          <h2 style={{ marginTop: 6 }}>Quản trị cuộc thi</h2>
+          <Link to="/" className="text-mist hover:text-gold">← Trang chủ</Link>
+          <h2 className="font-display text-2xl font-bold mt-1.5">Quản trị cuộc thi</h2>
         </div>
         <Link className="btn" to="/mc">Bàn MC</Link>
       </div>
-      <div className="tabs">
+
+      <div className="flex flex-wrap gap-2 mb-5">
         {[
           ["ket-qua", "Kết quả sơ khảo"],
           ["doi", "4 đội"],
@@ -62,10 +63,20 @@ export default function Admin() {
           ["media", "Hình ảnh / Video"],
           ["cai-dat", "Cài đặt"],
         ].map(([id, label]) => (
-          <button key={id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>{label}</button>
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              tab === id ? "bg-gold text-[#1a1400] border-gold" : "border-line text-mist hover:border-gold/60"
+            }`}
+          >
+            {label}
+          </button>
         ))}
       </div>
-      {msg && <p className="badge ok" style={{ marginBottom: 12 }}>{msg}</p>}
+
+      {msg && <p className="badge badge-ok inline-block mb-4">{msg}</p>}
       {tab === "ket-qua" && <ResultsTab board={board} reload={load} setMsg={setMsg} />}
       {tab === "doi" && <TeamsTab state={state} board={board} reload={load} setMsg={setMsg} />}
       {tab === "cau-hoi" && <QuestionsTab state={state} reload={load} setMsg={setMsg} />}
@@ -78,11 +89,19 @@ export default function Admin() {
 function ResultsTab({ board, reload, setMsg }) {
   return (
     <div className="panel">
-      <div className="row" style={{ marginBottom: 12 }}>
-        <button className="btn" onClick={async () => { await openPrelim(true); setMsg("Đã mở sơ khảo"); reload(); }}>Mở sơ khảo</button>
-        <button className="btn ghost" onClick={async () => { await openPrelim(false); setMsg("Đã đóng sơ khảo"); reload(); }}>Đóng sơ khảo</button>
-        <button className="btn" onClick={async () => { await selectTop("snake"); setMsg("Đã chọn top 16 và chia 4 đội (kiểu rắn)"); reload(); }}>Chọn top 16 + chia đội</button>
-        <button className="btn ghost" onClick={async () => { await createDemo(); setMsg("Đã tạo dữ liệu demo"); reload(); }}>Tạo thí sinh demo</button>
+      <div className="flex flex-wrap gap-2 mb-4">
+        <button type="button" className="btn" onClick={async () => { await openPrelim(true); setMsg("Đã mở sơ khảo"); reload(); }}>
+          Mở sơ khảo
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={async () => { await openPrelim(false); setMsg("Đã đóng sơ khảo"); reload(); }}>
+          Đóng sơ khảo
+        </button>
+        <button type="button" className="btn" onClick={async () => { await selectTop("snake"); setMsg("Đã chọn top 16 và chia 4 đội (kiểu rắn)"); reload(); }}>
+          Chọn top 16 + chia đội
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={async () => { await createDemo(); setMsg("Đã tạo dữ liệu demo"); reload(); }}>
+          Tạo thí sinh demo
+        </button>
       </div>
       <table className="table">
         <thead>
@@ -99,24 +118,25 @@ function ResultsTab({ board, reload, setMsg }) {
               <td>{c.className}</td>
               <td>{c.score}</td>
               <td>{formatTime(c.timeSpent)}</td>
-              <td>{c.qualified ? <span className="badge ok">Có</span> : <span className="badge no">Không</span>}</td>
+              <td>{c.qualified ? <span className="badge badge-ok">Có</span> : <span className="badge badge-no">Không</span>}</td>
               <td>{c.teamId ? c.teamId.toUpperCase() : "—"}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      {board.length === 0 && <p className="muted">Chưa có bài nộp. Mở sơ khảo hoặc tạo dữ liệu demo.</p>}
+      {board.length === 0 && <p className="text-mist">Chưa có bài nộp. Mở sơ khảo hoặc tạo dữ liệu demo.</p>}
     </div>
   );
 }
 
 function TeamsTab({ state, board, reload, setMsg }) {
   const [names, setNames] = useState(() => Object.fromEntries(state.teams.map((t) => [t.id, t.name])));
+  const [passes, setPasses] = useState(() => Object.fromEntries(state.teams.map((t) => [t.id, t.pass || ""])));
   const top = board.filter((c) => c.qualified || c.rank <= 16).slice(0, 16);
 
-  async function saveNames() {
-    await saveTeams(state.teams.map((t) => ({ id: t.id, name: names[t.id] })));
-    setMsg("Đã lưu tên đội");
+  async function saveAll() {
+    await saveTeams(state.teams.map((t) => ({ id: t.id, name: names[t.id], pass: passes[t.id] })));
+    setMsg("Đã lưu tên và mật khẩu đội");
     reload();
   }
 
@@ -132,15 +152,25 @@ function TeamsTab({ state, board, reload, setMsg }) {
 
   return (
     <div className="panel">
-      <div className="form-grid" style={{ gridTemplateColumns: "1fr 1fr", marginBottom: 16 }}>
+      <div className="grid gap-4 sm:grid-cols-2 mb-5">
         {state.teams.map((t) => (
-          <label key={t.id}>{t.id.toUpperCase()}
-            <input value={names[t.id] || ""} onChange={(e) => setNames({ ...names, [t.id]: e.target.value })} />
-          </label>
+          <div key={t.id} className="rounded-xl border p-4 bg-panel-solid" style={{ borderColor: t.color }}>
+            <b style={{ color: t.color }}>{t.name}</b>
+            <label className="label-grid mt-3">
+              Tên đội
+              <input value={names[t.id] || ""} onChange={(e) => setNames({ ...names, [t.id]: e.target.value })} />
+            </label>
+            <label className="label-grid mt-2">
+              Mật khẩu vào giao diện thí sinh
+              <input autoComplete="off" value={passes[t.id] || ""} onChange={(e) => setPasses({ ...passes, [t.id]: e.target.value })} />
+            </label>
+            <div className="text-mist text-xs mt-2">{(t.members || []).length} thành viên</div>
+          </div>
         ))}
       </div>
-      <button className="btn" onClick={saveNames}>Lưu tên đội</button>
-      <h3 style={{ margin: "18px 0 8px" }}>Gán thí sinh vào đội</h3>
+      <button type="button" className="btn" onClick={saveAll}>Lưu tên &amp; mật khẩu đội</button>
+
+      <h3 className="font-bold mt-7 mb-2">Gán thí sinh vào đội</h3>
       <table className="table">
         <thead>
           <tr><th>#</th><th>Họ tên</th><th>Điểm</th><th>Đội</th></tr>
@@ -180,15 +210,23 @@ function QuestionsTab({ state, reload, setMsg }) {
   return (
     <div>
       <div className="panel">
-        <h3>Sơ khảo ({state.questions.soKhao.length} câu)</h3>
-        <button className="btn" style={{ margin: "10px 0" }} onClick={() => setEdit({ id: "", question: "", options: ["A. ", "B. ", "C. ", "D. "], answer: "A", topic: "" })}>
+        <h3 className="font-bold">Sơ khảo ({state.questions.soKhao.length} câu)</h3>
+        <button
+          type="button"
+          className="btn my-3"
+          onClick={() => setEdit({ id: "", question: "", options: ["A. ", "B. ", "C. ", "D. "], answer: "A", topic: "" })}
+        >
           Thêm câu
         </button>
         {edit && (
-          <form className="form-grid" onSubmit={saveSk}>
-            <label>Câu hỏi<textarea value={edit.question} onChange={(e) => setEdit({ ...edit, question: e.target.value })} rows={3} /></label>
+          <form className="grid gap-3.5" onSubmit={saveSk}>
+            <label className="label-grid">
+              Câu hỏi
+              <textarea value={edit.question} onChange={(e) => setEdit({ ...edit, question: e.target.value })} rows={3} />
+            </label>
             {["A", "B", "C", "D"].map((L, i) => (
-              <label key={L}>Phương án {L}
+              <label key={L} className="label-grid">
+                Phương án {L}
                 <input value={edit.options[i]} onChange={(e) => {
                   const options = [...edit.options];
                   options[i] = e.target.value;
@@ -196,19 +234,23 @@ function QuestionsTab({ state, reload, setMsg }) {
                 }} />
               </label>
             ))}
-            <label>Đáp án đúng
+            <label className="label-grid">
+              Đáp án đúng
               <select value={edit.answer} onChange={(e) => setEdit({ ...edit, answer: e.target.value })}>
                 {["A", "B", "C", "D"].map((L) => <option key={L}>{L}</option>)}
               </select>
             </label>
-            <label>Chủ đề<input value={edit.topic} onChange={(e) => setEdit({ ...edit, topic: e.target.value })} /></label>
-            <div className="row">
-              <button className="btn">Lưu</button>
-              <button type="button" className="btn ghost" onClick={() => setEdit(null)}>Hủy</button>
+            <label className="label-grid">
+              Chủ đề
+              <input value={edit.topic} onChange={(e) => setEdit({ ...edit, topic: e.target.value })} />
+            </label>
+            <div className="flex gap-2">
+              <button className="btn" type="submit">Lưu</button>
+              <button type="button" className="btn btn-ghost" onClick={() => setEdit(null)}>Hủy</button>
             </div>
           </form>
         )}
-        <table className="table" style={{ marginTop: 12 }}>
+        <table className="table mt-4">
           <thead><tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th><th></th></tr></thead>
           <tbody>
             {state.questions.soKhao.map((q, i) => (
@@ -216,24 +258,33 @@ function QuestionsTab({ state, reload, setMsg }) {
                 <td>{i + 1}</td>
                 <td>{q.question}</td>
                 <td>{q.answer}</td>
-                <td className="row">
-                  <button className="btn ghost" onClick={() => setEdit(q)}>Sửa</button>
-                  <button className="btn danger" onClick={async () => { await deleteSoKhaoQuestion(q.id); reload(); }}>Xóa</button>
+                <td>
+                  <div className="flex gap-2">
+                    <button type="button" className="btn btn-ghost" onClick={() => setEdit(q)}>Sửa</button>
+                    <button type="button" className="btn btn-danger" onClick={async () => { await deleteSoKhaoQuestion(q.id); reload(); }}>Xóa</button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="panel" style={{ marginTop: 16 }}>
-        <h3>Câu hỏi vòng chính (JSON)</h3>
-        <p className="muted">Khởi động, Vượt CNV, Tăng tốc, Về đích — chỉnh trực tiếp rồi lưu.</p>
-        <textarea rows={18} value={mainText} onChange={(e) => setMainText(e.target.value)} style={{ marginTop: 10 }} />
-        <button className="btn" style={{ marginTop: 10 }} onClick={async () => {
-          await saveMainQuestions(JSON.parse(mainText));
-          setMsg("Đã lưu câu hỏi vòng chính");
-          reload();
-        }}>Lưu vòng chính</button>
+
+      <div className="panel mt-5">
+        <h3 className="font-bold">Câu hỏi vòng chính (JSON)</h3>
+        <p className="text-mist text-sm">Khởi động, Vượt CNV, Tăng tốc, Về đích — chỉnh trực tiếp rồi lưu.</p>
+        <textarea rows={18} value={mainText} onChange={(e) => setMainText(e.target.value)} className="w-full mt-3 font-mono text-sm" />
+        <button
+          type="button"
+          className="btn mt-3"
+          onClick={async () => {
+            await saveMainQuestions(JSON.parse(mainText));
+            setMsg("Đã lưu câu hỏi vòng chính");
+            reload();
+          }}
+        >
+          Lưu vòng chính
+        </button>
       </div>
     </div>
   );
@@ -250,14 +301,20 @@ function MediaTab({ state, reload, setMsg }) {
 
   return (
     <div className="panel">
-      <p className="muted">Tải ảnh/video gợi ý. MC có thể hiện lên màn hình khán giả.</p>
-      <input type="file" accept="image/*,video/*" onChange={onFile} style={{ margin: "12px 0" }} />
-      <div className="media-grid">
+      <p className="text-mist">Tải ảnh/video gợi ý. MC có thể hiện lên màn hình khán giả.</p>
+      <input type="file" accept="image/*,video/*" onChange={onFile} className="my-3" />
+      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {(state.media || []).map((m) => (
           <div key={m.id}>
-            {m.type === "video" ? <video src={m.url} /> : <img src={m.url} alt={m.name} />}
-            <div className="muted" style={{ fontSize: 12 }}>{m.name}</div>
-            <button className="btn ghost" onClick={() => navigator.clipboard.writeText(m.url)}>Copy URL</button>
+            {m.type === "video" ? (
+              <video src={m.url} className="w-full rounded-lg" />
+            ) : (
+              <img src={m.url} alt={m.name} className="w-full rounded-lg object-cover" />
+            )}
+            <div className="text-mist text-xs mt-1 truncate">{m.name}</div>
+            <button type="button" className="btn btn-ghost mt-1 text-sm py-1.5!" onClick={() => navigator.clipboard.writeText(m.url)}>
+              Copy URL
+            </button>
           </div>
         ))}
       </div>
@@ -268,20 +325,54 @@ function MediaTab({ state, reload, setMsg }) {
 function SettingsTab({ state, reload, setMsg }) {
   const [s, setS] = useState(state.settings);
   return (
-    <div className="panel form-grid" style={{ maxWidth: 560 }}>
-      <label>Tên cuộc thi<input value={s.title} onChange={(e) => setS({ ...s, title: e.target.value })} /></label>
-      <label>Phụ đề<input value={s.subtitle} onChange={(e) => setS({ ...s, subtitle: e.target.value })} /></label>
-      <label>PIN ban tổ chức<input value={s.pin} onChange={(e) => setS({ ...s, pin: e.target.value })} /></label>
-      <label>Thời gian sơ khảo (giây)<input type="number" value={s.prelimDuration} onChange={(e) => setS({ ...s, prelimDuration: Number(e.target.value) })} /></label>
-      <label>Số câu sơ khảo<input type="number" value={s.prelimQuestionCount} onChange={(e) => setS({ ...s, prelimQuestionCount: Number(e.target.value) })} /></label>
-      <label>Số thí sinh vào vòng trong<input type="number" value={s.topN} onChange={(e) => setS({ ...s, topN: Number(e.target.value) })} /></label>
-      <label className="row">
-        <input type="checkbox" checked={!!s.showLiveRanking} onChange={(e) => setS({ ...s, showLiveRanking: e.target.checked })} />
+    <div className="panel grid gap-3.5 max-w-[560px]">
+      <label className="label-grid">
+        Tên cuộc thi
+        <input value={s.title} onChange={(e) => setS({ ...s, title: e.target.value })} />
+      </label>
+      <label className="label-grid">
+        Phụ đề
+        <input value={s.subtitle} onChange={(e) => setS({ ...s, subtitle: e.target.value })} />
+      </label>
+      <label className="label-grid">
+        PIN ban tổ chức
+        <input value={s.pin} onChange={(e) => setS({ ...s, pin: e.target.value })} />
+      </label>
+      <label className="label-grid">
+        Thời gian sơ khảo (giây)
+        <input type="number" value={s.prelimDuration} onChange={(e) => setS({ ...s, prelimDuration: Number(e.target.value) })} />
+      </label>
+      <label className="label-grid">
+        Số câu sơ khảo
+        <input type="number" value={s.prelimQuestionCount} onChange={(e) => setS({ ...s, prelimQuestionCount: Number(e.target.value) })} />
+      </label>
+      <label className="label-grid">
+        Số thí sinh vào vòng trong
+        <input type="number" value={s.topN} onChange={(e) => setS({ ...s, topN: Number(e.target.value) })} />
+      </label>
+      <label className="flex items-center gap-2 text-sm text-mist">
+        <input
+          type="checkbox"
+          checked={!!s.showLiveRanking}
+          onChange={(e) => setS({ ...s, showLiveRanking: e.target.checked })}
+          className="w-auto!"
+        />
         Hiện bảng xếp hạng live
       </label>
-      <div className="row">
-        <button className="btn" onClick={async () => { await saveSettings(s); setMsg("Đã lưu cài đặt"); reload(); }}>Lưu</button>
-        <button className="btn danger" onClick={async () => { if (confirm("Xóa toàn bộ thí sinh và điểm?")) { await resetContest(); reload(); } }}>Reset cuộc thi</button>
+      <div className="flex gap-2">
+        <button type="button" className="btn" onClick={async () => { await saveSettings(s); setMsg("Đã lưu cài đặt"); reload(); }}>Lưu</button>
+        <button
+          type="button"
+          className="btn btn-danger"
+          onClick={async () => {
+            if (confirm("Xóa toàn bộ thí sinh và điểm?")) {
+              await resetContest();
+              reload();
+            }
+          }}
+        >
+          Reset cuộc thi
+        </button>
       </div>
     </div>
   );

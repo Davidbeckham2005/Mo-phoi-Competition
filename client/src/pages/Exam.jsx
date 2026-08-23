@@ -89,54 +89,74 @@ export default function Exam() {
 
   if (error && !data) {
     return (
-      <div className="page">
+      <div className="mx-auto w-[min(1100px,calc(100%-32px))] py-7 pb-16">
         <div className="panel">
-          <div className="error">{error}</div>
-          <p className="muted" style={{ marginTop: 10 }}>
-            Vòng sơ khảo có thể chưa được ban tổ chức mở. <Link to="/">Về trang chủ</Link>
+          <div className="badge badge-no">{error}</div>
+          <p className="text-mist mt-3">
+            Vòng sơ khảo có thể chưa được ban tổ chức mở.{" "}
+            <Link to="/" className="text-gold underline">Về trang chủ</Link>
           </p>
         </div>
       </div>
     );
   }
 
-  if (!data || !q) return <div className="page muted">Đang tải đề thi...</div>;
+  if (!data || !q) {
+    return <div className="mx-auto w-[min(1100px,calc(100%-32px))] py-7 text-mist">Đang tải đề thi…</div>;
+  }
 
-  const timerClass = remaining <= 60 ? "danger" : remaining <= 300 ? "warn" : "";
+  const timerClass = remaining <= 60 ? "timer-danger" : "";
 
   return (
-    <div className="exam">
-      <div className="exam-head">
+    <div className="min-h-screen flex flex-col px-4 py-5 mx-auto max-w-[900px]">
+      <div className="flex justify-between items-center gap-4 flex-wrap">
         <div>
           <div className="kicker">Sơ khảo • {data.contestant.name}</div>
-          <div className="muted">Câu {idx + 1}/{data.questions.length} • Đã chọn {answered.size}</div>
+          <div className="text-mist text-sm mt-1">
+            Câu {idx + 1}/{data.questions.length} • Đã chọn {answered.size}
+          </div>
         </div>
         <div className={`timer-xl ${timerClass}`}>{formatTime(remaining)}</div>
-        <button className="btn danger" disabled={submitting} onClick={() => window.confirm("Nộp bài ngay?") && finish()}>
+        <button
+          type="button"
+          className="btn btn-danger"
+          disabled={submitting}
+          onClick={() => window.confirm("Nộp bài ngay?") && finish()}
+        >
           Nộp bài
         </button>
       </div>
-      <div className="nav-q">
+
+      <div className="flex flex-wrap gap-1.5 my-4">
         {data.questions.map((item, i) => (
           <button
             key={item.id}
-            className={`${i === idx ? "on" : ""} ${item.chosen ? "done" : ""}`}
+            type="button"
             onClick={() => setIdx(i)}
+            className={`w-9 h-9 rounded-lg text-sm font-semibold border transition ${
+              i === idx
+                ? "bg-gold text-[#1a1400] border-gold"
+                : item.chosen
+                  ? "border-gold/50 text-gold bg-transparent"
+                  : "border-line text-mist bg-transparent"
+            }`}
           >
             {i + 1}
           </button>
         ))}
       </div>
-      <div className="q-wrap">
-        <div className="muted">{q.topic}</div>
-        <div className="q-text">{q.question}</div>
-        <div className="options">
+
+      <div className="panel flex-1">
+        <div className="text-mist text-sm">{q.topic}</div>
+        <div className="font-display text-[clamp(20px,2.6vw,30px)] leading-snug mt-2">{q.question}</div>
+        <div className="grid gap-2.5 mt-5">
           {q.options.map((opt) => {
             const letter = opt.trim().charAt(0);
             return (
               <button
                 key={opt}
-                className={`opt ${q.chosen === letter ? "picked" : ""}`}
+                type="button"
+                className={`opt ${q.chosen === letter ? "opt-picked" : ""}`}
                 onClick={() => pick(letter)}
               >
                 {opt}
@@ -144,13 +164,20 @@ export default function Exam() {
             );
           })}
         </div>
-        <div className="row" style={{ marginTop: 20 }}>
-          <button className="btn ghost" disabled={idx === 0} onClick={() => setIdx(idx - 1)}>Trước</button>
-          <button className="btn" disabled={idx === data.questions.length - 1} onClick={() => setIdx(idx + 1)}>
+        <div className="flex justify-between gap-3 mt-6">
+          <button type="button" className="btn btn-ghost" disabled={idx === 0} onClick={() => setIdx(idx - 1)}>
+            Trước
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={idx === data.questions.length - 1}
+            onClick={() => setIdx(idx + 1)}
+          >
             Câu tiếp
           </button>
         </div>
-        {error && <div className="error" style={{ marginTop: 12 }}>{error}</div>}
+        {error && <div className="badge badge-no inline-block mt-4">{error}</div>}
       </div>
     </div>
   );

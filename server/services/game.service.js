@@ -132,6 +132,13 @@
     emit();
   }
 
+  // Xác thực mật khẩu đội (dùng cho API login và các sự kiện socket của đội)
+  export function checkTeamPass(teamId, pass) {
+    const t = team(teamId);
+    if (!t) return false;
+    return String(pass ?? "") === String(t.pass ?? "");
+  }
+
   export function setScore(teamId, score) {
     const t = team(teamId);
     if (!t) return;

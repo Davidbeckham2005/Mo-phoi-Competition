@@ -16,34 +16,36 @@ export default function ExamResult() {
 
   if (!me) {
     return (
-      <div className="page">
-        <Link to="/dang-ky">Hãy đăng ký để xem kết quả.</Link>
+      <div className="mx-auto w-[min(1100px,calc(100%-32px))] py-7 pb-16">
+        <Link to="/dang-ky" className="text-gold underline">Hãy đăng ký để xem kết quả.</Link>
       </div>
     );
   }
 
   return (
-    <div className="page">
-      <div className="topbar">
-        <Link to="/" className="muted">← Trang chủ</Link>
+    <div className="mx-auto w-[min(1100px,calc(100%-32px))] py-7 pb-16">
+      <div className="flex justify-between items-center gap-3 mb-6">
+        <Link to="/" className="text-mist hover:text-gold">← Trang chủ</Link>
       </div>
-      <div className="panel" style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
+      <div className="panel max-w-[640px] mx-auto text-center">
         <div className="kicker">Kết quả sơ khảo</div>
-        {error && <div className="error">{error}</div>}
+        {error && <div className="badge badge-no mt-3">{error}</div>}
         {result && (
           <>
-            <h2 className="display" style={{ fontSize: 36, margin: "10px 0" }}>{result.name}</h2>
-            <div className="timer-xl">{result.score}/{result.total}</div>
-            <p className="muted">Thời gian làm bài: {formatTime(result.timeSpent)}</p>
-            <p style={{ margin: "16px 0" }}>
+            <h2 className="font-display text-4xl font-bold my-3">{result.name}</h2>
+            <div className="timer-xl">
+              {result.score}/{result.total}
+            </div>
+            <p className="text-mist mt-2">Thời gian làm bài: {formatTime(result.timeSpent)}</p>
+            <p className="my-5">
               Xếp hạng: <b>#{result.rank || "—"}</b>
             </p>
             {result.qualified ? (
-              <div className="badge ok">XUẤT SẮC — vào top {result.topN}</div>
+              <div className="badge badge-ok">XUẤT SẮC — vào top {result.topN}</div>
             ) : (
-              <div className="badge no">Chưa vào top {result.topN}</div>
+              <div className="badge badge-no">Chưa vào top {result.topN}</div>
             )}
-            <p className="muted" style={{ marginTop: 18 }}>
+            <p className="text-mist mt-5">
               Ban tổ chức sẽ công bố 16 thí sinh và chia 4 đội trên màn hình khán giả.
             </p>
           </>

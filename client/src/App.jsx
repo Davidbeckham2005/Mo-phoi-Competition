@@ -6,8 +6,7 @@ import ExamResult from "./pages/ExamResult.jsx";
 import Audience from "./pages/Audience.jsx";
 import Control from "./pages/Control.jsx";
 import Admin from "./pages/Admin.jsx";
-import Buzzer from "./pages/Buzzer.jsx";
-import TeamAnswer from "./pages/TeamAnswer.jsx";
+import Team from "./pages/Team.jsx";
 import StaffLogin from "./pages/StaffLogin.jsx";
 
 export default function App() {
@@ -21,8 +20,9 @@ export default function App() {
         <Route path="/man-hinh" element={<Audience />} />
         <Route path="/mc" element={<Control />} />
         <Route path="/admin" element={<Admin />} />
-        <Route path="/chuong" element={<Buzzer />} />
-        <Route path="/vong-1" element={<TeamAnswer />} />
+        <Route path="/thi-sinh" element={<Team />} />
+        <Route path="/vong-1" element={<Navigate to="/thi-sinh" replace />} />
+        <Route path="/chuong" element={<Navigate to="/thi-sinh" replace />} />
         <Route path="/dang-nhap" element={<StaffLogin />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

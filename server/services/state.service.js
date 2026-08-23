@@ -48,6 +48,8 @@ export function adminState() {
   return {
     ...publicState(),
     settings: d.settings,
+    // BTC xem được mật khẩu đội để phát cho thí sinh
+    teams: d.teams.map((t) => ({ ...t })),
     contestants: d.contestants.map(stripAnswersForList),
     questions: d.questions,
   };

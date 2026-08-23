@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { DatabaseSync } from "node:sqlite";
 import { config } from "./env.js";
+import { TEAM_DEFS } from "./constants.js";
 //vụ kết nối, khởi tạo và chuẩn hóa cách truy vấn Cơ sở dữ
 
 
@@ -83,6 +84,7 @@ export async function connectDb() {
       for (const sql of splitStatements(schema)) {
         await mysqlPool.query(sql);
       }
+      await migrate();
       console.log(`Đã kết nối MySQL: ${user}@${host}:${port}/${database}`);
       return;
     } catch (err) {
@@ -98,7 +100,32 @@ export async function connectDb() {
   for (const sql of splitStatements(schema)) {
     sqliteDb.exec(sql);
   }
+  await migrate();
   console.log(`Đã kết nối SQLite: ${SQLITE_PATH}`);
+}
+
+// Nâng cấp CSDL cũ lên cấu trúc mới (idempotent)
+async function migrate() {
+  const conn = await getConnection();
+  try {
+    // v1: mật khẩu đăng nhập của từng đội
+    try {
+      await conn.query("ALTER TABLE teams ADD COLUMN pass TEXT NOT NULL DEFAULT ''");
+      console.log("Đã nâng cấp CSDL: thêm cột teams.pass");
+    } catch {
+      /* cột đã tồn tại */
+    }
+    // Đội nào chưa có mật khẩu thì gán mặc định theo TEAM_DEFS
+    for (const def of TEAM_DEFS) {
+      if (!def.pass) continue;
+      await conn.query(
+        "UPDATE teams SET pass = ? WHERE id = ? AND (pass IS NULL OR pass = '')",
+        [def.pass, def.id]
+      );
+    }
+  } finally {
+    conn.release();
+  }
 }
 
 export async function getConnection() {

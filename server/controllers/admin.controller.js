@@ -70,6 +70,7 @@
       if (!t) return;
       if (patch.name) t.name = patch.name;
       if (patch.color) t.color = patch.color;
+      if (patch.pass !== undefined) t.pass = String(patch.pass);
     });
     saveDb();
     game.emit();

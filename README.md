@@ -38,17 +38,23 @@ Mở **Quản trị** (PIN `2026`):
 
 ### 3. Ngày thi chính (4 đội)
 
-Mở 3 cửa sổ / 3 máy:
+Hệ thống có 3 giao diện chính; trang thí sinh tự chuyển nội dung theo từng vòng thi (do MC điều khiển).
 
-| Vai trò | Đường dẫn |
-|---|---|
-| Màn hình khán giả / LED | `/man-hinh` |
-| Bàn điều khiển MC | `/mc` |
-| Chuông từng đội | `/chuong` |
-| Thí sinh ghi đáp án (vòng 1) | `/vong-1` |
+| Vai trò | Đường dẫn | Đăng nhập |
+|---|---|---|
+| Thí sinh | `/thi-sinh` | Mật khẩu đội (mặc định: A=dragon, B=phoenix, C=tiger, D=turtle) |
+| Màn hình khán giả / LED | `/man-hinh` | Không cần |
+| Bàn điều khiển MC + Quản trị | `/mc`, `/admin` | PIN ban tổ chức |
+
+Giao diện thí sinh theo vòng:
+- **Khởi động:** ghi đáp án khi đến lượt đội mình.
+- **Vượt CNV:** nút chuông giành quyền + bảng từ khóa ô tròn realtime.
+- **Tăng tốc:** chuông + nhập đáp án nhanh.
+- **Về đích / chờ:** xem trạng thái và bảng điểm.
+
+Mật khẩu đội được BTC đổi tại **Quản trị → 4 đội**.
 
 MC điều khiển:
-
 - Khởi động → Vượt chướng ngại vật → Tăng tốc → Về đích
 - Hiện câu hỏi, đồng hồ, đúng/sai (tính điểm tự động)
 - Chuông giành quyền trả lời
@@ -58,9 +64,9 @@ MC điều khiển:
 
 ## Thể lệ điểm (vòng chính)
 
-- **Khởi động:** mỗi câu đúng 10 điểm, mỗi đội 60 giây / 6 câu. Thí sinh trong đội ghi đáp án tại `/vong-1`, MC chấm trên bàn điều khiển.
+- **Khởi động:** mỗi câu đúng 10 điểm, mỗi đội 60 giây / 6 câu. Thí sinh ghi đáp án ngay trên `/thi-sinh`, MC chấm trên bàn điều khiển.
 - **Vượt CNV:** từ khóa bị che bởi 5 mảnh ghép (4 góc + 1 trung tâm), gợi ý số chữ cái (không tính dấu cách). Màn hình chính hiển thị 4 hàng ngang dưới dạng ô tròn từng ký tự (kiểu Olympia): hàng mở hiện chữ, hàng khóa hiện ✕. Đội chọn hàng ngang, đúng +10 và mở mảnh tương ứng; sai thì đội khác giành quyền — đúng +10, sai −20 và mảnh bị khóa vĩnh viễn. Ô trung tâm chỉ mở khi cả 4 góc đã xử lý xong; đoán từ khóa 60/50/40/30/20 tùy lúc đoán.
-- **Tăng tốc:** đúng và nhanh nhất 40-30-20-10. Đội nhập đáp án trên trang chuông.
+- **Tăng tốc:** đúng và nhanh nhất 40-30-20-10. Đội nhập đáp án tại `/thi-sinh`.
 - **Về đích:** gói 10/20/30; ngôi sao nhân đôi (sai thì trừ gấp đôi).
 
 ## Dữ liệu

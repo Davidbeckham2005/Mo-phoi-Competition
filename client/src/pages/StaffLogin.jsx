@@ -28,17 +28,23 @@ export default function StaffLogin() {
   }, [nav, next]);
 
   return (
-    <div className="page">
-      <div className="panel" style={{ maxWidth: 420, margin: "40px auto" }}>
+    <div className="mx-auto w-[min(1100px,calc(100%-32px))] py-7 pb-16">
+      <div className="panel max-w-[420px] mx-auto mt-10">
         <div className="kicker">Ban tổ chức</div>
-        <h2>Nhập mã PIN</h2>
-        <form className="form-grid" onSubmit={submit} style={{ marginTop: 16 }}>
-          <label>PIN
-            <input type="password" value={pin} onChange={(e) => setPinValue(e.target.value)} />
+        <h2 className="text-xl font-bold mt-2">Nhập mã PIN</h2>
+        <form className="grid gap-3.5 mt-5" onSubmit={submit}>
+          <label className="label-grid">
+            PIN
+            <input
+              type="password"
+              autoComplete="off"
+              value={pin}
+              onChange={(e) => setPinValue(e.target.value)}
+            />
           </label>
-          {error && <div className="error">{error}</div>}
-          <button className="btn">Đăng nhập</button>
-          <p className="muted">Mặc định: 2026 (đổi được trong trang quản trị)</p>
+          {error && <div className="badge badge-no">{error}</div>}
+          <button className="btn" type="submit">Đăng nhập</button>
+          <p className="text-mist text-sm">Mặc định: 2026 (đổi được trong trang quản trị)</p>
         </form>
       </div>
     </div>

@@ -1,8 +1,8 @@
 export const TEAM_DEFS = [
-  { id: "a", name: "Đội A", color: "#ff4d6d", accent: "#ff8fa3" },
-  { id: "b", name: "Đội B", color: "#4cc9f0", accent: "#90e0ef" },
-  { id: "c", name: "Đội C", color: "#80ed99", accent: "#b7efc5" },
-  { id: "d", name: "Đội D", color: "#ffd60a", accent: "#ffe566" },
+  { id: "a", name: "Đội A", color: "#ff4d6d", accent: "#ff8fa3", pass: "dragon" },
+  { id: "b", name: "Đội B", color: "#4cc9f0", accent: "#90e0ef", pass: "phoenix" },
+  { id: "c", name: "Đội C", color: "#80ed99", accent: "#b7efc5", pass: "tiger" },
+  { id: "d", name: "Đội D", color: "#ffd60a", accent: "#ffe566", pass: "turtle" },
 ];
 
 export const ROUNDS = [

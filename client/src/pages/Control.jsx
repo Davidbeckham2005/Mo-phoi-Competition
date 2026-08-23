@@ -30,13 +30,13 @@ export default function Control() {
     return on("game:state", () => {
       refreshQ();
     });
-  }, [nav]);
+  }, [nav]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function act(action, body) {
     sendControl(action, body).catch((e) => alert(e.message));
   }
 
-  if (!state) return <div className="page muted">Đang tải bàn điều khiển...</div>;
+  if (!state) return <div className="min-h-screen grid place-items-center text-mist">Đang tải bàn điều khiển…</div>;
 
   const g = state.game || {};
   const q = current?.question;
@@ -86,27 +86,43 @@ export default function Control() {
       : "không trừ";
 
   return (
-    <div className="control">
-      <aside className="side">
+    <div className="grid gap-4 px-4 py-5 mx-auto max-w-[1400px] lg:grid-cols-[280px_1fr_300px] items-start">
+      {/* CỘT TRÁI — Vòng thi / đội */}
+      <aside className="panel">
         <div className="kicker">MC / Ban tổ chức</div>
-        <h3 style={{ margin: "8px 0 14px" }}>{state.settings?.title}</h3>
-        <div className="block-title">VÒNG THI</div>
-        <div className="form-grid">
-          <button className={`btn ghost ${g.round === "khoi_dong" ? "on-round" : ""}`} onClick={() => act("round.start", { round: "khoi_dong" })}>Khởi động</button>
-          <button className={`btn ghost ${g.round === "vuot_cnv" ? "on-round" : ""}`} onClick={() => act("round.start", { round: "vuot_cnv" })}>Vượt CNV</button>
-          <button className={`btn ghost ${g.round === "tang_toc" ? "on-round" : ""}`} onClick={() => act("round.start", { round: "tang_toc" })}>Tăng tốc</button>
-          <button className={`btn ghost ${g.round === "ve_dich" ? "on-round" : ""}`} onClick={() => act("round.start", { round: "ve_dich" })}>Về đích</button>
-          <button className="btn" onClick={() => act("scores.show")}>Hiện bảng điểm</button>
-          <button className="btn ok" onClick={() => act("contest.finish")}>Kết quả cuối</button>
+        <h3 className="font-display font-bold mt-2 mb-4">{state.settings?.title}</h3>
+        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Vòng thi</div>
+        <div className="grid gap-2">
+          {[
+            ["khoi_dong", "Khởi động"],
+            ["vuot_cnv", "Vượt CNV"],
+            ["tang_toc", "Tăng tốc"],
+            ["ve_dich", "Về đích"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={`btn btn-ghost ${g.round === id ? "!border-gold text-gold" : ""}`}
+              onClick={() => act("round.start", { round: id })}
+            >
+              {label}
+            </button>
+          ))}
+          <button type="button" className="btn" onClick={() => act("scores.show")}>Hiện bảng điểm</button>
+          <button type="button" className="btn btn-ok" onClick={() => act("contest.finish")}>Kết quả cuối</button>
         </div>
-        <hr style={{ margin: "16px 0", borderColor: "var(--line)" }} />
-        <div className="block-title">ĐỘI ĐANG THI</div>
-        <div className="row">
+        <hr className="my-4 border-line" />
+        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Đội đang thi</div>
+        <div className="grid grid-cols-2 gap-2">
           {state.teams.map((t) => (
             <button
               key={t.id}
-              className={`btn ghost ${g.currentTeam === t.id ? "team-active" : ""}`}
-              style={{ borderColor: t.color, color: g.currentTeam === t.id ? t.color : undefined }}
+              type="button"
+              style={{
+                borderColor: g.currentTeam === t.id ? undefined : t.color,
+                color: g.currentTeam === t.id ? t.color : undefined,
+              }}
+              className={`btn btn-ghost ${g.currentTeam === t.id ? "!border-gold" : ""}`}
               onClick={() => act("team.set", { teamId: t.id })}
             >
               {t.name}
@@ -115,91 +131,119 @@ export default function Control() {
         </div>
         {g.round === "ve_dich" && (
           <>
-            <div className="block-title" style={{ marginTop: 16 }}>GÓI VỀ ĐÍCH</div>
-            <div className="row">
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mt-5 mb-2">Gói Về đích</div>
+            <div className="flex flex-wrap gap-2">
               {[10, 20, 30].map((pt) => (
-                <button key={pt} className="btn ghost" onClick={() => act("vedich.package", { points: pt, star: g.veDich?.star })}>
+                <button
+                  key={pt}
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => act("vedich.package", { points: pt, star: g.veDich?.star })}
+                >
                   {pt}
                 </button>
               ))}
-              <button className="btn" onClick={() => act("vedich.package", { points: g.veDich?.packagePoints || 20, star: !g.veDich?.star })}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => act("vedich.package", { points: g.veDich?.packagePoints || 20, star: !g.veDich?.star })}
+              >
                 Ngôi sao {g.veDich?.star ? "ON" : "OFF"}
               </button>
             </div>
           </>
         )}
-        <p style={{ marginTop: 18 }}><Link to="/admin">Mở trang quản trị</Link></p>
+        <p className="mt-5">
+          <Link to="/admin" className="text-gold underline">Mở trang quản trị</Link>
+        </p>
       </aside>
 
-      <main className="main-col">
+      {/* CỘT GIỮA */}
+      <main className="flex flex-col gap-3.5 min-w-0">
         {/* 1 · TRẠNG THÁI */}
-        <div className="status-bar">
+        <div className="panel flex flex-wrap items-center gap-3 py-3">
           <span className="round-badge">{g.round || "setup"}</span>
-          <span className={`state-badge ${status.cls}`}>{status.text}</span>
-          {progress && <span className="muted">{progress}</span>}
+          <span className={`badge ${status.cls === "ok" ? "badge-ok" : status.cls === "warn" ? "badge-warn" : ""}`}>
+            {status.text}
+          </span>
+          {progress && <span className="text-mist text-sm">{progress}</span>}
           {answering && (
-            <span className="state-badge ans" style={{ "--c": answering.color }}>
+            <span
+              className="badge"
+              style={{ borderColor: answering.color, color: answering.color }}
+            >
               Trả lời: {winner ? `${winner.name} (chuông)` : cur?.name}
             </span>
           )}
-          <span className={`timer-xl ${g.timer?.remaining <= 5 && g.timer?.running ? "danger" : ""}`}>
+          <span className={`timer-xl ml-auto text-3xl ${g.timer?.remaining <= 5 && g.timer?.running ? "timer-danger" : ""}`}>
             {formatTime(g.timer?.remaining || 0)}
           </span>
         </div>
 
         {/* 2 · CÂU HỎI & ĐÁP ÁN */}
-        <div className="panel" style={{ marginTop: 14 }}>
-          <div className="block-title">CÂU HỎI &amp; ĐÁP ÁN</div>
-          {!q && <div className="muted">Chưa chọn câu hỏi — chọn hàng ngang (Vượt CNV) hoặc bấm Câu sau.</div>}
+        <div className="panel">
+          <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Câu hỏi &amp; đáp án</div>
+          {!q && (
+            <div className="text-mist">Chưa chọn câu hỏi — chọn hàng ngang (Vượt CNV) hoặc bấm Câu sau.</div>
+          )}
           {q && (
             <>
-              <div className="ctrl-q">{q.question}</div>
-              <div className={`answer-box ${revealed ? "" : "answer-hidden"}`}>
+              <div className="font-display text-xl leading-snug">{q.question}</div>
+              <div
+                className={`mt-2 rounded-lg border border-line bg-night/60 px-3 py-2 ${
+                  revealed ? "text-ok font-semibold" : "tracking-[0.3em] text-mist"
+                }`}
+              >
                 Đáp án: {revealed ? q.answer : "••••••"} • {pts} điểm
-                {!!q.letterCount && <span className="muted"> • {q.letterCount} chữ cái</span>}
+                {!!q.letterCount && <span className="text-mist tracking-normal"> • {q.letterCount} chữ cái</span>}
               </div>
             </>
           )}
-          <div className="row" style={{ marginTop: 12 }}>
-            <button className="btn" disabled={showing && !revealed} onClick={() => act("question.show")}>
+          <div className="flex flex-wrap gap-2 mt-4">
+            <button type="button" className="btn" disabled={showing && !revealed} onClick={() => act("question.show")}>
               Hiện câu hỏi
             </button>
-            <button className="btn ghost" disabled={!showing && !revealed} onClick={() => act("question.hide")}>
+            <button type="button" className="btn btn-ghost" disabled={!showing && !revealed} onClick={() => act("question.hide")}>
               Ẩn câu hỏi
             </button>
-            <button className="btn ok" disabled={!showing || revealed} onClick={() => act("question.reveal")}>
+            <button type="button" className="btn btn-ok" disabled={!showing || revealed} onClick={() => act("question.reveal")}>
               Lật đáp án
             </button>
-            <button className="btn ghost" disabled={!revealed} onClick={() => act("question.hideAnswer")}>
+            <button type="button" className="btn btn-ghost" disabled={!revealed} onClick={() => act("question.hideAnswer")}>
               Che đáp án
             </button>
             {g.round !== "vuot_cnv" && (
               <>
-                <button className="btn ghost" onClick={() => act("question.prev")}>← Câu trước</button>
-                <button className="btn ghost" onClick={() => act("question.next")}>Câu sau →</button>
+                <button type="button" className="btn btn-ghost" onClick={() => act("question.prev")}>← Câu trước</button>
+                <button type="button" className="btn btn-ghost" onClick={() => act("question.next")}>Câu sau →</button>
               </>
             )}
           </div>
-          <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+          <div className="text-mist text-xs mt-2.5">
             Trình tự: Chọn câu → Hiện câu hỏi → Lật đáp án → Chấm điểm. “Ẩn câu hỏi” đưa màn hình về bảng.
           </div>
         </div>
 
         {/* 3 · CHẤM ĐIỂM */}
-        <div className="panel" style={{ marginTop: 14 }}>
-          <div className="block-title">CHẤM ĐIỂM</div>
-          <div className="row">
-            <button className="btn ok mark-btn" disabled={!q} onClick={() => act("answer.mark", { correct: true })}>
+        <div className="panel">
+          <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Chấm điểm</div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn btn-ok flex-1 min-w-[180px]" disabled={!q} onClick={() => act("answer.mark", { correct: true })}>
               ĐÚNG +{pts}{cnvRowPhase ? " • mở mảnh" : ""}
             </button>
-            <button className="btn danger mark-btn" disabled={!q} onClick={() => act("answer.mark", { correct: false })}>
+            <button type="button" className="btn btn-danger flex-1 min-w-[180px]" disabled={!q} onClick={() => act("answer.mark", { correct: false })}>
               SAI {saiText !== "không trừ" ? `• ${saiText}` : ""}
             </button>
           </div>
-          <div className="row" style={{ marginTop: 8 }}>
-            <span className="muted" style={{ fontSize: 12 }}>Cộng nhanh cho đội:</span>
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <span className="text-mist text-xs">Cộng nhanh cho đội:</span>
             {state.teams.map((t) => (
-              <button key={t.id} className="btn ghost" onClick={() => act("answer.mark", { correct: true, teamId: t.id })}>
+              <button
+                key={t.id}
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => act("answer.mark", { correct: true, teamId: t.id })}
+              >
                 {t.name} +{pts}
               </button>
             ))}
@@ -208,13 +252,23 @@ export default function Control() {
 
         {/* 4 · THEO VÒNG */}
         {g.round === "vuot_cnv" && (
-          <div className="panel" style={{ marginTop: 14 }}>
-            <div className="block-title">BÀNG VƯỢT CNV — CHỌN HÀNG NGANG</div>
-            <div className="cnv-grid">
+          <div className="panel">
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Bàng Vượt CNV — chọn hàng ngang</div>
+            <div className="inline-grid grid-cols-3 grid-rows-3 gap-2.5">
               {[0, 1, 2, 3].map((r) => (
                 <button
                   key={r}
-                  className={`cnv-cell ${solved[r] ? "on" : ""} ${locked[r] ? "locked" : ""} ${p.currentRow === r && !solved[r] && !locked[r] ? "sel" : ""}`}
+                  type="button"
+                  className={`rounded-xl border-2 px-3 py-4 font-display font-bold transition ${
+                    solved[r]
+                      ? "bg-gold text-[#1a1400] border-gold"
+                      : locked[r]
+                        ? "border-danger/60 text-danger/80 bg-danger/5 cursor-not-allowed opacity-70"
+                        : p.currentRow === r
+                          ? "border-gold text-gold bg-transparent shadow-[0_0_0_2px_rgba(255,214,10,0.25)]"
+                          : "border-line text-ink bg-transparent hover:border-gold/60"
+                  }`}
+                  style={{ gridColumn: r === 0 || r === 2 ? 1 : 3, gridRow: r < 2 ? 1 : 3 }}
                   onClick={() => act("puzzle.select", { row: r })}
                   disabled={solved[r] || locked[r]}
                 >
@@ -222,7 +276,11 @@ export default function Control() {
                 </button>
               ))}
               <button
-                className={`cnv-cell center ${p.centerRevealed ? "on" : ""}`}
+                type="button"
+                className={`rounded-xl border-2 px-3 py-4 font-display font-bold ${
+                  p.centerRevealed ? "bg-gold text-[#1a1400] border-gold" : cornersDone ? "border-gold/70 text-gold hover:bg-gold/10" : "border-line text-mist cursor-not-allowed"
+                }`}
+                style={{ gridColumn: 2, gridRow: 2 }}
                 onClick={() => act("puzzle.center")}
                 disabled={!cornersDone}
                 title={cornersDone ? "Mở ô trung tâm" : "Chỉ mở khi 4 góc đã xử lý hết"}
@@ -230,7 +288,7 @@ export default function Control() {
                 Trung tâm
               </button>
             </div>
-            <div className="muted" style={{ marginTop: 8 }}>
+            <div className="text-mist text-sm mt-3">
               {p.keywordSolved
                 ? "Đã đoán trúng từ khóa — kết thúc vòng."
                 : p.awaitingSteal
@@ -239,43 +297,57 @@ export default function Control() {
                     ? "Đủ 4 góc — có thể mở trung tâm hoặc nhận đoán từ khóa của các đội."
                     : "Đội đang thi chọn một hàng ngang rồi bấm Hiện câu hỏi."}
             </div>
-            <div className="row" style={{ marginTop: 10 }}>
-              <button className="btn ghost" onClick={() => act("puzzle.show")}>Hiện bảng</button>
-              <button className="btn ghost" onClick={() => act("puzzle.all")}>Mở hết (hạ màn)</button>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button type="button" className="btn btn-ghost" onClick={() => act("puzzle.show")}>Hiện bảng</button>
+              <button type="button" className="btn btn-ghost" onClick={() => act("puzzle.all")}>Mở hết (hạ màn)</button>
             </div>
-            <div className="block-title" style={{ marginTop: 12 }}>ĐOÁN TỪ KHÓA</div>
-            <div className="row">
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mt-5 mb-2">Đoán từ khóa</div>
+            <div className="flex flex-wrap gap-2">
               {state.teams.map((t) => (
-                <button key={t.id} className="btn ok" onClick={() => act("keyword.solve", { teamId: t.id, correct: true })}>
+                <button
+                  key={t.id}
+                  type="button"
+                  className="btn btn-ok"
+                  onClick={() => act("keyword.solve", { teamId: t.id, correct: true })}
+                >
                   Đúng: {t.name} (+{current?.keywordPoints ?? "?"})
                 </button>
               ))}
-              <button className="btn danger" onClick={() => act("keyword.solve", { teamId: g.buzzer?.winner, correct: false })}>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => act("keyword.solve", { teamId: g.buzzer?.winner, correct: false })}
+              >
                 Sai (khóa đội bấm chuông)
               </button>
             </div>
           </div>
         )}
+
         {g.round === "khoi_dong" && (
-          <div className="panel" style={{ marginTop: 14 }}>
-            <div className="block-title">BÀI LÀM THÍ SINH — KHỞI ĐỘNG</div>
-            <div className="kd-grid">
+          <div className="panel">
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Bài làm thí sinh — Khởi động</div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {(state.teams || []).map((t) => {
                 const sub = g.khoiDong?.submissions?.[t.id];
                 return (
                   <div
                     key={t.id}
-                    className={`kd-team-card ${t.id === g.currentTeam ? "active" : ""}`}
-                    style={{ "--c": t.color }}
+                    style={{ "--tc": t.color }}
+                    className={`team-card ${t.id === g.currentTeam ? "team-active" : ""}`}
                   >
-                    <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="flex justify-between items-center gap-2">
                       <b style={{ color: t.color }}>{t.name}</b>
-                      {sub ? <span className="badge ok">Đã gửi</span> : <span className="muted">Chưa gửi</span>}
+                      {sub ? <span className="badge badge-ok">Đã gửi</span> : <span className="text-mist text-xs">Chưa gửi</span>}
                     </div>
-                    <div className="kd-answer">{sub?.answer || "—"}</div>
-                    <div className="row" style={{ marginTop: 8 }}>
-                      <button className="btn ok" onClick={() => act("answer.mark", { correct: true, teamId: t.id })}>Đúng +10</button>
-                      <button className="btn danger" onClick={() => act("answer.mark", { correct: false, teamId: t.id })}>Sai</button>
+                    <div className="my-2 min-h-[24px] font-medium">{sub?.answer || "—"}</div>
+                    <div className="flex gap-2">
+                      <button type="button" className="btn btn-ok flex-1" onClick={() => act("answer.mark", { correct: true, teamId: t.id })}>
+                        Đúng +10
+                      </button>
+                      <button type="button" className="btn btn-danger flex-1" onClick={() => act("answer.mark", { correct: false, teamId: t.id })}>
+                        Sai
+                      </button>
                     </div>
                   </div>
                 );
@@ -283,36 +355,57 @@ export default function Control() {
             </div>
           </div>
         )}
+
         {g.round === "tang_toc" && (
-          <div className="panel" style={{ marginTop: 14 }}>
-            <div className="block-title">TĂNG TỐC</div>
-            <div className="muted" style={{ marginBottom: 8 }}>
+          <div className="panel">
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Tăng tốc</div>
+            <div className="text-mist mb-3">
               Bài nộp: {Object.keys(g.tangToc?.submissions || {}).length}/4 đội
               {(g.tangToc?.ranked || []).length > 0 &&
                 ` — Xếp hạng: ${g.tangToc.ranked.map((r) => `${state.teams.find((t) => t.id === r.teamId)?.name || r.teamId} +${r.points}`).join(", ")}`}
             </div>
-            <button className="btn" onClick={() => act("tangtoc.settle")}>Chốt điểm tăng tốc</button>
+            <button type="button" className="btn" onClick={() => act("tangtoc.settle")}>Chốt điểm tăng tốc</button>
           </div>
         )}
 
         {/* 5 · THIẾT BỊ */}
-        <div className="panel" style={{ marginTop: 14 }}>
-          <div className="block-title">HẸN GIỜ &amp; CHUÔNG</div>
-          <div className="row">
-            <input type="number" value={seconds} onChange={(e) => setSeconds(e.target.value)} style={{ width: 80 }} />
-            <button className="btn" onClick={() => act("timer.set", { seconds: Number(seconds), running: true })}>Bắt đầu giờ</button>
-            <button className="btn ghost" disabled={!g.timer?.running} onClick={() => act("timer.pause")}>Dừng</button>
-            <button className="btn ghost" disabled={!!g.timer?.running || !(g.timer?.remaining > 0)} onClick={() => act("timer.resume")}>Tiếp</button>
+        <div className="panel">
+          <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Hẹn giờ &amp; chuông</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="number"
+              value={seconds}
+              onChange={(e) => setSeconds(e.target.value)}
+              className="w-20!"
+            />
+            <button type="button" className="btn" onClick={() => act("timer.set", { seconds: Number(seconds), running: true })}>
+              Bắt đầu giờ
+            </button>
+            <button type="button" className="btn btn-ghost" disabled={!g.timer?.running} onClick={() => act("timer.pause")}>
+              Dừng
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={!!g.timer?.running || !(g.timer?.remaining > 0)}
+              onClick={() => act("timer.resume")}
+            >
+              Tiếp
+            </button>
           </div>
-          <div className="row" style={{ marginTop: 10 }}>
-            <button className="btn" disabled={!!g.buzzer?.open}>Mở chuông</button>
-            <button className="btn ghost" onClick={() => act("buzzer.reset", { open: true })}>Reset chuông (mở)</button>
-            <button className="btn ghost" disabled={!g.buzzer?.open} onClick={() => act("buzzer.close")}>Khóa chuông</button>
-            {!!g.buzzer?.winner && (
-              <span className="badge ok">Giữ chuông: {winner?.name || g.buzzer.winner}</span>
-            )}
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <button type="button" className="btn" disabled={!!g.buzzer?.open} onClick={() => act("buzzer.open")}>
+              Mở chuông
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => act("buzzer.reset", { open: true })}>
+              Reset chuông (mở)
+            </button>
+            <button type="button" className="btn btn-ghost" disabled={!g.buzzer?.open} onClick={() => act("buzzer.close")}>
+              Khóa chuông
+            </button>
+            {!!g.buzzer?.winner && <span className="badge badge-ok">Giữ chuông: {winner?.name || g.buzzer.winner}</span>}
           </div>
-          <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+          <div className="text-mist text-xs mt-2">
             Chuông: {g.buzzer?.open ? "MỞ" : "KHÓA"}
             {(g.buzzer?.order || []).length > 0 &&
               ` • Thứ tự bấm: ${g.buzzer.order.map((id) => state.teams.find((t) => t.id === id)?.name || id).join(" → ")}`}
@@ -321,11 +414,16 @@ export default function Control() {
 
         {/* 6 · MEDIA */}
         {(state.media || []).length > 0 && (
-          <div className="panel" style={{ marginTop: 14 }}>
-            <div className="block-title">MEDIA GỢI Ý</div>
-            <div className="row">
+          <div className="panel">
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Media gợi ý</div>
+            <div className="flex flex-wrap gap-2">
               {state.media.map((m) => (
-                <button key={m.id} className="btn ghost" onClick={() => act("media.show", { url: m.url, type: m.type })}>
+                <button
+                  key={m.id}
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => act("media.show", { url: m.url, type: m.type })}
+                >
                   {m.name}
                 </button>
               ))}
@@ -334,22 +432,29 @@ export default function Control() {
         )}
       </main>
 
-      <aside className="side right">
+      {/* CỘT PHẢI — Bảng điểm */}
+      <aside className="panel">
         <b>Bảng điểm</b>
-        {(state.teams || []).map((t) => (
-          <div key={t.id} className="panel" style={{ marginTop: 10, borderColor: t.color }}>
-            <div className="row" style={{ justifyContent: "space-between" }}>
-              <b>{t.name}</b>
-              <span className="display" style={{ fontSize: 24, color: t.color }}>{t.score}</span>
+        <div className="flex flex-col gap-3 mt-3">
+          {(state.teams || []).map((t) => (
+            <div key={t.id} className="rounded-xl border p-3 bg-panel-solid" style={{ borderColor: t.color }}>
+              <div className="flex justify-between items-center">
+                <b>{t.name}</b>
+                <span className="font-display text-2xl font-bold" style={{ color: t.color }}>{t.score}</span>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <input type="number" value={delta} onChange={(e) => setDelta(e.target.value)} className="w-16!" />
+                <button type="button" className="btn btn-ok" onClick={() => act("score.add", { teamId: t.id, points: Number(delta) })}>
+                  +
+                </button>
+                <button type="button" className="btn btn-danger" onClick={() => act("score.add", { teamId: t.id, points: -Number(delta) })}>
+                  −
+                </button>
+              </div>
+              {g.buzzer?.winner === t.id && <div className="badge badge-ok mt-2">Đang giữ chuông</div>}
             </div>
-            <div className="row" style={{ marginTop: 8 }}>
-              <input type="number" value={delta} onChange={(e) => setDelta(e.target.value)} style={{ width: 70 }} />
-              <button className="btn ok" onClick={() => act("score.add", { teamId: t.id, points: Number(delta) })}>+</button>
-              <button className="btn danger" onClick={() => act("score.add", { teamId: t.id, points: -Number(delta) })}>−</button>
-            </div>
-            {g.buzzer?.winner === t.id && <div className="badge ok">Đang giữ chuông</div>}
-          </div>
-        ))}
+          ))}
+        </div>
       </aside>
     </div>
   );

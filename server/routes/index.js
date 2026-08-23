@@ -4,14 +4,15 @@
     import examRoutes from "./exam.routes.js";
     import adminRoutes from "./admin.routes.js";
     import controlRoutes from "./control.routes.js";
+    import teamRoutes from "./team.routes.js";
 
     const router = Router();
-
     router.get("/health", (_req, res) => res.json({ ok: true }));
     router.use(publicRoutes);
     router.use("/contestants", contestantsRoutes);
     router.use("/exam", examRoutes);
     router.use("/admin", adminRoutes);
-    router.use("/control", controlRoutes);  
+    router.use("/control", controlRoutes);
+    router.use("/team", teamRoutes);
 
     export default router;

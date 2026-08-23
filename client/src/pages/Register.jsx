@@ -31,39 +31,44 @@ export default function Register() {
   }
 
   return (
-    <div className="page">
-      <div className="topbar">
-        <Link to="/" className="muted">← Trang chủ</Link>
+    <div className="mx-auto w-[min(1100px,calc(100%-32px))] py-7 pb-16">
+      <div className="flex justify-between items-center gap-3 mb-6">
+        <Link to="/" className="text-mist hover:text-gold">← Trang chủ</Link>
         <div className="kicker">Vòng sơ khảo</div>
       </div>
-      <div className="panel" style={{ maxWidth: 560, margin: "0 auto" }}>
-        <h2 className="display">Đăng ký dự thi</h2>
-        <p className="muted" style={{ margin: "8px 0 18px" }}>
+      <div className="panel max-w-[560px] mx-auto">
+        <h2 className="font-display text-2xl font-bold">Đăng ký dự thi</h2>
+        <p className="text-mist mt-2 mb-5">
           30 câu trắc nghiệm • 15 phút • 16 thí sinh xuất sắc nhất vào 4 đội.
         </p>
-        <p className="muted">
-          Trạng thái: {info?.settings?.prelimOpen ? "Đang mở" : "Chưa mở"} • Đã đăng ký {info?.contestantCount || 0} • Đã nộp {info?.submittedCount || 0}
+        <p className="text-mist text-sm">
+          Trạng thái: {info?.settings?.prelimOpen ? "Đang mở" : "Chưa mở"} • Đã đăng ký{" "}
+          {info?.contestantCount || 0} • Đã nộp {info?.submittedCount || 0}
         </p>
         {existing && (
-          <p style={{ margin: "12px 0" }}>
+          <p className="my-4">
             Bạn đã đăng ký với mã <b>{existing.studentId}</b>.{" "}
-            <Link to="/thi">Tiếp tục làm bài</Link>
+            <Link to="/thi" className="text-gold underline">Tiếp tục làm bài</Link>
           </p>
         )}
-        <form className="form-grid" onSubmit={submit} style={{ marginTop: 16 }}>
-          <label>Họ và tên
+        <form className="grid gap-3.5 mt-5" onSubmit={submit}>
+          <label className="label-grid">
+            Họ và tên
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </label>
-          <label>Mã số thí sinh
+          <label className="label-grid">
+            Mã số thí sinh
             <input value={form.studentId} onChange={(e) => setForm({ ...form, studentId: e.target.value })} required />
           </label>
-          <label>Trường
+          <label className="label-grid">
+            Trường
             <input value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} />
           </label>
-          <label>Lớp
+          <label className="label-grid">
+            Lớp
             <input value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} />
           </label>
-          {error && <div className="error">{error}</div>}
+          {error && <div className="badge badge-no">{error}</div>}
           <button className="btn" type="submit">Vào phòng thi</button>
         </form>
       </div>

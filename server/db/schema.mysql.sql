@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS teams (
   color VARCHAR(20) NOT NULL,
   accent VARCHAR(20) NOT NULL,
   score INT NOT NULL DEFAULT 0,
-  member_ids TEXT NOT NULL
+  member_ids TEXT NOT NULL,
+  pass VARCHAR(64) NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS contestants (

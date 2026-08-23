@@ -33,7 +33,9 @@ export default function Audience() {
     });
   }, []);
 
-  if (!state) return <div className="audience muted">Đang kết nối màn hình...</div>;
+  if (!state) {
+    return <div className="min-h-screen grid place-items-center text-mist">Đang kết nối màn hình…</div>;
+  }
 
   const g = state.game || {};
   const remaining = timer?.remaining ?? g.timer?.remaining ?? 0;
@@ -42,44 +44,55 @@ export default function Audience() {
     || (g.phase === "finished" ? "Chung cuộc" : "Chờ bắt đầu");
 
   return (
-    <div className="audience">
-      <div className="audience-top">
+    <div className="min-h-screen flex flex-col px-6 py-5 gap-5">
+      <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <div className="kicker">{state.settings?.subtitle}</div>
-          <h1>{state.settings?.title}</h1>
+          <h1 className="font-display font-bold text-[clamp(28px,4vw,52px)] leading-tight mt-1">
+            {state.settings?.title}
+          </h1>
         </div>
-        <div style={{ textAlign: "right" }}>
+        <div className="text-right">
           <div className="round-badge">{roundName}</div>
-          <div className={`timer-xl ${remaining <= 5 && running ? "danger" : ""}`}>
+          <div className={`timer-xl mt-2 ${remaining <= 5 && running ? "timer-danger" : ""}`}>
             {formatTime(remaining)}
           </div>
         </div>
       </div>
 
-      <div className="stage">
+      <div className="relative flex-1 grid place-items-center min-h-[40vh]">
         {g.buzzer?.winner && (
-          <div className="round-badge" style={{ position: "absolute", top: 18 }}>
+          <div className="round-badge absolute top-2 left-1/2 -translate-x-1/2 z-10">
             Quyền trả lời: {state.teams.find((t) => t.id === g.buzzer.winner)?.name}
           </div>
         )}
         <Stage state={state} />
       </div>
 
-      <div className="teams">
-        {(state.teams || []).map((t) => (
-          <div
-            key={t.id}
-            className={`team-card ${g.currentTeam === t.id ? "active" : ""} ${flash === t.id ? "buzz" : ""}`}
-            style={{ "--c": t.color }}
-          >
-            <div className="name">{t.name}</div>
-            <div className="score" style={{ color: t.color }}>{t.score}</div>
-            <div className="muted" style={{ fontSize: 12 }}>
+      <TeamsRow state={state} flash={flash} currentTeam={g.currentTeam} />
+    </div>
+  );
+}
+
+function TeamsRow({ state, flash, currentTeam, ranked }) {
+  const teams = ranked || state.teams || [];
+  return (
+    <div className="grid gap-3 w-[min(1100px,100%)] mx-auto sm:grid-cols-2 lg:grid-cols-4">
+      {teams.map((t) => (
+        <div
+          key={t.id}
+          style={{ "--tc": t.color }}
+          className={`team-card ${currentTeam === t.id ? "team-active" : ""} ${flash === t.id ? "team-buzz" : ""}`}
+        >
+          <div className="font-bold">{t.name}</div>
+          <div className="font-display text-4xl font-bold" style={{ color: t.color }}>{t.score}</div>
+          {!ranked && (
+            <div className="text-mist text-xs mt-1">
               {(t.members || []).map((m) => m.name).join(" • ") || "Chưa có thành viên"}
             </div>
-          </div>
-        ))}
-      </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -91,17 +104,14 @@ function Stage({ state }) {
   if (g.phase === "finished" || d.mode === "winner") {
     const ranked = [...(state.teams || [])].sort((a, b) => b.score - a.score);
     return (
-      <div style={{ textAlign: "center" }}>
+      <div className="text-center">
         <div className="kicker">Đội quán quân</div>
-        <div className="winner-name">{ranked[0]?.name || "—"}</div>
-        <div className="muted" style={{ marginTop: 8 }}>Tổng điểm {ranked[0]?.score ?? 0}</div>
-        <div className="teams" style={{ marginTop: 28, width: "min(900px, 92%)" }}>
-          {ranked.map((t, i) => (
-            <div key={t.id} className="team-card" style={{ "--c": t.color }}>
-              <div>#{i + 1} {t.name}</div>
-              <div className="score">{t.score}</div>
-            </div>
-          ))}
+        <div className="font-display font-bold text-[clamp(40px,8vw,96px)] text-gold drop-shadow-[0_0_30px_rgba(255,214,10,0.35)]">
+          {ranked[0]?.name || "—"}
+        </div>
+        <div className="text-mist mt-2">Tổng điểm {ranked[0]?.score ?? 0}</div>
+        <div className="mt-7 w-[min(900px,92%)] mx-auto">
+          <TeamsRow state={state} flash={null} currentTeam="" ranked={ranked} />
         </div>
       </div>
     );
@@ -113,34 +123,49 @@ function Stage({ state }) {
     const solved = p.rowsSolved || [false, false, false, false];
     const locked = p.rowsLocked || [false, false, false, false];
     return (
-      <div style={{ textAlign: "center" }}>
-        <div className="puzzle cnv">
+      <div className="text-center">
+        {/* Bảng mảnh ghép: 4 góc + ô trung tâm */}
+        <div className="inline-grid grid-cols-[1fr_auto_1fr] grid-rows-[1fr_auto_1fr] gap-3 mb-5">
           {[0, 1, 2, 3].map((r) => (
             <div
               key={r}
-              className={`piece ${solved[r] ? "on" : ""} ${locked[r] ? "locked" : ""}`}
-              style={{ gridArea: r < 2 ? `1/${r === 0 ? 1 : 3}` : `3/${r === 2 ? 1 : 3}` }}
+              className={`w-[clamp(64px,9vw,110px)] h-[clamp(48px,7vw,84px)] rounded-xl border-2 grid place-items-center font-display text-2xl ${
+                solved[r]
+                  ? "bg-gold/90 text-[#1a1400] border-gold shadow-[0_0_20px_rgba(255,214,10,0.35)]"
+                  : locked[r]
+                    ? "border-danger/60 text-danger/80 bg-danger/5"
+                    : "border-line text-mist bg-panel"
+              }`}
+              style={{ gridColumn: r === 0 || r === 2 ? 1 : 3, gridRow: r < 2 ? 1 : 3 }}
             >
               {solved[r] ? r + 1 : locked[r] ? "✕" : "?"}
             </div>
           ))}
-          <div className={`piece center ${p.centerRevealed ? "on" : ""}`} style={{ gridArea: "2/2" }}>
+          <div
+            className={`w-[clamp(64px,9vw,110px)] h-[clamp(48px,7vw,84px)] rounded-xl border-2 grid place-items-center font-display text-2xl ${
+              p.centerRevealed
+                ? "bg-gold/90 text-[#1a1400] border-gold shadow-[0_0_20px_rgba(255,214,10,0.35)]"
+                : "border-line text-mist bg-panel"
+            }`}
+            style={{ gridColumn: 2, gridRow: 2 }}
+          >
             {p.centerRevealed ? "★" : "?"}
           </div>
         </div>
 
-        <div className="cnv-words">
+        {/* Các hàng ngang dạng ô tròn ký tự */}
+        <div className="flex flex-col items-center gap-2">
           {(cnv?.rows || []).map((row, i) => (
-            <div className="cnv-word-row" key={i}>
-              <span className="cnv-row-label">{i + 1}</span>
-              <div className="cnv-cells">
+            <div key={i} className="flex items-center gap-3">
+              <span className="text-mist text-sm w-4">{i + 1}</span>
+              <div className="flex gap-1.5">
                 {row.status === "open"
                   ? row.word.replace(/\s/g, "").split("").map((ch, j) => (
-                      <span key={j} className="ltr open">{ch}</span>
+                      <span key={j} className="ltr ltr-open">{ch}</span>
                     ))
                   : row.status === "locked"
                     ? Array.from({ length: row.letterCount }, (_, j) => (
-                        <span key={j} className="ltr locked">✕</span>
+                        <span key={j} className="ltr ltr-locked">✕</span>
                       ))
                     : Array.from({ length: row.letterCount }, (_, j) => (
                         <span key={j} className="ltr" />
@@ -154,22 +179,23 @@ function Stage({ state }) {
           <div className="stage-note">★ {cnv.centerHint}</div>
         )}
 
-        <div className="cnv-keyword">
+        {/* Từ khóa */}
+        <div className="flex items-center justify-center gap-1.5 mt-4 flex-wrap">
           {p.keywordSolved && cnv?.keyword
             ? cnv.keyword.split("").map((ch, j) => (
-                <span key={j} className={`ltr kw ${/\s/.test(ch) ? "space" : "gold"}`}>
+                <span key={j} className={`ltr ltr-kw ${/\s/.test(ch) ? "" : "ltr-gold"}`}>
                   {/\s/.test(ch) ? "" : ch}
                 </span>
               ))
             : Array.from({ length: cnv?.keywordLetterCount || 0 }, (_, j) => (
-                <span key={j} className="ltr kw" />
+                <span key={j} className="ltr ltr-kw" />
               ))}
           {!!cnv?.keywordLetterCount && (
-            <span className="muted cnv-kw-count">{cnv.keywordLetterCount} chữ cái</span>
+            <span className="text-mist text-sm ml-2">{cnv.keywordLetterCount} chữ cái</span>
           )}
         </div>
 
-        <div className="muted">{d.question}</div>
+        {d.question && <div className="text-mist mt-3">{d.question}</div>}
         {d.note && <div className="stage-note">{d.note}</div>}
       </div>
     );
@@ -177,38 +203,35 @@ function Stage({ state }) {
 
   if (d.mode === "media" && d.mediaUrl) {
     return d.mediaType === "video" ? (
-      <video src={d.mediaUrl} autoPlay controls style={{ maxWidth: "90%", maxHeight: "50vh" }} />
+      <video src={d.mediaUrl} autoPlay controls className="max-w-[90%] max-h-[50vh]" />
     ) : (
-      <img src={d.mediaUrl} alt="" style={{ maxWidth: "90%", maxHeight: "50vh", borderRadius: 16 }} />
+      <img src={d.mediaUrl} alt="" className="max-w-[90%] max-h-[50vh] rounded-2xl" />
     );
   }
 
   if (d.mode === "scores") {
     return (
-      <div className="teams" style={{ width: "90%" }}>
-        {state.teams.map((t) => (
-          <div key={t.id} className="team-card" style={{ "--c": t.color }}>
-            <div className="name">{t.name}</div>
-            <div className="score">{t.score}</div>
-          </div>
-        ))}
+      <div className="w-[90%]">
+        <TeamsRow state={state} flash={null} currentTeam="" />
       </div>
     );
   }
 
   if (d.mode === "question") {
     return (
-      <div style={{ textAlign: "center" }}>
+      <div className="text-center">
         {d.mediaUrl && d.mediaType === "image" && (
-          <img src={d.mediaUrl} alt="" style={{ maxHeight: 220, borderRadius: 12, marginBottom: 16 }} />
+          <img src={d.mediaUrl} alt="" className="max-h-[220px] rounded-xl mb-4 inline-block" />
         )}
         {d.mediaUrl && d.mediaType === "video" && (
-          <video src={d.mediaUrl} autoPlay controls style={{ maxHeight: 260, marginBottom: 16 }} />
+          <video src={d.mediaUrl} autoPlay controls className="max-h-[260px] mb-4" />
         )}
         <div className="stage-q">{d.question}</div>
         {d.options?.length > 0 && (
-          <div className="options" style={{ marginTop: 20, textAlign: "left", width: "min(720px, 90%)" }}>
-            {d.options.map((o) => <div key={o} className="opt">{o}</div>)}
+          <div className="grid gap-2.5 mt-5 text-left w-[min(720px,90%)] mx-auto">
+            {d.options.map((o) => (
+              <div key={o} className="opt cursor-default">{o}</div>
+            ))}
           </div>
         )}
         <div className="stage-note">{d.note}</div>
@@ -218,15 +241,16 @@ function Stage({ state }) {
   }
 
   return (
-    <div style={{ textAlign: "center" }}>
+    <div className="text-center">
       <div className="kicker">Sẵn sàng</div>
-      <div className="stage-q">Chào mừng đến với cuộc thi</div>
-      <div className="muted" style={{ marginTop: 12 }}>
+      <div className="stage-q mt-2">Chào mừng đến với cuộc thi</div>
+      <div className="text-mist mt-4">
         Đã đăng ký {state.contestantCount || 0} thí sinh • Nộp bài {state.submittedCount || 0}
       </div>
       {state.leaderboard?.length > 0 && (
-        <div className="muted" style={{ marginTop: 16 }}>
-          Dẫn đầu: {state.leaderboard.slice(0, 3).map((c) => `${c.rank}. ${c.name} (${c.score})`).join(" • ")}
+        <div className="text-mist mt-4">
+          Dẫn đầu:{" "}
+          {state.leaderboard.slice(0, 3).map((c) => `${c.rank}. ${c.name} (${c.score})`).join(" • ")}
         </div>
       )}
     </div>

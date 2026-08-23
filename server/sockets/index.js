@@ -6,18 +6,27 @@ export function registerSockets(io) {
     socket.emit("game:state", game.publicGame());
     socket.emit("prelim:update", publicState());
 
+    function teamOk(payload) {
+      const ok = payload?.teamId && game.checkTeamPass(payload.teamId, payload.pass);
+      if (!ok) socket.emit("team:error", { reason: "auth", message: "Phiên đăng nhập đội không hợp lệ. Hãy đăng nhập lại." });
+      return !!ok;
+    }
+
     socket.on("buzzer:press", (payload) => {
       if (!payload?.teamId) return;
+      if (!teamOk(payload)) return;
       game.pressBuzzer(payload.teamId);
     });
 
     socket.on("tangtoc:submit", (payload) => {
       if (!payload?.teamId) return;
+      if (!teamOk(payload)) return;
       game.submitTangToc(payload.teamId, payload.answer);
     });
 
     socket.on("khoidong:submit", (payload) => {
       if (!payload?.teamId) return;
+      if (!teamOk(payload)) return;
       game.submitKhoiDong(payload.teamId, payload.answer);
     });
   });

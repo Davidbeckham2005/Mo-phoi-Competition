@@ -10,43 +10,36 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="home">
-      <div className="home-inner">
+    <div className="min-h-screen grid place-items-center px-5 py-8">
+      <div className="w-[min(1100px,100%)]">
         <div className="kicker">Hệ thống tổ chức cuộc thi</div>
-        <h1>{info?.settings?.title || "CUỘC THI TRI THỨC"}</h1>
-        <p className="subtitle">
+        <h1 className="font-display font-bold text-[clamp(36px,7vw,72px)] leading-[0.95] my-3 drop-shadow-[0_0_28px_rgba(255,214,10,0.25)]">
+          {info?.settings?.title || "CUỘC THI TRI THỨC"}
+        </h1>
+        <p className="text-mist max-w-[640px] mb-9">
           {info?.settings?.subtitle || "Sơ khảo online • 4 đội tranh tài • Điều khiển trực tiếp"}
         </p>
-        <div className="role-grid">
-          <Link className="role-card" to="/dang-ky">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Link className="panel flex flex-col gap-2 min-h-[170px] transition hover:-translate-y-1 hover:border-gold hover:shadow-[0_12px_40px_rgba(0,0,0,0.28)]" to="/thi-sinh">
             <div className="kicker">01</div>
-            <b>Thí sinh</b>
-            <span>Đăng ký và làm bài sơ khảo 30 câu trong 15 phút.</span>
+            <b className="text-xl">Thí sinh</b>
+            <span className="text-mist text-sm">
+              Đăng nhập bằng mật khẩu đội — tự chuyển theo từng vòng: ghi đáp án, bấm chuông, xem bảng.
+            </span>
           </Link>
-          <Link className="role-card" to="/man-hinh">
+          <Link className="panel flex flex-col gap-2 min-h-[170px] transition hover:-translate-y-1 hover:border-gold hover:shadow-[0_12px_40px_rgba(0,0,0,0.28)]" to="/man-hinh">
             <div className="kicker">02</div>
-            <b>Người xem</b>
-            <span>Màn hình khán giả: câu hỏi, bảng điểm, mảnh ghép realtime.</span>
+            <b className="text-xl">Người xem</b>
+            <span className="text-mist text-sm">
+              Màn hình khán giả/LED: câu hỏi, từ khóa ô tròn, bảng điểm realtime.
+            </span>
           </Link>
-          <Link className="role-card" to="/mc">
+          <Link className="panel flex flex-col gap-2 min-h-[170px] transition hover:-translate-y-1 hover:border-gold hover:shadow-[0_12px_40px_rgba(0,0,0,0.28)]" to="/mc">
             <div className="kicker">03</div>
-            <b>Ban tổ chức / MC</b>
-            <span>Điều khiển vòng thi, chuông, điểm số và trạng thái câu hỏi.</span>
-          </Link>
-          <Link className="role-card" to="/admin">
-            <div className="kicker">04</div>
-            <b>Quản trị</b>
-            <span>Câu hỏi, đội thi, hình ảnh/video, kết quả và top 16.</span>
-          </Link>
-          <Link className="role-card" to="/chuong">
-            <div className="kicker">05</div>
-            <b>Chuông đội</b>
-            <span>Thiết bị bấm quyền trả lời cho từng đội.</span>
-          </Link>
-          <Link className="role-card" to="/vong-1">
-            <div className="kicker">06</div>
-            <b>Thí sinh — Vòng 1</b>
-            <span>Thí sinh trong đội ghi đáp án Khởi động ngay trên máy.</span>
+            <b className="text-xl">Ban tổ chức</b>
+            <span className="text-mist text-sm">
+              Bàn điều khiển MC và trang quản trị (câu hỏi, đội, mật khẩu, kết quả).
+            </span>
           </Link>
         </div>
       </div>
