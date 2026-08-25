@@ -12,6 +12,7 @@ export default function Control() {
   const [current, setCurrent] = useState(null);
   const [seconds, setSeconds] = useState(15);
   const [delta, setDelta] = useState(10);
+  const [kdTimer, setKdTimer] = useState(60);
 
   async function refreshQ() {
     try {
@@ -42,6 +43,7 @@ export default function Control() {
   const q = current?.question;
   const d = g.display || {};
   const p = g.puzzle || {};
+  const isKd = g.round === "khoi_dong";
 
   const solved = p.rowsSolved || [false, false, false, false];
   const locked = p.rowsLocked || [false, false, false, false];
@@ -62,13 +64,14 @@ export default function Control() {
   }
 
   let status = { cls: "", text: "BẢNG CHÍNH" };
-  if (p.keywordSolved && g.round === "vuot_cnv") status = { cls: "ok", text: "ĐÃ XUẤT TỪ KHÓA" };
+  if (isKd && showing) status = { cls: "ok", text: "ĐANG THI" };
+  else if (p.keywordSolved && g.round === "vuot_cnv") status = { cls: "ok", text: "ĐÃ XUẤT TỪ KHÓA" };
   else if (p.awaitingSteal) status = { cls: "warn", text: "CHỜ CƯỚP QUYỀN" };
   else if (showing && revealed) status = { cls: "warn", text: "ĐÃ LẬT ĐÁP ÁN" };
   else if (showing) status = { cls: "ok", text: "ĐANG HIỆN CÂU HỎI" };
 
   let progress = "";
-  if (g.round === "khoi_dong") progress = `Câu ${g.questionIndex + 1} • ${cur?.name || ""}`;
+  if (isKd) progress = `Câu ${g.questionIndex + 1}/6 • ${cur?.name || ""}`;
   else if (g.round === "tang_toc") progress = `Câu ${(g.questionIndex || 0) + 1}/4`;
   else if (g.round === "vuot_cnv") {
     const doneCount = solved.filter(Boolean).length;
@@ -184,44 +187,54 @@ export default function Control() {
         <div className="panel">
           <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Câu hỏi &amp; đáp án</div>
           {!q && (
-            <div className="text-mist">Chưa chọn câu hỏi — chọn hàng ngang (Vượt CNV) hoặc bấm Câu sau.</div>
+            <div className="text-mist">{isKd ? "Chuyển đội để bắt đầu lượt." : "Chưa có câu hỏi — chọn hàng ngang (Vượt CNV) hoặc bấm Câu sau."}</div>
           )}
           {q && (
             <>
               <div className="font-display text-xl leading-snug">{q.question}</div>
-              <div
-                className={`mt-2 rounded-lg border border-line bg-night/60 px-3 py-2 ${
-                  revealed ? "text-ok font-semibold" : "tracking-[0.3em] text-mist"
-                }`}
-              >
-                Đáp án: {revealed ? q.answer : "••••••"} • {pts} điểm
-                {!!q.letterCount && <span className="text-mist tracking-normal"> • {q.letterCount} chữ cái</span>}
+              {isKd ? (
+                <div className="mt-2 rounded-lg border border-ok/40 bg-ok/10 px-3 py-2 text-ok font-semibold">
+                  Đáp án: {q.answer} • {pts} điểm
+                </div>
+              ) : (
+                <div
+                  className={`mt-2 rounded-lg border border-line bg-night/60 px-3 py-2 ${
+                    revealed ? "text-ok font-semibold" : "tracking-[0.3em] text-mist"
+                  }`}
+                >
+                  Đáp án: {revealed ? q.answer : "••••••"} • {pts} điểm
+                  {!!q.letterCount && <span className="text-mist tracking-normal"> • {q.letterCount} chữ cái</span>}
+                </div>
+              )}
+            </>
+          )}
+          {!isKd && (
+            <>
+              <div className="flex flex-wrap gap-2 mt-4">
+                <button type="button" className="btn" disabled={showing && !revealed} onClick={() => act("question.show")}>
+                  Hiện câu hỏi
+                </button>
+                <button type="button" className="btn btn-ghost" disabled={!showing} onClick={() => act("question.hide")}>
+                  Ẩn câu hỏi
+                </button>
+                <button type="button" className="btn btn-ok" disabled={!showing || revealed} onClick={() => act("question.reveal")}>
+                  Lật đáp án
+                </button>
+                <button type="button" className="btn btn-ghost" disabled={!showing || !revealed} onClick={() => act("question.hideAnswer")}>
+                  Che đáp án
+                </button>
+                {g.round !== "vuot_cnv" && (
+                  <>
+                    <button type="button" className="btn btn-ghost" onClick={() => act("question.prev")}>← Câu trước</button>
+                    <button type="button" className="btn btn-ghost" onClick={() => act("question.next")}>Câu sau →</button>
+                  </>
+                )}
+              </div>
+              <div className="text-mist text-xs mt-2.5">
+                Trình tự: Chọn câu → Hiện câu hỏi → Lật đáp án → Chấm điểm. "Ẩn câu hỏi" đưa màn hình về bảng.
               </div>
             </>
           )}
-          <div className="flex flex-wrap gap-2 mt-4">
-            <button type="button" className="btn" disabled={showing && !revealed} onClick={() => act("question.show")}>
-              Hiện câu hỏi
-            </button>
-            <button type="button" className="btn btn-ghost" disabled={!showing} onClick={() => act("question.hide")}>
-              Ẩn câu hỏi
-            </button>
-            <button type="button" className="btn btn-ok" disabled={!showing || revealed} onClick={() => act("question.reveal")}>
-              Lật đáp án
-            </button>
-            <button type="button" className="btn btn-ghost" disabled={!showing || !revealed} onClick={() => act("question.hideAnswer")}>
-              Che đáp án
-            </button>
-            {g.round !== "vuot_cnv" && (
-              <>
-                <button type="button" className="btn btn-ghost" onClick={() => act("question.prev")}>← Câu trước</button>
-                <button type="button" className="btn btn-ghost" onClick={() => act("question.next")}>Câu sau →</button>
-              </>
-            )}
-          </div>
-          <div className="text-mist text-xs mt-2.5">
-            Trình tự: Chọn câu → Hiện câu hỏi → Lật đáp án → Chấm điểm. “Ẩn câu hỏi” đưa màn hình về bảng.
-          </div>
         </div>
 
         {/* 3 · CHẤM ĐIỂM */}
@@ -303,6 +316,42 @@ export default function Control() {
               <button type="button" className="btn btn-ghost" onClick={() => act("puzzle.show")}>Hiện bảng</button>
               <button type="button" className="btn btn-ghost" onClick={() => act("puzzle.all")}>Mở hết (hạ màn)</button>
             </div>
+
+            {/* Danh sách câu hỏi Vượt CNV */}
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mt-5 mb-2">Danh sách câu hỏi</div>
+            <div className="rounded-xl border border-line bg-night/40 p-3 mb-3">
+              <div className="text-sm">Từ khóa: <span className="text-gold font-bold">{state.questions?.main?.vuotCnv?.keyword || "—"}</span></div>
+              <div className="text-mist text-xs mt-0.5">Gợi ý: {state.questions?.main?.vuotCnv?.hint || "—"} • {state.questions?.main?.vuotCnv?.letterCount || "?"} chữ cái</div>
+            </div>
+            <div className="grid gap-2">
+              {(state.questions?.main?.vuotCnv?.rows || []).map((row, i) => {
+                const isCurrent = i === (p.currentRow ?? 0);
+                return (
+                  <button
+                    key={row.id}
+                    type="button"
+                    onClick={() => !solved[i] && !locked[i] && act("puzzle.select", { row: i })}
+                    disabled={solved[i] || locked[i]}
+                    className={`rounded-xl border px-4 py-2.5 text-left transition ${
+                      solved[i]
+                        ? "border-ok/30 bg-ok/5 opacity-60"
+                        : locked[i]
+                          ? "border-danger/30 bg-danger/5 opacity-50 cursor-not-allowed"
+                          : isCurrent
+                            ? "border-gold bg-gold/10"
+                            : "border-line hover:border-gold/50"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-sm">Hàng {i + 1}{solved[i] ? " ✓" : locked[i] ? " ✕" : isCurrent ? " ●" : ""}</span>
+                      <span className="text-mist text-xs">{row.letterCount} chữ • {row.points} điểm</span>
+                    </div>
+                    <div className="text-xs text-mist mt-1 truncate" title={row.question}>{row.question}</div>
+                    <div className="text-ok text-xs mt-0.5">Đáp án: {row.answer}</div>
+                  </button>
+                );
+              })}
+            </div>
             <div className="text-xs tracking-[0.18em] text-mist uppercase mt-5 mb-2">Đoán từ khóa</div>
             <div className="flex flex-wrap gap-2">
               {state.teams.map((t) => (
@@ -326,10 +375,120 @@ export default function Control() {
           </div>
         )}
 
-        {g.round === "khoi_dong" && (
+        {g.round === "ve_dich" && (
           <div className="panel">
-            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Bài làm thí sinh — Khởi động</div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Quản lý câu hỏi — Về đích</div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(state.teams || []).map((t) => {
+                const qs = state.questions?.main?.veDich?.[t.id] || [];
+                const isActive = t.id === g.currentTeam;
+                return (
+                  <div
+                    key={t.id}
+                    className={`rounded-xl border p-3 bg-panel-solid ${isActive ? "border-gold ring-1 ring-gold/30" : "border-line"}`}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <b className="text-sm" style={{ color: t.color }}>{t.name}</b>
+                      {isActive && <span className="badge badge-ok text-xs!">Đang thi</span>}
+                    </div>
+                    <div className="grid gap-1.5">
+                      {qs.map((qd) => {
+                        const isCurrentPkg = isActive && g.veDich?.packagePoints === qd.points;
+                        return (
+                          <div
+                            key={qd.id}
+                            className={`rounded-lg border px-3 py-2 text-xs transition ${
+                              isCurrentPkg
+                                ? "border-gold bg-gold/10"
+                                : "border-line"
+                            }`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="text-gold font-bold">{qd.points} điểm</span>
+                              {isCurrentPkg && <span className="text-gold text-xs">●</span>}
+                            </div>
+                            <div className="text-mist mt-0.5 truncate" title={qd.question}>{qd.question}</div>
+                            <div className="text-ok mt-0.5 font-semibold">Đáp án: {qd.answer}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {isKd && (
+          <div className="panel">
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <div className="text-xs tracking-[0.18em] text-mist uppercase">Thời gian mỗi lượt</div>
+              <input
+                type="number"
+                min={5}
+                max={300}
+                value={kdTimer}
+                onChange={(e) => setKdTimer(e.target.value)}
+                className="w-20!"
+              />
+              <span className="text-mist text-sm">giây</span>
+              <button type="button" className="btn btn-ok" onClick={() => act("khoi_dong.timer", { seconds: Number(kdTimer) })}>
+                Áp dụng
+              </button>
+            </div>
+
+            {/* Quản lý câu hỏi — 4 đội × 6 câu */}
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Quản lý câu hỏi</div>
+            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+              {(state.teams || []).map((t) => {
+                const questions = state.questions?.main?.khoiDong?.[t.id] || [];
+                const isActive = t.id === g.currentTeam;
+                return (
+                  <div
+                    key={t.id}
+                    className={`rounded-xl border p-3 bg-panel-solid ${isActive ? "border-gold ring-1 ring-gold/30" : "border-line"}`}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <b className="text-sm" style={{ color: t.color }}>{t.name}</b>
+                      {isActive && <span className="badge badge-ok text-xs!">Đang thi</span>}
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {questions.map((qd, i) => {
+                        const isCurrent = isActive && i === (g.questionIndex || 0);
+                        const hist = g.khoiDong?.history?.[t.id];
+                        const answered = hist && hist[i] !== undefined;
+                        const correct = answered && hist[i];
+                        const wrong = answered && !hist[i];
+                        return (
+                          <button
+                            key={qd.id}
+                            type="button"
+                            onClick={() => act("question.jump", { teamId: t.id, questionIndex: i })}
+                            className={`rounded-lg border px-2 py-1.5 text-xs font-semibold transition truncate ${
+                              isCurrent
+                                ? "border-gold bg-gold/15 text-gold"
+                                : correct
+                                  ? "border-ok/30 bg-ok/8 text-ok/70"
+                                  : wrong
+                                    ? "border-danger/40 bg-danger/8 text-danger/80"
+                                    : "border-line text-mist hover:border-gold/50 hover:text-ink"
+                            }`}
+                            title={qd.question}
+                          >
+                            {i + 1}{isCurrent ? " ●" : correct ? " ✓" : wrong ? " ✕" : ""}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Đội đang thi + nộp bài */}
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mt-5 mb-2">Nộp bài thi</div>
+            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
               {(state.teams || []).map((t) => {
                 const sub = g.khoiDong?.submissions?.[t.id];
                 return (
@@ -342,12 +501,12 @@ export default function Control() {
                       <b style={{ color: t.color }}>{t.name}</b>
                       {sub ? <span className="badge badge-ok">Đã gửi</span> : <span className="text-mist text-xs">Chưa gửi</span>}
                     </div>
-                    <div className="my-2 min-h-[24px] font-medium">{sub?.answer || "—"}</div>
-                    <div className="flex gap-2">
-                      <button type="button" className="btn btn-ok flex-1" onClick={() => act("answer.mark", { correct: true, teamId: t.id })}>
+                    <div className="my-1.5 min-h-[20px] font-medium text-sm">{sub?.answer || "—"}</div>
+                    <div className="flex gap-1.5">
+                      <button type="button" className="btn btn-ok flex-1 py-1.5! text-sm!" onClick={() => act("answer.mark", { correct: true, teamId: t.id })}>
                         Đúng +10
                       </button>
-                      <button type="button" className="btn btn-danger flex-1" onClick={() => act("answer.mark", { correct: false, teamId: t.id })}>
+                      <button type="button" className="btn btn-danger flex-1 py-1.5! text-sm!" onClick={() => act("answer.mark", { correct: false, teamId: t.id })}>
                         Sai
                       </button>
                     </div>
@@ -360,62 +519,90 @@ export default function Control() {
 
         {g.round === "tang_toc" && (
           <div className="panel">
-            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Tăng tốc</div>
-            <div className="text-mist mb-3">
-              Bài nộp: {Object.keys(g.tangToc?.submissions || {}).length}/4 đội
-              {(g.tangToc?.ranked || []).length > 0 &&
-                ` — Xếp hạng: ${g.tangToc.ranked.map((r) => `${state.teams.find((t) => t.id === r.teamId)?.name || r.teamId} +${r.points}`).join(", ")}`}
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Quản lý câu hỏi — Tăng tốc</div>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {(state.questions?.main?.tangToc || []).map((qd, i) => {
+                const isCurrent = i === (g.questionIndex || 0);
+                return (
+                  <button
+                    key={qd.id}
+                    type="button"
+                    onClick={() => act("question.jump", { teamId: g.currentTeam, questionIndex: i })}
+                    className={`rounded-xl border-2 px-3 py-3 text-left transition ${
+                      isCurrent
+                        ? "border-gold bg-gold/10 text-gold"
+                        : "border-line text-mist hover:border-gold/50"
+                    }`}
+                  >
+                    <div className="font-bold text-sm mb-1">Câu {i + 1}{isCurrent ? " ●" : ""}</div>
+                    <div className="text-xs truncate" title={qd.question}>{qd.question}</div>
+                    <div className="text-ok text-xs mt-1 font-semibold">Đáp án: {qd.answer}</div>
+                  </button>
+                );
+              })}
             </div>
-            <button type="button" className="btn" onClick={() => act("tangtoc.settle")}>Chốt điểm tăng tốc</button>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-mist text-sm">
+                Bài nộp: {Object.keys(g.tangToc?.submissions || {}).length}/4 đội
+              </div>
+              {(g.tangToc?.ranked || []).length > 0 && (
+                <div className="text-mist text-sm">
+                  Xếp hạng: {g.tangToc.ranked.map((r) => `${state.teams.find((t) => t.id === r.teamId)?.name || r.teamId} +${r.points}`).join(", ")}
+                </div>
+              )}
+              <button type="button" className="btn" onClick={() => act("tangtoc.settle")}>Chốt điểm tăng tốc</button>
+            </div>
           </div>
         )}
 
-        {/* 5 · THIẾT BỊ */}
-        <div className="panel">
-          <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Hẹn giờ &amp; chuông</div>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="number"
-              value={seconds}
-              onChange={(e) => setSeconds(e.target.value)}
-              className="w-20!"
-            />
-            <button type="button" className="btn" onClick={() => act("timer.set", { seconds: Number(seconds), running: true })}>
-              Bắt đầu giờ
-            </button>
-            <button type="button" className="btn btn-ghost" disabled={!g.timer?.running} onClick={() => act("timer.pause")}>
-              Dừng
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              disabled={!!g.timer?.running || !(g.timer?.remaining > 0)}
-              onClick={() => act("timer.resume")}
-            >
-              Tiếp
-            </button>
+        {/* 5 · THIẾT BỊ — ẩn khi vòng Khởi động */}
+        {!isKd && (
+          <div className="panel">
+            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Hẹn giờ &amp; chuông</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="number"
+                value={seconds}
+                onChange={(e) => setSeconds(e.target.value)}
+                className="w-20!"
+              />
+              <button type="button" className="btn" onClick={() => act("timer.set", { seconds: Number(seconds), running: true })}>
+                Bắt đầu giờ
+              </button>
+              <button type="button" className="btn btn-ghost" disabled={!g.timer?.running} onClick={() => act("timer.pause")}>
+                Dừng
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={!!g.timer?.running || !(g.timer?.remaining > 0)}
+                onClick={() => act("timer.resume")}
+              >
+                Tiếp
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <button type="button" className="btn" disabled={!!g.buzzer?.open} onClick={() => act("buzzer.open")}>
+                Mở chuông
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => act("buzzer.reset", { open: true })}>
+                Reset chuông (mở)
+              </button>
+              <button type="button" className="btn btn-ghost" disabled={!g.buzzer?.open} onClick={() => act("buzzer.close")}>
+                Khóa chuông
+              </button>
+              {!!g.buzzer?.winner && <span className="badge badge-ok">Giữ chuông: {winner?.name || g.buzzer.winner}</span>}
+            </div>
+            <div className="text-mist text-xs mt-2">
+              Chuông: {g.buzzer?.open ? "MỞ" : "KHÓA"}
+              {(g.buzzer?.order || []).length > 0 &&
+                ` • Thứ tự bấm: ${g.buzzer.order.map((id) => state.teams.find((t) => t.id === id)?.name || id).join(" → ")}`}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 mt-3">
-            <button type="button" className="btn" disabled={!!g.buzzer?.open} onClick={() => act("buzzer.open")}>
-              Mở chuông
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={() => act("buzzer.reset", { open: true })}>
-              Reset chuông (mở)
-            </button>
-            <button type="button" className="btn btn-ghost" disabled={!g.buzzer?.open} onClick={() => act("buzzer.close")}>
-              Khóa chuông
-            </button>
-            {!!g.buzzer?.winner && <span className="badge badge-ok">Giữ chuông: {winner?.name || g.buzzer.winner}</span>}
-          </div>
-          <div className="text-mist text-xs mt-2">
-            Chuông: {g.buzzer?.open ? "MỞ" : "KHÓA"}
-            {(g.buzzer?.order || []).length > 0 &&
-              ` • Thứ tự bấm: ${g.buzzer.order.map((id) => state.teams.find((t) => t.id === id)?.name || id).join(" → ")}`}
-          </div>
-        </div>
+        )}
 
         {/* 6 · MEDIA */}
-        {(state.media || []).length > 0 && (
+        {!isKd && (state.media || []).length > 0 && (
           <div className="panel">
             <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Media gợi ý</div>
             <div className="flex flex-wrap gap-2">

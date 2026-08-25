@@ -26,6 +26,7 @@
         }).filter(Boolean),
       })),
       game: db.game,
+      questions: db.questions,
       settings: {
         title: db.settings.title,
         subtitle: db.settings.subtitle,
@@ -148,6 +149,14 @@
     emit();
   }
 
+  export function setKhoiDongTimer(seconds) {
+    const game = g();
+    if (game.round !== "khoi_dong") return;
+    game.khoiDong = game.khoiDong || { submissions: {} };
+    game.khoiDong.timerSeconds = Math.max(5, Number(seconds) || 60);
+    setTimer(game.khoiDong.timerSeconds, false);
+  }
+
   export function startRound(roundId) {
     const game = g();
     game.phase = "main";
@@ -177,8 +186,8 @@
       game.tangToc = { submissions: {}, ranked: [] };
     }
     if (roundId === "khoi_dong") {
-      game.khoiDong = { submissions: {} };
-      setTimer(60, false);
+      game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60 };
+      setTimer(game.khoiDong.timerSeconds, false);
     }
     if (roundId === "ve_dich") {
       game.veDich = { packagePoints: 20, star: false, answeringTeam: "a", stealOpen: false };
@@ -271,8 +280,11 @@
       setTimer(q.timeLimit || 20, false);
     }
     if (game.round === "khoi_dong") {
-      game.khoiDong = { submissions: {} };
+      const timerSec = game.khoiDong?.timerSeconds || 60;
+      game.khoiDong = game.khoiDong || {};
+      game.khoiDong.submissions = {};
       game.display.note = `${team(game.currentTeam)?.name || ""} • Câu ${game.questionIndex + 1}/6 • 10 điểm`;
+      setTimer(timerSec, true);
     }
     if (game.round === "ve_dich") {
       const star = game.veDich.star ? " • Ngôi sao hy vọng" : "";
@@ -359,6 +371,20 @@
     } else if (game.round === "ve_dich" && game.veDich.star && tid === game.currentTeam) {
       addScore(tid, -game.veDich.packagePoints * 2);
     }
+    // Vòng Khởi động: chấm xong tự sang câu kế và hiện luôn câu mới
+    if (game.round === "khoi_dong" && game.display.mode === "question") {
+      // Lưu lịch sử đúng/sai
+      game.khoiDong.history = game.khoiDong.history || {};
+      game.khoiDong.history[tid] = game.khoiDong.history[tid] || [];
+      game.khoiDong.history[tid][game.questionIndex] = !!correct;
+      const before = `${game.currentTeam}:${game.questionIndex}`;
+      nextQuestion();
+      const moved = `${game.currentTeam}:${game.questionIndex}` !== before;
+      if (moved && currentQuestion()) {
+        showQuestion();
+      }
+      return;
+    }
     // Chỉ lật đáp án khi câu hỏi đang thực sự hiển thị trên màn hình
     if (game.display.mode === "question") {
       game.display.answerRevealed = true;
@@ -382,7 +408,7 @@
         if (i < 3) {
           game.currentTeam = order[i + 1];
           game.questionIndex = 0;
-          setTimer(60, false);
+          setTimer(game.khoiDong?.timerSeconds || 60, false);
         }
       }
     } else if (game.round === "vuot_cnv") {
@@ -417,12 +443,40 @@
     game.currentTeam = teamId;
     game.questionIndex = 0;
     if (game.round === "khoi_dong") {
-      game.khoiDong = { submissions: {} };
-      setTimer(60, false);
+      const timerSec = game.khoiDong?.timerSeconds || 60;
+      const history = game.khoiDong?.history || {};
+      game.khoiDong = { submissions: {}, timerSeconds: timerSec, history };
+      setTimer(timerSec, false);
+      showQuestion();
+      return;
     }
     if (game.round === "ve_dich") {
       game.veDich.answeringTeam = teamId;
       game.veDich.star = false;
+    }
+    saveDb();
+    emit();
+  }
+
+  export function jumpToQuestion(teamId, questionIndex) {
+    const game = g();
+    const prevTeam = game.currentTeam;
+    game.currentTeam = teamId;
+    game.questionIndex = Math.max(0, questionIndex);
+    if (game.round === "khoi_dong") {
+      const timerSec = game.khoiDong?.timerSeconds || 60;
+      if (teamId !== prevTeam) {
+        const history = game.khoiDong?.history || {};
+        game.khoiDong = { submissions: {}, timerSeconds: timerSec, history };
+      }
+      setTimer(timerSec, false);
+      showQuestion();
+      return;
+    }
+    if (game.round === "tang_toc") {
+      game.tangToc = { submissions: {}, ranked: game.tangToc?.ranked || [] };
+      showQuestion();
+      return;
     }
     saveDb();
     emit();
@@ -520,6 +574,7 @@
     game.display.answerRevealed = false;
     saveDb();
     emit();
+    showQuestion();
   }
 
   // Đội trả lời đúng: mở đúng 1 mảnh góc tương ứng hàng ngang

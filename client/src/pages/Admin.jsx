@@ -197,6 +197,7 @@ function TeamsTab({ state, board, reload, setMsg }) {
 
 function QuestionsTab({ state, reload, setMsg }) {
   const [edit, setEdit] = useState(null);
+  const [mainTab, setMainTab] = useState("khoi_dong");
   const [mainText, setMainText] = useState(JSON.stringify(state.questions.main, null, 2));
 
   async function saveSk(e) {
@@ -206,6 +207,9 @@ function QuestionsTab({ state, reload, setMsg }) {
     setMsg("Đã lưu câu hỏi sơ khảo");
     reload();
   }
+
+  const main = state.questions.main || {};
+  const teamIds = ["a", "b", "c", "d"];
 
   return (
     <div>
@@ -270,21 +274,147 @@ function QuestionsTab({ state, reload, setMsg }) {
         </table>
       </div>
 
+      {/* Câu hỏi vòng chính — quản lý theo vòng */}
       <div className="panel mt-5">
-        <h3 className="font-bold">Câu hỏi vòng chính (JSON)</h3>
-        <p className="text-mist text-sm">Khởi động, Vượt CNV, Tăng tốc, Về đích — chỉnh trực tiếp rồi lưu.</p>
-        <textarea rows={18} value={mainText} onChange={(e) => setMainText(e.target.value)} className="w-full mt-3 font-mono text-sm" />
-        <button
-          type="button"
-          className="btn mt-3"
-          onClick={async () => {
-            await saveMainQuestions(JSON.parse(mainText));
-            setMsg("Đã lưu câu hỏi vòng chính");
-            reload();
-          }}
-        >
-          Lưu vòng chính
-        </button>
+        <h3 className="font-bold mb-3">Câu hỏi vòng chính</h3>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {[
+            ["khoi_dong", "Khởi động"],
+            ["vuot_cnv", "Vượt CNV"],
+            ["tang_toc", "Tăng tốc"],
+            ["ve_dich", "Về đích"],
+            ["json", "Chỉnh JSON"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setMainTab(id)}
+              className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+                mainTab === id ? "bg-gold text-[#1a1400] border-gold" : "border-line text-mist hover:border-gold/60"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Khởi động: 4 đội × 6 câu */}
+        {mainTab === "khoi_dong" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {teamIds.map((tid) => {
+              const qs = main.khoiDong?.[tid] || [];
+              return (
+                <div key={tid} className="rounded-xl border border-line bg-night/40 p-3">
+                  <div className="font-bold text-sm mb-2" style={{ color: state.teams.find((t) => t.id === tid)?.color }}>
+                    {state.teams.find((t) => t.id === tid)?.name || tid.toUpperCase()} — {qs.length} câu
+                  </div>
+                  <table className="table">
+                    <thead><tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th></tr></thead>
+                    <tbody>
+                      {qs.map((qd, i) => (
+                        <tr key={qd.id}>
+                          <td className="text-mist">{i + 1}</td>
+                          <td className="truncate max-w-[200px]" title={qd.question}>{qd.question}</td>
+                          <td className="text-ok font-semibold">{qd.answer}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {qs.length === 0 && <p className="text-mist text-xs">Chưa có câu hỏi.</p>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Vượt CNV: 4 hàng ngang */}
+        {mainTab === "vuot_cnv" && (
+          <div>
+            <div className="rounded-xl border border-line bg-night/40 p-3 mb-3">
+              <div className="font-bold text-sm mb-1">Từ khóa: <span className="text-gold">{main.vuotCnv?.keyword || "—"}</span></div>
+              <div className="text-mist text-sm">Gợi ý: {main.vuotCnv?.hint || "—"} • {main.vuotCnv?.letterCount || "?"} chữ cái</div>
+            </div>
+            <table className="table">
+              <thead><tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th><th>Số chữ cái</th></tr></thead>
+              <tbody>
+                {(main.vuotCnv?.rows || []).map((row, i) => (
+                  <tr key={row.id}>
+                    <td className="text-mist">{i + 1}</td>
+                    <td>{row.question}</td>
+                    <td className="text-ok font-semibold">{row.answer}</td>
+                    <td className="text-mist">{row.letterCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {(main.vuotCnv?.rows || []).length === 0 && <p className="text-mist text-sm mt-2">Chưa có câu hỏi Vượt CNV.</p>}
+          </div>
+        )}
+
+        {/* Tăng tốc: 4 câu */}
+        {mainTab === "tang_toc" && (
+          <table className="table">
+            <thead><tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th><th>Thời gian</th></tr></thead>
+            <tbody>
+              {(main.tangToc || []).map((qd, i) => (
+                <tr key={qd.id}>
+                  <td className="text-mist">{i + 1}</td>
+                  <td>{qd.question}</td>
+                  <td className="text-ok font-semibold">{qd.answer}</td>
+                  <td className="text-mist">{qd.timeLimit || 20}s</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {/* Về đích: 4 đội × 3 gói điểm */}
+        {mainTab === "ve_dich" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {teamIds.map((tid) => {
+              const qs = main.veDich?.[tid] || [];
+              return (
+                <div key={tid} className="rounded-xl border border-line bg-night/40 p-3">
+                  <div className="font-bold text-sm mb-2" style={{ color: state.teams.find((t) => t.id === tid)?.color }}>
+                    {state.teams.find((t) => t.id === tid)?.name || tid.toUpperCase()} — {qs.length} gói
+                  </div>
+                  <table className="table">
+                    <thead><tr><th>Điểm</th><th>Câu hỏi</th><th>Đáp án</th></tr></thead>
+                    <tbody>
+                      {qs.map((qd) => (
+                        <tr key={qd.id}>
+                          <td className="text-gold font-bold">{qd.points}</td>
+                          <td className="truncate max-w-[200px]" title={qd.question}>{qd.question}</td>
+                          <td className="text-ok font-semibold">{qd.answer}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {qs.length === 0 && <p className="text-mist text-xs">Chưa có câu hỏi.</p>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* JSON editor (fallback) */}
+        {mainTab === "json" && (
+          <>
+            <p className="text-mist text-sm mb-2">Chỉnh sửa trực tiếp JSON — useful khi cần bulk update.</p>
+            <textarea rows={18} value={mainText} onChange={(e) => setMainText(e.target.value)} className="w-full font-mono text-sm" />
+            <button
+              type="button"
+              className="btn mt-3"
+              onClick={async () => {
+                await saveMainQuestions(JSON.parse(mainText));
+                setMsg("Đã lưu câu hỏi vòng chính");
+                reload();
+              }}
+            >
+              Lưu vòng chính
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

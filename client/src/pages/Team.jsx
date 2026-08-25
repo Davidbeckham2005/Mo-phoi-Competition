@@ -27,7 +27,6 @@ export default function Team() {
   const d = g.display || {};
   const team = (state?.teams || []).find((t) => t.id === session?.teamId);
 
-  // Xác thực lại phiên khi tải trang
   useEffect(() => {
     if (!session) return undefined;
     loginTeam(session.teamId, session.pass).catch(() => {
@@ -38,7 +37,6 @@ export default function Team() {
     return undefined;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Server từ chối phiên (ví dụ mật khẩu vừa bị BTC đổi)
   useEffect(() => {
     return on("team:error", () => {
       localStorage.removeItem(SESSION_KEY);
@@ -81,13 +79,6 @@ export default function Team() {
     socket.emit("buzzer:press", { teamId: session.teamId, pass: session.pass });
   }
 
-  function submitKd(e) {
-    e.preventDefault();
-    if (!answer.trim()) return;
-    socket.emit("khoidong:submit", { teamId: session.teamId, pass: session.pass, answer });
-    setAnswer("");
-  }
-
   function submitTt(e) {
     e.preventDefault();
     if (!answer.trim()) return;
@@ -106,7 +97,6 @@ export default function Team() {
     );
   }
 
-  // ---------- Màn hình đăng nhập ----------
   if (!session || !team) {
     return (
       <div className="mx-auto w-[min(720px,calc(100%-24px))] py-8 text-center">
@@ -153,18 +143,18 @@ export default function Team() {
     );
   }
 
-  // ---------- Đã đăng nhập: nội dung theo từng vòng ----------
   const roundName = (state.rounds || []).find((r) => r.id === g.round)?.name || "Chờ bắt đầu";
   const remaining = timer?.remaining ?? g.timer?.remaining ?? 0;
   const running = timer?.running ?? g.timer?.running;
   const winner = g.buzzer?.winner === team.id;
   const canBuzz = !!g.buzzer?.open && !(g.buzzer.blocked || []).includes(team.id) && !g.buzzer.winner;
+  const isKd = g.round === "khoi_dong";
 
   let body;
   if (g.phase === "finished") {
     body = <FinalBoard teams={[...state.teams].sort((a, b) => b.score - a.score)} me={team.id} />;
-  } else if (g.round === "khoi_dong") {
-    body = <KhoiDongBody g={g} d={d} team={team} answer={answer} setAnswer={setAnswer} onSubmit={submitKd} />;
+  } else if (isKd) {
+    body = <KhoiDongBody g={g} d={d} team={team} />;
   } else if (g.round === "vuot_cnv") {
     body = (
       <>
@@ -209,6 +199,43 @@ export default function Team() {
     );
   }
 
+  // === Layout vòng Khởi động: ưu tiên câu hỏi, ẩn thông tin không cần thiết ===
+  if (isKd) {
+    return (
+      <div className="relative min-h-screen flex flex-col items-center px-4 py-5 text-center">
+        <div className="absolute top-4 left-4">
+          <button
+            type="button"
+            className="btn btn-ghost py-2! px-3! text-sm"
+            onClick={() => {
+              localStorage.removeItem(SESSION_KEY);
+              setSession(null);
+              setErr("");
+            }}
+          >
+            ← Đăng xuất
+          </button>
+        </div>
+
+        {/* Header tối giản: tên đội + timer */}
+        <div className="flex items-center gap-4 mb-4">
+          <div className="font-display text-lg font-bold" style={{ color: team.color }}>{team.name}</div>
+          <span className="text-mist text-sm">•</span>
+          <span className="text-mist text-sm">{team.score} điểm</span>
+          <span className={`timer-xl ml-4 text-3xl ${remaining <= 5 && running ? "timer-danger" : ""}`}>
+            {formatTime(remaining)}
+          </span>
+        </div>
+
+        {/* Câu hỏi —占据最大空间 */}
+        <div className="flex-1 flex flex-col items-center justify-center w-full max-w-2xl">
+          {body}
+        </div>
+      </div>
+    );
+  }
+
+  // === Layout mặc định cho các vòng khác ===
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center px-4 py-10 text-center">
       <div className="absolute top-4 left-4">
@@ -238,58 +265,35 @@ export default function Team() {
   );
 }
 
-// Vòng Khởi động: ghi đáp án khi đến lượt đội mình
-function KhoiDongBody({ g, d, team, answer, setAnswer, onSubmit }) {
+// Vòng Khởi động: chỉ hiển thị câu hỏi (thí sinh ghi đáp án trên giấy bên ngoài)
+function KhoiDongBody({ g, d, team }) {
   const active = g.questionStatus === "showing" && d.mode === "question";
   const myTurn = active && g.currentTeam === team.id;
-  const submitted = g.khoiDong?.submissions?.[team.id];
   const curName = g.currentTeam ? `đội ${String(g.currentTeam).toUpperCase()}` : "";
 
   if (!active) {
     return (
-      <>
-        <div className="round-badge mt-4">Lượt {curName} — chờ MC hiện câu hỏi</div>
-        <p className="text-mist mt-3">Khi MC hiển thị câu hỏi, ô ghi đáp án sẽ xuất hiện tại đây.</p>
-      </>
+      <div className="text-center">
+        <div className="round-badge">Lượt {curName || "?"}</div>
+        <p className="text-mist mt-4 text-lg">Đang chờ MC hiển thị câu hỏi…</p>
+      </div>
     );
   }
   if (!myTurn) {
     return (
-      <>
-        <div className="stage-q opacity-55 mt-4">{d.question}</div>
-        <div className="badge badge-no mt-3">Chưa đến lượt — đang là lượt {curName}</div>
-      </>
-    );
-  }
-  if (submitted) {
-    return (
-      <>
-        <div className="stage-q mt-4">{d.question}</div>
-        <div className="mt-3 text-lg">
-          Đã gửi đáp án: <b className="text-ok">{submitted.answer}</b>
-        </div>
-        <p className="text-mist mt-1 text-sm">Chờ MC chấm. Không thể sửa sau khi gửi.</p>
-      </>
+      <div className="text-center w-full">
+        <div className="stage-q opacity-50 mb-4">{d.question}</div>
+        <div className="badge badge-no">Chưa đến lượt — đang là lượt {curName}</div>
+      </div>
     );
   }
   return (
-    <>
-      <div className="stage-q mt-4">{d.question}</div>
-      <form onSubmit={onSubmit} className="flex gap-2 justify-center mt-4">
-        <input
-          autoFocus
-          autoComplete="off"
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          placeholder="Ghi đáp án của bạn…"
-        />
-        <button className="btn" type="submit" disabled={!answer.trim()}>Gửi đáp án</button>
-      </form>
-    </>
+    <div className="text-center w-full">
+      <div className="stage-q">{d.question}</div>
+    </div>
   );
 }
 
-// Bảng từ khóa Vòng 2 thu nhỏ cho thí sinh (ô tròn từng ký tự)
 function CnvBoard({ cnv, puzzle }) {
   if (!cnv) return null;
   return (
