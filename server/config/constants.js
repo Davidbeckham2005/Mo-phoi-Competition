@@ -48,7 +48,8 @@ export function defaultGame() {
     puzzle: emptyPuzzle(),
     veDich: { packagePoints: 20, star: false, answeringTeam: null, stealOpen: false },
     tangToc: { submissions: {}, ranked: [] },
-    khoiDong: { submissions: {}, history: {} },
+    khoiDong: { submissions: {}, history: {}, timerSeconds: 60 },
+    roundStarted: false,
     finished: false,
     winnerTeamId: null,
   };

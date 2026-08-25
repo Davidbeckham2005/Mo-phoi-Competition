@@ -4,6 +4,7 @@ import * as game from "../services/game.service.js";
 export function registerSockets(io) {
   io.on("connection", (socket) => {
     socket.emit("game:state", game.publicGame());
+    socket.emit("game:timer", game.getTimer());
     socket.emit("prelim:update", publicState());
 
     function teamOk(payload) {

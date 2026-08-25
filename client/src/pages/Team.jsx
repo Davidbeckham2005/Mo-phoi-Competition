@@ -275,21 +275,31 @@ function KhoiDongBody({ g, d, team }) {
     return (
       <div className="text-center">
         <div className="round-badge">Lượt {curName || "?"}</div>
-        <p className="text-mist mt-4 text-lg">Đang chờ MC hiển thị câu hỏi…</p>
+        <p className="text-mist mt-4 text-lg">
+          {g.roundStarted ? "Đang chờ MC hiển thị câu hỏi…" : "Đang chờ MC bắt đầu vòng…"}
+        </p>
       </div>
     );
   }
   if (!myTurn) {
     return (
       <div className="text-center w-full">
-        <div className="stage-q opacity-50 mb-4">{d.question}</div>
+        {d.mediaUrl && d.mediaType === "image" ? (
+          <img src={d.mediaUrl} className="max-h-[40vh] rounded-xl mb-4 opacity-50" />
+        ) : (
+          <div className="stage-q opacity-50 mb-4">{d.question}</div>
+        )}
         <div className="badge badge-no">Chưa đến lượt — đang là lượt {curName}</div>
       </div>
     );
   }
   return (
     <div className="text-center w-full">
-      <div className="stage-q">{d.question}</div>
+      {d.mediaUrl && d.mediaType === "image" && (
+        <img src={d.mediaUrl} className="max-h-[50vh] rounded-xl mb-4" />
+      )}
+      {!d.mediaUrl && d.question && <div className="stage-q">{d.question}</div>}
+      {!d.mediaUrl && !d.question && <div className="text-mist">Đang tải...</div>}
     </div>
   );
 }

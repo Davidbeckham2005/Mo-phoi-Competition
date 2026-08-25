@@ -10,9 +10,14 @@
   export function emit() {
     broadcast("game:state", publicGame());
   }
+
+  export function getTimer() {
+    return g().timer;
+  }
   // lấy dữ liệu game hiện tại hiển thị ra màng hình
   export function publicGame() {
     const db = getDb();
+    const { timer, ...gameWithoutTimer } = db.game;
     const state = {
       teams: db.teams.map((t) => ({
         id: t.id,
@@ -25,7 +30,7 @@
           return c ? { id: c.id, name: c.name } : null;
         }).filter(Boolean),
       })),
-      game: db.game,
+      game: gameWithoutTimer,
       questions: db.questions,
       settings: {
         title: db.settings.title,
@@ -165,6 +170,7 @@
     game.currentTeam = "a";
     game.questionStatus = "idle";
     game.finished = false;
+    game.roundStarted = false;
     game.display = {
       mode: "idle",
       title: ROUNDS.find((r) => r.id === roundId)?.name || "",
@@ -186,12 +192,35 @@
       game.tangToc = { submissions: {}, ranked: [] };
     }
     if (roundId === "khoi_dong") {
-      game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60 };
+      const history = game.khoiDong?.history || {};
+      game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60, history };
       setTimer(game.khoiDong.timerSeconds, false);
     }
     if (roundId === "ve_dich") {
       game.veDich = { packagePoints: 20, star: false, answeringTeam: "a", stealOpen: false };
     }
+    saveDb();
+    emit();
+  }
+
+  export function beginRound() {
+    const game = g();
+    if (!game.round) return;
+    game.roundStarted = true;
+    saveDb();
+    emit();
+  }
+
+  export function stopRound() {
+    const game = g();
+    game.roundStarted = false;
+    game.questionStatus = "idle";
+    game.display.mode = game.round === "vuot_cnv" ? "puzzle" : "idle";
+    game.display.question = "";
+    game.display.answer = "";
+    game.display.answerRevealed = false;
+    game.display.note = "";
+    if (game.timer.running) pauseTimer();
     saveDb();
     emit();
   }
@@ -255,6 +284,11 @@
 
   export function showQuestion() {
     const game = g();
+    if (game.round && !game.roundStarted) {
+      const err = new Error("Vòng chưa bắt đầu — hãy bấm \"Bắt đầu vòng\" trước.");
+      err.status = 400;
+      throw err;
+    }
     const q = currentQuestion();
     if (!q) {
       const err = new Error("Chưa có câu hỏi phù hợp — hãy chọn đội/gói câu hỏi trước khi hiện.");
@@ -283,7 +317,8 @@
       const timerSec = game.khoiDong?.timerSeconds || 60;
       game.khoiDong = game.khoiDong || {};
       game.khoiDong.submissions = {};
-      game.display.note = `${team(game.currentTeam)?.name || ""} • Câu ${game.questionIndex + 1}/6 • 10 điểm`;
+      const kdList = main.khoiDong?.[game.currentTeam] || [];
+      game.display.note = `${team(game.currentTeam)?.name || ""} • Ảnh ${game.questionIndex + 1}/${kdList.length} • 10 điểm`;
       setTimer(timerSec, true);
     }
     if (game.round === "ve_dich") {

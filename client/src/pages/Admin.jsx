@@ -199,12 +199,46 @@ function QuestionsTab({ state, reload, setMsg }) {
   const [edit, setEdit] = useState(null);
   const [mainTab, setMainTab] = useState("khoi_dong");
   const [mainText, setMainText] = useState(JSON.stringify(state.questions.main, null, 2));
+  const [kdEdit, setKdEdit] = useState(null);
 
   async function saveSk(e) {
     e.preventDefault();
     await saveSoKhaoQuestion(edit);
     setEdit(null);
     setMsg("Đã lưu câu hỏi sơ khảo");
+    reload();
+  }
+
+  async function addKdWithImage(teamId, file) {
+    const result = await uploadFile(file);
+    const m = { ...state.questions.main };
+    const qs = [...(m.khoiDong?.[teamId] || [])];
+    qs.push({ id: `kd-${teamId}-${Date.now()}`, answer: "", points: 10, mediaUrl: result.url, mediaType: result.type });
+    m.khoiDong = { ...m.khoiDong, [teamId]: qs };
+    await saveMainQuestions(m);
+    setMsg("Đã thêm ảnh");
+    reload();
+  }
+
+  async function saveKdEdit() {
+    if (!kdEdit) return;
+    const m = { ...state.questions.main };
+    const qs = [...(m.khoiDong?.[kdEdit.teamId] || [])];
+    qs[kdEdit.index] = { ...qs[kdEdit.index], answer: kdEdit.answer, mediaUrl: kdEdit.mediaUrl, mediaType: kdEdit.mediaType };
+    m.khoiDong = { ...m.khoiDong, [kdEdit.teamId]: qs };
+    await saveMainQuestions(m);
+    setKdEdit(null);
+    setMsg("Đã lưu");
+    reload();
+  }
+
+  async function deleteKdQuestion(teamId, index) {
+    const m = { ...state.questions.main };
+    const qs = [...(m.khoiDong?.[teamId] || [])];
+    qs.splice(index, 1);
+    m.khoiDong = { ...m.khoiDong, [teamId]: qs };
+    await saveMainQuestions(m);
+    setMsg("Đã xóa");
     reload();
   }
 
@@ -298,32 +332,91 @@ function QuestionsTab({ state, reload, setMsg }) {
           ))}
         </div>
 
-        {/* Khởi động: 4 đội × 6 câu */}
         {mainTab === "khoi_dong" && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {teamIds.map((tid) => {
-              const qs = main.khoiDong?.[tid] || [];
-              return (
-                <div key={tid} className="rounded-xl border border-line bg-night/40 p-3">
-                  <div className="font-bold text-sm mb-2" style={{ color: state.teams.find((t) => t.id === tid)?.color }}>
-                    {state.teams.find((t) => t.id === tid)?.name || tid.toUpperCase()} — {qs.length} câu
-                  </div>
-                  <table className="table">
-                    <thead><tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th></tr></thead>
-                    <tbody>
-                      {qs.map((qd, i) => (
-                        <tr key={qd.id}>
-                          <td className="text-mist">{i + 1}</td>
-                          <td className="truncate max-w-[200px]" title={qd.question}>{qd.question}</td>
-                          <td className="text-ok font-semibold">{qd.answer}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {qs.length === 0 && <p className="text-mist text-xs">Chưa có câu hỏi.</p>}
+          <div>
+            {kdEdit && (
+              <div className="rounded-xl border border-gold bg-night/60 p-4 mb-4">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-bold text-sm">
+                    Sửa — {state.teams.find((t) => t.id === kdEdit.teamId)?.name} #{kdEdit.index + 1}
+                  </h4>
+                  <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => setKdEdit(null)}>Đóng</button>
                 </div>
-              );
-            })}
+                <div className="flex gap-4 items-start">
+                  <div className="shrink-0">
+                    {kdEdit.mediaUrl ? (
+                      <img src={kdEdit.mediaUrl} className="w-[140px] h-[100px] object-cover rounded-lg" />
+                    ) : (
+                      <div className="w-[140px] h-[100px] rounded-lg border border-dashed border-line grid place-items-center text-mist text-xs">Chưa có ảnh</div>
+                    )}
+                    <label className="btn btn-ghost mt-2 cursor-pointer inline-block text-xs w-full text-center">
+                      {kdEdit.mediaUrl ? "Đổi ảnh" : "Chọn ảnh"}
+                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        const r = await uploadFile(f);
+                        setKdEdit({ ...kdEdit, mediaUrl: r.url, mediaType: r.type });
+                      }} />
+                    </label>
+                  </div>
+                  <div className="grid gap-3 flex-1">
+                    <label className="label-grid">
+                      Đáp án
+                      <input value={kdEdit.answer || ""} onChange={(e) => setKdEdit({ ...kdEdit, answer: e.target.value })} placeholder="Đáp án đúng" autoFocus />
+                    </label>
+                    <div className="flex gap-2">
+                      <button type="button" className="btn" onClick={saveKdEdit}>Lưu</button>
+                      <button type="button" className="btn btn-ghost" onClick={() => setKdEdit(null)}>Hủy</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              {teamIds.map((tid) => (
+                <label key={tid} className="btn btn-ghost text-xs cursor-pointer">
+                  + Ảnh {state.teams.find((t) => t.id === tid)?.name}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addKdWithImage(tid, f); }} />
+                </label>
+              ))}
+            </div>
+
+            <table className="table">
+              <thead>
+                <tr><th>#</th><th>Ảnh</th><th>Đội</th><th>Đáp án</th><th></th></tr>
+              </thead>
+              <tbody>
+                {teamIds.flatMap((tid) =>
+                  (main.khoiDong?.[tid] || []).map((qd, i) => ({ qd, i, tid }))
+                ).map(({ qd, i, tid }, idx) => {
+                  const team = state.teams.find((t) => t.id === tid);
+                  return (
+                    <tr key={qd.id}>
+                      <td className="text-mist">{idx + 1}</td>
+                      <td>
+                        {qd.mediaUrl ? (
+                          <img src={qd.mediaUrl} className="h-10 rounded object-cover cursor-pointer" onClick={() => setKdEdit({ teamId: tid, index: i, mediaUrl: qd.mediaUrl || "", mediaType: qd.mediaType || "", answer: qd.answer || "" })} />
+                        ) : (
+                          <span className="text-mist">—</span>
+                        )}
+                      </td>
+                      <td style={{ color: team?.color }} className="font-semibold text-sm">{team?.name} #{i + 1}</td>
+                      <td className="text-ok font-semibold">{qd.answer || <span className="text-mist">—</span>}</td>
+                      <td>
+                        <div className="flex gap-2">
+                          <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => setKdEdit({ teamId: tid, index: i, mediaUrl: qd.mediaUrl || "", mediaType: qd.mediaType || "", answer: qd.answer || "" })}>Sửa</button>
+                          <button type="button" className="btn btn-danger text-xs py-1!" onClick={() => deleteKdQuestion(tid, i)}>Xóa</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {teamIds.flatMap((tid) => main.khoiDong?.[tid] || []).length === 0 && (
+              <p className="text-mist text-sm mt-2">Chưa có ảnh. Nhấn nút "+ Ảnh" phía trên để thêm.</p>
+            )}
           </div>
         )}
 

@@ -117,6 +117,15 @@ function Stage({ state }) {
     );
   }
 
+  if (g.round && !g.roundStarted) {
+    return (
+      <div className="text-center">
+        <div className="kicker">{(state.rounds || []).find((r) => r.id === g.round)?.name || g.round}</div>
+        <div className="stage-q mt-3 text-mist">Đang chờ MC bắt đầu…</div>
+      </div>
+    );
+  }
+
   if (d.mode === "puzzle" || (g.round === "vuot_cnv" && d.mode !== "question" && d.mode !== "media")) {
     const p = g.puzzle || {};
     const cnv = state.cnv;
@@ -240,16 +249,23 @@ function Stage({ state }) {
   }
 
   if (d.mode === "question") {
+    const isKdImg = g.round === "khoi_dong" && d.mediaUrl;
     return (
       <div className="text-center">
-        {d.mediaUrl && d.mediaType === "image" && (
-          <img src={d.mediaUrl} alt="" className="max-h-[220px] rounded-xl mb-4 inline-block" />
+        {isKdImg ? (
+          <img src={d.mediaUrl} alt="" className="max-h-[55vh] max-w-[80vw] rounded-2xl object-contain" />
+        ) : (
+          <>
+            {d.mediaUrl && d.mediaType === "image" && (
+              <img src={d.mediaUrl} alt="" className="max-h-[220px] rounded-xl mb-4 inline-block" />
+            )}
+            {d.mediaUrl && d.mediaType === "video" && (
+              <video src={d.mediaUrl} autoPlay controls className="max-h-[260px] mb-4" />
+            )}
+          </>
         )}
-        {d.mediaUrl && d.mediaType === "video" && (
-          <video src={d.mediaUrl} autoPlay controls className="max-h-[260px] mb-4" />
-        )}
-        <div className="stage-q">{d.question}</div>
-        {d.options?.length > 0 && (
+        {!isKdImg && d.question && <div className="stage-q">{d.question}</div>}
+        {!isKdImg && d.options?.length > 0 && (
           <div className="grid gap-2.5 mt-5 text-left w-[min(720px,90%)] mx-auto">
             {d.options.map((o) => (
               <div key={o} className="opt cursor-default">{o}</div>

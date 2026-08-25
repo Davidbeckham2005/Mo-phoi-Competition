@@ -8,7 +8,7 @@ import { useGameState } from "../lib/useGame.js";
 
 export default function Control() {
   const nav = useNavigate();
-  const { state } = useGameState();
+  const { state, timer } = useGameState();
   const [current, setCurrent] = useState(null);
   const [seconds, setSeconds] = useState(15);
   const [delta, setDelta] = useState(10);
@@ -53,6 +53,8 @@ export default function Control() {
 
   const showing = d.mode === "question";
   const revealed = !!d.answerRevealed;
+  const remaining = timer?.remaining ?? 0;
+  const running = timer?.running ?? false;
 
   const winner = state.teams.find((t) => t.id === g.buzzer?.winner);
   const cur = state.teams.find((t) => t.id === g.currentTeam);
@@ -111,6 +113,17 @@ export default function Control() {
               {label}
             </button>
           ))}
+          {g.round && (
+            g.roundStarted ? (
+              <button type="button" className="btn btn-danger" onClick={() => act("round.stop")}>
+                Dừng vòng
+              </button>
+            ) : (
+              <button type="button" className="btn btn-ok" onClick={() => act("round.begin")}>
+                Bắt đầu vòng
+              </button>
+            )
+          )}
           <button type="button" className="btn" onClick={() => act("scores.show")}>Hiện bảng điểm</button>
           <button type="button" className="btn btn-ok" onClick={() => act("contest.finish")}>Kết quả cuối</button>
         </div>
@@ -178,8 +191,8 @@ export default function Control() {
               Trả lời: {winner ? `${winner.name} (chuông)` : cur?.name}
             </span>
           )}
-          <span className={`timer-xl ml-auto text-3xl ${g.timer?.remaining <= 5 && g.timer?.running ? "timer-danger" : ""}`}>
-            {formatTime(g.timer?.remaining || 0)}
+          <span className={`timer-xl ml-auto text-3xl ${remaining <= 5 && running ? "timer-danger" : ""}`}>
+            {formatTime(remaining)}
           </span>
         </div>
 
@@ -191,7 +204,14 @@ export default function Control() {
           )}
           {q && (
             <>
-              <div className="font-display text-xl leading-snug">{q.question}</div>
+              {isKd && q.mediaUrl && (
+                <img src={q.mediaUrl} className="max-h-[150px] rounded-lg mb-2" />
+              )}
+              {isKd ? (
+                <div className="font-display text-xl leading-snug text-mist italic">Ảnh #{g.questionIndex + 1}</div>
+              ) : (
+                <div className="font-display text-xl leading-snug">{q.question}</div>
+              )}
               {isKd ? (
                 <div className="mt-2 rounded-lg border border-ok/40 bg-ok/10 px-3 py-2 text-ok font-semibold">
                   Đáp án: {q.answer} • {pts} điểm
@@ -474,9 +494,9 @@ export default function Control() {
                                     ? "border-danger/40 bg-danger/8 text-danger/80"
                                     : "border-line text-mist hover:border-gold/50 hover:text-ink"
                             }`}
-                            title={qd.question}
+                            title={qd.answer || qd.question}
                           >
-                            {i + 1}{isCurrent ? " ●" : correct ? " ✓" : wrong ? " ✕" : ""}
+                            {i + 1}{qd.mediaUrl ? " \u25C9" : ""}{isCurrent ? " \u25CF" : correct ? " \u2713" : wrong ? " \u2715" : ""}
                           </button>
                         );
                       })}
@@ -569,13 +589,13 @@ export default function Control() {
               <button type="button" className="btn" onClick={() => act("timer.set", { seconds: Number(seconds), running: true })}>
                 Bắt đầu giờ
               </button>
-              <button type="button" className="btn btn-ghost" disabled={!g.timer?.running} onClick={() => act("timer.pause")}>
+              <button type="button" className="btn btn-ghost" disabled={!running} onClick={() => act("timer.pause")}>
                 Dừng
               </button>
               <button
                 type="button"
                 className="btn btn-ghost"
-                disabled={!!g.timer?.running || !(g.timer?.remaining > 0)}
+                disabled={!!running || !(remaining > 0)}
                 onClick={() => act("timer.resume")}
               >
                 Tiếp
