@@ -553,6 +553,249 @@ Không được xóa branch.
 Không được ghi đè thay đổi của người dùng hoặc agent khác.
 
 ---
+# 20. GIT, COMMIT VÀ PUSH MAIN
+
+Agent được người dùng ủy quyền commit và push các thay đổi hoàn thành lên `origin/main`, nhưng PHẢI tuân thủ đầy đủ các quy tắc an toàn bên dưới.
+
+## 20.1. KIỂM TRA TRƯỚC KHI COMMIT
+
+Trước khi commit, Agent PHẢI chạy:
+
+```bash
+git status
+git diff
+git branch --show-current
+```
+
+Agent phải xác nhận:
+
+* Đang ở đúng branch.
+* Chỉ có thay đổi thuộc task hiện tại.
+* Không ghi đè thay đổi của người dùng hoặc Agent khác.
+* Không có secret, API key hoặc password.
+* Không có file ngoài phạm vi bị sửa.
+* Code đã được kiểm tra phù hợp với project.
+
+Agent PHẢI chạy các kiểm tra phù hợp:
+
+```text
+Lint
+Type Check
+Unit Test
+Integration Test
+Build
+```
+
+Không bắt buộc chạy những kiểm tra không tồn tại trong project.
+
+Nếu test hoặc build thất bại do thay đổi của task:
+
+> KHÔNG ĐƯỢC COMMIT HOẶC PUSH.
+
+Phải báo lỗi trước.
+
+## 20.2. QUY TẮC COMMIT
+
+Chỉ commit những file thuộc task hiện tại.
+
+KHÔNG sử dụng:
+
+```bash
+git add .
+```
+
+trong trường hợp working tree có thay đổi không thuộc task.
+
+Ưu tiên:
+
+```bash
+git add <file1> <file2> ...
+```
+
+Commit message phải mô tả chính xác thay đổi.
+
+Format:
+
+```text
+feat: <feature>
+fix: <bug>
+refactor: <refactor>
+docs: <documentation>
+test: <test>
+chore: <maintenance>
+```
+
+Ví dụ:
+
+```text
+feat: implement round 2 answer selection
+fix: prevent duplicate answer submission
+fix: synchronize round timer
+docs: update round 2 documentation
+```
+
+Không sử dụng commit message chung chung:
+
+```text
+update
+changes
+fix
+done
+final
+```
+
+## 20.3. PUSH LÊN MAIN
+
+Sau khi commit thành công, Agent PHẢI push lên:
+
+```bash
+git push origin main
+```
+
+Chỉ được push khi:
+
+* Task đã hoàn thành.
+* Kiểm tra code đã PASS.
+* Commit chỉ chứa thay đổi thuộc task.
+* Không có conflict.
+* Không có thay đổi không rõ nguồn gốc.
+* Đang push đúng repository và branch.
+
+Agent TUYỆT ĐỐI KHÔNG được sử dụng:
+
+```bash
+git push --force
+git push -f
+git reset --hard
+git clean -fd
+```
+
+Không được xóa branch hoặc ghi đè thay đổi của người khác.
+
+## 20.4. MAIN ĐÃ CÓ THAY ĐỔI MỚI
+
+Nếu push bị từ chối vì `main` trên remote đã có commit mới:
+
+```bash
+git fetch origin
+git status
+```
+
+Agent PHẢI kiểm tra và xử lý an toàn.
+
+KHÔNG được force push để giải quyết vấn đề.
+
+Nếu việc đồng bộ `main` có thể gây conflict hoặc ảnh hưởng code của người khác:
+
+> DỪNG và báo người dùng.
+
+Không tự ý giải quyết bằng cách xóa hoặc ghi đè thay đổi.
+
+## 20.5. SAU KHI PUSH
+
+Sau khi push thành công, Agent PHẢI kiểm tra:
+
+```bash
+git status
+git log -1
+```
+
+Sau đó báo cáo:
+
+```text
+## GIT
+
+Branch:
+main
+
+Commit:
+<commit hash>
+
+Commit message:
+<commit message>
+
+Push:
+SUCCESS
+
+Remote:
+origin/main
+```
+
+Nếu commit thành công nhưng push thất bại:
+
+```text
+## GIT
+
+Commit:
+SUCCESS
+
+Push:
+FAILED
+
+Lý do:
+<error>
+
+Action:
+Không sử dụng force push.
+```
+
+Nếu không thể push an toàn:
+
+```text
+## GIT BLOCKED
+
+Branch:
+<branch>
+
+Lý do:
+<reason>
+
+Commit:
+<status>
+
+Push:
+NOT PERFORMED
+
+Cần người dùng xử lý:
+<action>
+```
+
+## 20.6. NGUYÊN TẮC
+
+Quy trình chuẩn:
+
+```text
+TASK
+ ↓
+Đọc AGENTS.md
+ ↓
+Sửa code
+ ↓
+Kiểm tra
+ ↓
+git status
+ ↓
+git diff
+ ↓
+git branch --show-current
+ ↓
+git add đúng file
+ ↓
+git commit
+ ↓
+git push origin main
+ ↓
+git status
+ ↓
+git log -1
+ ↓
+Báo cáo
+```
+
+Mục tiêu:
+
+> **Chỉ commit đúng thay đổi của task, không làm mất code của người khác, không force push và chỉ push code đã được kiểm tra.**
+
 
 # 21. KHÔNG GHI ĐÈ CODE CỦA NGƯỜI KHÁC
 

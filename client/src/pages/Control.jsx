@@ -73,7 +73,7 @@ export default function Control() {
   else if (showing) status = { cls: "ok", text: "ĐANG HIỆN CÂU HỎI" };
 
   let progress = "";
-  if (isKd) progress = `Câu ${g.questionIndex + 1}/6 • ${cur?.name || ""}`;
+  if (isKd) progress = `Ảnh ${g.questionIndex + 1}/${(state.questions?.main?.khoiDong?.[g.currentTeam] || []).length} • ${cur?.name || ""}`;
   else if (g.round === "tang_toc") progress = `Câu ${(g.questionIndex || 0) + 1}/4`;
   else if (g.round === "vuot_cnv") {
     const doneCount = solved.filter(Boolean).length;
@@ -115,9 +115,11 @@ export default function Control() {
           ))}
           {g.round && (
             g.roundStarted ? (
-              <button type="button" className="btn btn-danger" onClick={() => act("round.stop")}>
-                Dừng vòng
-              </button>
+              !isKd && (
+                <button type="button" className="btn btn-danger" onClick={() => act("round.stop")}>
+                  Dừng vòng
+                </button>
+              )
             ) : (
               <button type="button" className="btn btn-ok" onClick={() => act("round.begin")}>
                 Bắt đầu vòng
@@ -204,8 +206,14 @@ export default function Control() {
           )}
           {q && (
             <>
-              {isKd && q.mediaUrl && (
-                <img src={q.mediaUrl} className="max-h-[150px] rounded-lg mb-2" />
+              {isKd && (
+                q.mediaUrl ? (
+                  <img src={q.mediaUrl} className="max-h-[150px] mx-auto rounded-lg mb-2" />
+                ) : (
+                  <div className="mx-auto w-[180px] h-[110px] rounded-lg bg-panel-solid border border-line grid place-items-center mb-2">
+                    <span className="text-3xl text-mist/40">?</span>
+                  </div>
+                )
               )}
               {isKd ? (
                 <div className="font-display text-xl leading-snug text-mist italic">Ảnh #{g.questionIndex + 1}</div>

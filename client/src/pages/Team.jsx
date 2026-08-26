@@ -285,9 +285,11 @@ function KhoiDongBody({ g, d, team }) {
     return (
       <div className="text-center w-full">
         {d.mediaUrl && d.mediaType === "image" ? (
-          <img src={d.mediaUrl} className="max-h-[40vh] rounded-xl mb-4 opacity-50" />
+          <img src={d.mediaUrl} className="max-h-[40vh] mx-auto rounded-xl mb-4 opacity-50" />
         ) : (
-          <div className="stage-q opacity-50 mb-4">{d.question}</div>
+          <div className="mx-auto w-[min(400px,80vw)] aspect-[4/3] rounded-xl bg-panel-solid border border-line grid place-items-center opacity-50 mb-4">
+            <div className="text-5xl text-mist/40">?</div>
+          </div>
         )}
         <div className="badge badge-no">Chưa đến lượt — đang là lượt {curName}</div>
       </div>
@@ -295,11 +297,13 @@ function KhoiDongBody({ g, d, team }) {
   }
   return (
     <div className="text-center w-full">
-      {d.mediaUrl && d.mediaType === "image" && (
-        <img src={d.mediaUrl} className="max-h-[50vh] rounded-xl mb-4" />
+      {d.mediaUrl && d.mediaType === "image" ? (
+        <img src={d.mediaUrl} className="max-h-[50vh] mx-auto rounded-xl mb-4" />
+      ) : (
+        <div className="mx-auto w-[min(400px,80vw)] aspect-[4/3] rounded-xl bg-panel-solid border border-line grid place-items-center mb-4">
+          <div className="text-5xl text-mist/40">?</div>
+        </div>
       )}
-      {!d.mediaUrl && d.question && <div className="stage-q">{d.question}</div>}
-      {!d.mediaUrl && !d.question && <div className="text-mist">Đang tải...</div>}
     </div>
   );
 }

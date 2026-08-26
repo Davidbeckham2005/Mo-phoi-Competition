@@ -317,7 +317,7 @@
       const timerSec = game.khoiDong?.timerSeconds || 60;
       game.khoiDong = game.khoiDong || {};
       game.khoiDong.submissions = {};
-      const kdList = main.khoiDong?.[game.currentTeam] || [];
+      const kdList = getDb().questions.main.khoiDong?.[game.currentTeam] || [];
       game.display.note = `${team(game.currentTeam)?.name || ""} • Ảnh ${game.questionIndex + 1}/${kdList.length} • 10 điểm`;
       setTimer(timerSec, true);
     }
