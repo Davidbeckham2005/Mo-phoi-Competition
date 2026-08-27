@@ -253,13 +253,16 @@ function Stage({ state }) {
     return (
       <div className="text-center">
         {isKd ? (
-          d.mediaUrl ? (
-            <img src={d.mediaUrl} alt="" className="max-h-[55vh] max-w-[80vw] mx-auto rounded-2xl object-contain" />
-          ) : (
-            <div className="mx-auto w-[min(500px,80vw)] aspect-[4/3] rounded-2xl bg-panel-solid border border-line grid place-items-center">
-              <div className="text-6xl text-mist/40">?</div>
-            </div>
-          )
+          <>
+            {d.mediaUrl ? (
+              <img src={d.mediaUrl} alt="" className="max-h-[45vh] max-w-[80vw] mx-auto rounded-2xl object-contain" />
+            ) : (
+              <div className="mx-auto w-[min(500px,80vw)] aspect-[4/3] rounded-2xl bg-panel-solid border border-line grid place-items-center">
+                <div className="text-6xl text-mist/40">?</div>
+              </div>
+            )}
+            {d.question && <div className="stage-q mt-4">{d.question}</div>}
+          </>
         ) : (
           <>
             {d.mediaUrl && d.mediaType === "image" && (

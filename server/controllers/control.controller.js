@@ -19,6 +19,7 @@ const actions = {
   "score.add": (p) => game.addScore(p.teamId, p.points),
   "score.set": (p) => game.setScore(p.teamId, p.score),
   "khoi_dong.timer": (p) => game.setKhoiDongTimer(p.seconds),
+  "khoi_dong.reset": (p) => game.resetKhoiDong(p.teamId),
   "team.set": (p) => game.setCurrentTeam(p.teamId),
   "buzzer.open": () => game.openBuzzer(),
   "buzzer.close": () => game.closeBuzzer(),

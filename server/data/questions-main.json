@@ -1,36 +1,36 @@
 {
   "khoiDong": {
     "a": [
-      { "id": "kd-a-1", "question": "Thủ đô của Việt Nam là thành phố nào?", "answer": "Hà Nội", "points": 10 },
-      { "id": "kd-a-2", "question": "Năm 1070, Văn Miếu được xây dựng dưới triều vua nào?", "answer": "Lý Thánh Tông", "points": 10 },
-      { "id": "kd-a-3", "question": "Hành tinh nào được gọi là \"hành tinh đỏ\"?", "answer": "Sao Hỏa", "points": 10 },
-      { "id": "kd-a-4", "question": "Tác giả \"Truyện Kiều\" tên thật là gì?", "answer": "Nguyễn Du", "points": 10 },
-      { "id": "kd-a-5", "question": "Công thức tính diện tích hình tròn là gì?", "answer": "πr²", "points": 10 },
-      { "id": "kd-a-6", "question": "Sông Hồng còn có tên gọi nào khác?", "answer": "Sông Cái", "points": 10 }
+      { "id": "kd-a-1", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-a-2", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-a-3", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-a-4", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-a-5", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-a-6", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" }
     ],
     "b": [
-      { "id": "kd-b-1", "question": "Chiến thắng Bạch Đằng năm 938 do ai lãnh đạo?", "answer": "Ngô Quyền", "points": 10 },
-      { "id": "kd-b-2", "question": "Khí nào chiếm khoảng 78% thành phần không khí?", "answer": "Nitơ", "points": 10 },
-      { "id": "kd-b-3", "question": "Tác phẩm \"Lão Hạc\" của nhà văn nào?", "answer": "Nam Cao", "points": 10 },
-      { "id": "kd-b-4", "question": "Đỉnh Fansipan thuộc dãy núi nào?", "answer": "Hoàng Liên Sơn", "points": 10 },
-      { "id": "kd-b-5", "question": "1 hecta bằng bao nhiêu mét vuông?", "answer": "10000", "points": 10 },
-      { "id": "kd-b-6", "question": "Máy tính dùng hệ đếm nào làm nền tảng?", "answer": "Nhị phân", "points": 10 }
+      { "id": "kd-b-1", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-b-2", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-b-3", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-b-4", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-b-5", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-b-6", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" }
     ],
     "c": [
-      { "id": "kd-c-1", "question": "Ai là vị vua đầu tiên của nhà Nguyễn?", "answer": "Gia Long", "points": 10 },
-      { "id": "kd-c-2", "question": "Quang hợp xảy ra chủ yếu ở bộ phận nào của lá?", "answer": "Lục lạp", "points": 10 },
-      { "id": "kd-c-3", "question": "Bài thơ \"Đất nước\" trong trường ca \"Mặt đường khát vọng\" của tác giả nào?", "answer": "Nguyễn Khoa Điềm", "points": 10 },
-      { "id": "kd-c-4", "question": "Tết Nguyên đán theo âm lịch rơi vào tháng mấy?", "answer": "Tháng Giêng", "points": 10 },
-      { "id": "kd-c-5", "question": "Số Pi xấp xỉ 22 chia cho số nào?", "answer": "7", "points": 10 },
-      { "id": "kd-c-6", "question": "HTTP là viết tắt của cụm từ tiếng Anh nào?", "answer": "HyperText Transfer Protocol", "points": 10 }
+      { "id": "kd-c-1", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-c-2", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-c-3", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-c-4", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-c-5", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-c-6", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" }
     ],
     "d": [
-      { "id": "kd-d-1", "question": "Hà Nội được giải phóng vào ngày tháng năm nào (1954)?", "answer": "10/10/1954", "points": 10 },
-      { "id": "kd-d-2", "question": "Kim loại nào dẫn điện tốt nhất?", "answer": "Bạc", "points": 10 },
-      { "id": "kd-d-3", "question": "Nhân vật Chí Phèo xuất hiện trong tác phẩm nào?", "answer": "Chí Phèo", "points": 10 },
-      { "id": "kd-d-4", "question": "Việt Nam có bao nhiêu tỉnh, thành phố trực thuộc trung ương (tính đến 2025, sau sáp nhập)?", "answer": "34", "points": 10 },
-      { "id": "kd-d-5", "question": "Căn bậc hai của 144 bằng bao nhiêu?", "answer": "12", "points": 10 },
-      { "id": "kd-d-6", "question": "Đơn vị đo tần số là gì?", "answer": "Hertz", "points": 10 }
+      { "id": "kd-d-1", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-d-2", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-d-3", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-d-4", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-d-5", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" },
+      { "id": "kd-d-6", "answer": "", "points": 10, "mediaUrl": "", "mediaType": "" }
     ]
   },
   "vuotCnv": {

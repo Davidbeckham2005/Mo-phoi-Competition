@@ -291,19 +291,21 @@ function KhoiDongBody({ g, d, team }) {
             <div className="text-5xl text-mist/40">?</div>
           </div>
         )}
-        <div className="badge badge-no">Chưa đến lượt — đang là lượt {curName}</div>
+        {d.question && <div className="stage-q mt-1 opacity-50">{d.question}</div>}
+        <div className="badge badge-no mt-3">Chưa đến lượt — đang là lượt {curName}</div>
       </div>
     );
   }
   return (
     <div className="text-center w-full">
       {d.mediaUrl && d.mediaType === "image" ? (
-        <img src={d.mediaUrl} className="max-h-[50vh] mx-auto rounded-xl mb-4" />
+        <img src={d.mediaUrl} className="max-h-[45vh] mx-auto rounded-xl mb-4" />
       ) : (
         <div className="mx-auto w-[min(400px,80vw)] aspect-[4/3] rounded-xl bg-panel-solid border border-line grid place-items-center mb-4">
           <div className="text-5xl text-mist/40">?</div>
         </div>
       )}
+      {d.question && <div className="stage-q mt-1">{d.question}</div>}
     </div>
   );
 }

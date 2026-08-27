@@ -17,6 +17,8 @@ import {
 } from "../lib/api/admin.js";
 import { getPin } from "../lib/session.js";
 import { formatTime } from "../lib/format.js";
+import { sendControl } from "../lib/api/control.js";
+import { on } from "../lib/socket.js";
 
 export default function Admin() {
   const nav = useNavigate();
@@ -43,6 +45,13 @@ export default function Admin() {
     load();
   }, [nav]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!getPin()) return;
+    return on("game:state", () => {
+      load();
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!state) return <div className="min-h-screen grid place-items-center text-mist">Đang tải quản trị…</div>;
 
   return (
@@ -59,6 +68,7 @@ export default function Admin() {
         {[
           ["ket-qua", "Kết quả sơ khảo"],
           ["doi", "4 đội"],
+          ["bang-diem", "Bảng điểm"],
           ["cau-hoi", "Câu hỏi"],
           ["media", "Hình ảnh / Video"],
           ["cai-dat", "Cài đặt"],
@@ -79,6 +89,7 @@ export default function Admin() {
       {msg && <p className="badge badge-ok inline-block mb-4">{msg}</p>}
       {tab === "ket-qua" && <ResultsTab board={board} reload={load} setMsg={setMsg} />}
       {tab === "doi" && <TeamsTab state={state} board={board} reload={load} setMsg={setMsg} />}
+      {tab === "bang-diem" && <ScoreTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "cau-hoi" && <QuestionsTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "media" && <MediaTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "cai-dat" && <SettingsTab state={state} reload={load} setMsg={setMsg} />}
@@ -191,6 +202,134 @@ function TeamsTab({ state, board, reload, setMsg }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function TeamScoreControls({ team, reload, setMsg, compact }) {
+  const [addAmount, setAddAmount] = useState(10);
+  const [setAmount, setSetAmount] = useState(team.score);
+
+  useEffect(() => {
+    setSetAmount(team.score);
+  }, [team.score]);
+
+  async function add(points) {
+    try {
+      await sendControl("score.add", { teamId: team.id, points });
+    } catch (e) {
+      alert(e.message);
+      return;
+    }
+    setSetAmount(team.score + points);
+    setMsg(`Đã ${points >= 0 ? "cộng" : "trừ"} ${Math.abs(points)} điểm cho ${team.name}`);
+    reload();
+  }
+
+  async function setScore(score) {
+    try {
+      await sendControl("score.set", { teamId: team.id, score });
+    } catch (e) {
+      alert(e.message);
+      return;
+    }
+    setMsg(`Đã đặt điểm ${team.name} thành ${score}`);
+    reload();
+  }
+
+  return (
+    <div className="rounded-xl border p-4 bg-panel-solid" style={{ borderColor: team.color }}>
+      <div className="flex justify-between items-center gap-3">
+        <b style={{ color: team.color }}>{team.name}</b>
+        <span className="font-display text-2xl font-bold">{team.score}</span>
+      </div>
+
+      <div className="text-mist text-xs mt-3 mb-1">Cộng nhanh</div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(5)}>+5</button>
+        <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(10)}>+10</button>
+        <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(20)}>+20</button>
+        <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(30)}>+30</button>
+        <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(-5)}>−5</button>
+        <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(-10)}>−10</button>
+        <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(-20)}>−20</button>
+      </div>
+
+      <div className="text-mist text-xs mt-3 mb-1">Cộng / trừ tùy chỉnh</div>
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          className="w-24!"
+          value={addAmount}
+          onChange={(e) => setAddAmount(Number(e.target.value))}
+        />
+        <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(addAmount || 0)}>+ Cộng</button>
+        <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(-(addAmount || 0))}>− Trừ</button>
+      </div>
+
+      <div className="text-mist text-xs mt-3 mb-1">Đặt điểm trực tiếp</div>
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          className="w-24!"
+          value={setAmount}
+          onChange={(e) => setSetAmount(Number(e.target.value))}
+        />
+        <button type="button" className="btn py-1.5! text-sm!" onClick={() => setScore(setAmount || 0)}>Đặt</button>
+      </div>
+    </div>
+  );
+}
+
+function ScoreTab({ state, reload, setMsg }) {
+  const [freeAmounts, setFreeAmounts] = useState(() => Object.fromEntries(state.teams.map((t) => [t.id, 10])));
+
+  async function add(teamId, points) {
+    try {
+      await sendControl("score.add", { teamId, points });
+    } catch (e) {
+      alert(e.message);
+      return;
+    }
+    const team = state.teams.find((t) => t.id === teamId);
+    setMsg(`Đã ${points >= 0 ? "cộng" : "trừ"} ${Math.abs(points)} điểm cho ${team?.name}`);
+    reload();
+  }
+
+  return (
+    <div className="panel">
+      <h3 className="font-bold">Bảng điểm — cộng điểm</h3>
+      <p className="text-mist text-sm mt-1">Nhập số điểm bất kỳ rồi bấm Cộng / Trừ, hoặc dùng nút nhanh bên dưới.</p>
+      <div className="grid gap-4 sm:grid-cols-2 mt-4">
+        {state.teams.map((t) => {
+          const amt = Number(freeAmounts[t.id]) || 0;
+          return (
+            <div key={t.id} className="rounded-xl border p-4 bg-panel-solid" style={{ borderColor: t.color }}>
+              <div className="flex justify-between items-center mb-3">
+                <b style={{ color: t.color }}>{t.name}</b>
+                <span className="font-display text-3xl font-bold">{t.score}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-mist text-sm">Cộng điểm tự do:</span>
+                <input
+                  type="number"
+                  className="w-28!"
+                  value={freeAmounts[t.id]}
+                  onChange={(e) => setFreeAmounts({ ...freeAmounts, [t.id]: e.target.value })}
+                />
+                <button type="button" className="btn btn-ok" onClick={() => add(t.id, amt)}>+ Cộng</button>
+                <button type="button" className="btn btn-danger" onClick={() => add(t.id, -amt)}>− Trừ</button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(t.id, 10)}>+10</button>
+                <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(t.id, 20)}>+20</button>
+                <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(t.id, -10)}>−10</button>
+                <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(t.id, -20)}>−20</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -334,6 +473,14 @@ function QuestionsTab({ state, reload, setMsg }) {
 
         {mainTab === "khoi_dong" && (
           <div>
+            <div className="rounded-xl border border-gold/30 bg-gold/5 p-4 mb-4">
+              <h4 className="font-bold mb-3">Cộng điểm linh hoạt — vòng Khởi động</h4>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {state.teams.map((t) => (
+                  <TeamScoreControls key={t.id} team={t} reload={reload} setMsg={setMsg} />
+                ))}
+              </div>
+            </div>
             {kdEdit && (
               <div className="rounded-xl border border-gold bg-night/60 p-4 mb-4">
                 <div className="flex justify-between items-center mb-3">

@@ -154,13 +154,31 @@
     emit();
   }
 
-  export function setKhoiDongTimer(seconds) {
-    const game = g();
-    if (game.round !== "khoi_dong") return;
-    game.khoiDong = game.khoiDong || { submissions: {} };
-    game.khoiDong.timerSeconds = Math.max(5, Number(seconds) || 60);
-    setTimer(game.khoiDong.timerSeconds, false);
+export function setKhoiDongTimer(seconds) {
+  const game = g();
+  if (game.round !== "khoi_dong") return;
+  game.khoiDong = game.khoiDong || { submissions: {} };
+  game.khoiDong.timerSeconds = Math.max(5, Number(seconds) || 60);
+  setTimer(game.khoiDong.timerSeconds, false);
+}
+
+// Reset trạng thái trả lời vòng Khởi động (đưa các câu về "chưa trả lời")
+export function resetKhoiDong(teamId = null) {
+  const game = g();
+  if (game.round !== "khoi_dong") return;
+  game.khoiDong = game.khoiDong || { submissions: {}, timerSeconds: 60, history: {} };
+  game.khoiDong.history = game.khoiDong.history || {};
+  game.khoiDong.submissions = game.khoiDong.submissions || {};
+  if (teamId) {
+    game.khoiDong.history[teamId] = [];
+    delete game.khoiDong.submissions[teamId];
+  } else {
+    game.khoiDong.history = {};
+    game.khoiDong.submissions = {};
   }
+  saveDb();
+  emit();
+}
 
   export function startRound(roundId) {
     const game = g();
@@ -192,8 +210,7 @@
       game.tangToc = { submissions: {}, ranked: [] };
     }
     if (roundId === "khoi_dong") {
-      const history = game.khoiDong?.history || {};
-      game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60, history };
+      game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60, history: {} };
       setTimer(game.khoiDong.timerSeconds, false);
     }
     if (roundId === "ve_dich") {
@@ -297,7 +314,7 @@
     }
     game.questionStatus = "showing";
     game.display.mode = "question";
-    game.display.question = q.question;
+    game.display.question = game.round === "khoi_dong" ? "Ảnh này là gì?" : q.question || (q.mediaUrl || q.mediaType ? "Ảnh này là gì?" : "");
     game.display.options = q.options || [];
     game.display.answer = q.answer;
     game.display.answerRevealed = false;
