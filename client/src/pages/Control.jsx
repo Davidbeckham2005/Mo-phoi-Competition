@@ -13,6 +13,9 @@ export default function Control() {
   const [seconds, setSeconds] = useState(15);
   const [kdTimer, setKdTimer] = useState(60);
   const [sideOpen, setSideOpen] = useState(true);
+  const [scoreOpen, setScoreOpen] = useState(true);
+  const [scoreSort, setScoreSort] = useState("rank");
+  const [confirmStart, setConfirmStart] = useState(null);
 
   async function refreshQ() {
     try {
@@ -56,9 +59,62 @@ export default function Control() {
   const remaining = timer?.remaining ?? 0;
   const running = timer?.running ?? false;
 
+  function requestRound(id, label) {
+    if (!g.round || g.round === "finished") {
+      act("round.start", { round: id });
+      return;
+    }
+    if (id === g.round) {
+      const active = showing || running || (g.questionStatus && g.questionStatus !== "idle");
+      if (!active) {
+        act("round.start", { round: id });
+        return;
+      }
+      setConfirmStart({
+        roundId: id,
+        title: `Reset vòng ${label}?`,
+        message: "Vòng này đang có câu hỏi/đồng hồ đang chạy hoặc đang thi dở. Chuyển sẽ đặt lại vòng từ đầu và mất trạng thái hiện tại.",
+        danger: true,
+      });
+      return;
+    }
+    const currentInProgress =
+      showing ||
+      running ||
+      (g.questionStatus && g.questionStatus !== "idle") ||
+      (g.round === "khoi_dong" && Object.keys(g.khoiDong?.submissions || {}).length > 0) ||
+      (g.round === "tang_toc" && Object.keys(g.tangToc?.submissions || {}).length > 0) ||
+      (g.round === "vuot_cnv" && ((p.rowsSolved || []).some(Boolean) || p.keywordSolved)) ||
+      (g.round === "ve_dich" && (g.veDich?.answeringTeam || false));
+    if (currentInProgress) {
+      setConfirmStart({
+        roundId: id,
+        title: `Chuyển sang vòng ${label}?`,
+        message: `Vòng hiện tại đang hoạt động (${state.rounds?.find((r) => r.id === g.round)?.name || g.round}). Chuyển vòng sẽ bỏ qua trạng thái đang dở của vòng này.`,
+        danger: false,
+      });
+      return;
+    }
+    act("round.start", { round: id });
+  }
+
   const winner = state.teams.find((t) => t.id === g.buzzer?.winner);
   const cur = state.teams.find((t) => t.id === g.currentTeam);
   const answering = winner || cur;
+
+  const rankedById = [...(state.teams || [])]
+    .slice()
+    .sort((a, b) => b.score - a.score)
+    .reduce((acc, t, i) => {
+      acc[t.id] = i + 1;
+      return acc;
+    }, {});
+  const maxScore = Math.max(1, ...(state.teams || []).map((t) => t.score));
+  const sortedTeams = [...(state.teams || [])].sort((a, b) =>
+    scoreSort === "asc" ? a.score - b.score : scoreSort === "desc" ? b.score - a.score : rankedById[a.id] - rankedById[b.id]
+  );
+  const rankBadge = (rank) =>
+    rank === 1 ? "1" : rank === 2 ? "2" : rank === 3 ? "3" : `#${rank}`;
 
   let pts = q?.points || current?.keywordPoints || 10;
   if (g.round === "ve_dich") {
@@ -91,15 +147,36 @@ export default function Control() {
       : "không trừ";
 
   return (
-    <div className="grid gap-4 px-4 py-5 mx-auto max-w-[1400px] lg:grid-cols-[280px_1fr_300px] items-start">
+    <>
+    <div className="fixed top-4 right-4 z-30 flex gap-1.5">
+      <button
+        type="button"
+        className="btn btn-ghost text-sm px-2.5! py-1!"
+        title={sideOpen ? "Ẩn cột trái" : "Hiện cột trái"}
+        onClick={() => setSideOpen(!sideOpen)}
+      >
+        {sideOpen ? "◀" : "▶"} Cột trái
+      </button>
+      <button
+        type="button"
+        className="btn btn-ghost text-sm px-2.5! py-1!"
+        title={scoreOpen ? "Ẩn bảng điểm" : "Hiện bảng điểm"}
+        onClick={() => setScoreOpen(!scoreOpen)}
+      >
+        Bảng điểm {scoreOpen ? "▼" : "▲"}
+      </button>
+    </div>
+    <div
+      className="grid gap-4 px-4 py-5 mx-auto max-w-[1600px] lg:grid-cols-[var(--col-l,240px)_minmax(0,1fr)_var(--col-r,280px)] items-start"
+      style={{ "--col-l": sideOpen ? "240px" : "0px", "--col-r": scoreOpen ? "280px" : "0px" }}
+    >
       {/* CỘT TRÁI — Vòng thi / đội */}
-      <aside className="panel">
-        <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setSideOpen(!sideOpen)}>
+      <aside className="aside-col panel">
+        <div className="flex justify-between items-center select-none">
           <div>
             <div className="kicker">MC / Ban tổ chức</div>
             <h3 className="font-display font-bold mt-2">{state.settings?.title}</h3>
           </div>
-          <span className="text-mist text-lg">{sideOpen ? "▾" : "▸"}</span>
         </div>
         {sideOpen && (<>
         <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2 mt-4">Vòng thi</div>
@@ -114,24 +191,11 @@ export default function Control() {
               key={id}
               type="button"
               className={`btn btn-ghost ${g.round === id ? "!border-gold text-gold" : ""}`}
-              onClick={() => act("round.start", { round: id })}
+              onClick={() => requestRound(id, label)}
             >
               {label}
             </button>
           ))}
-          {g.round && (
-            g.roundStarted ? (
-              !isKd && (
-                <button type="button" className="btn btn-danger" onClick={() => act("round.stop")}>
-                  Dừng vòng
-                </button>
-              )
-            ) : (
-              <button type="button" className="btn btn-ok" onClick={() => act("round.begin")}>
-                Bắt đầu vòng
-              </button>
-            )
-          )}
           <button type="button" className="btn" onClick={() => act("scores.show")}>Hiện bảng điểm</button>
           <button type="button" className="btn btn-ok" onClick={() => act("contest.finish")}>Kết quả cuối</button>
         </div>
@@ -655,24 +719,107 @@ export default function Control() {
       </main>
 
       {/* CỘT PHẢI — Bảng điểm */}
-      <aside className="panel">
+      <aside className="aside-col panel">
         <b>Bảng điểm</b>
-        <div className="flex flex-col gap-3 mt-3">
-          {(state.teams || []).map((t) => (
-            <div
-              key={t.id}
-              className={`rounded-xl border border-line bg-panel-solid p-3 ${g.currentTeam === t.id ? "ring-1 ring-gold/70" : ""}`}
-              style={{ borderLeft: `6px solid ${t.color}` }}
-            >
-              <div className="flex justify-between items-center">
-                <b style={{ color: t.color }}>{t.name}</b>
-                <span className="font-display text-2xl font-bold">{t.score}</span>
+        {scoreOpen && (
+          <>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs tracking-[0.18em] text-mist uppercase">Sắp xếp</span>
+              <div className="flex gap-1">
+                {[
+                  ["rank", "Thứ tự"],
+                  ["desc", "Điểm ↓"],
+                  ["asc", "Điểm ↑"],
+                ].map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setScoreSort(val)}
+                    className={`btn btn-ghost text-xs py-0.5! px-2! ${scoreSort === val ? "!border-gold text-gold" : ""}`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-              {g.buzzer?.winner === t.id && <div className="badge badge-ok mt-2">Đang giữ chuông</div>}
             </div>
-          ))}
-        </div>
+            <div className="flex flex-col gap-3 mt-3">
+              {sortedTeams.map((t) => {
+                const rank = rankedById[t.id];
+                const top = rank <= 3 && (scoreSort === "rank" || scoreSort === "desc");
+                return (
+                  <div
+                    key={t.id}
+                    className={`rounded-xl border bg-panel-solid p-3 transition ${
+                      g.currentTeam === t.id ? "ring-1 ring-gold/70" : ""
+                    } ${
+                      top
+                        ? rank === 1
+                          ? "border-gold shadow-[0_0_16px_rgba(255,214,10,0.35)]"
+                          : rank === 2
+                            ? "border-gold/60 shadow-[0_0_12px_rgba(255,214,10,0.2)]"
+                            : "border-gold/40"
+                        : "border-line"
+                    }`}
+                    style={{ borderLeft: `6px solid ${t.color}` }}
+                  >
+                    <div className="flex justify-between items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`shrink-0 font-display font-bold ${top ? (rank === 1 ? "text-gold text-lg" : "text-gold/90 text-base") : "text-mist text-sm"}`}>
+                          {rankBadge(rank)}
+                        </span>
+                        <b style={{ color: t.color }} className="truncate">{t.name}</b>
+                      </div>
+                      <span
+                        className={`font-display text-xl font-bold ${top ? (rank === 1 ? "text-gold" : rank === 2 ? "text-gold/90" : "") : ""}`}
+                      >
+                        {t.score}
+                      </span>
+                    </div>
+                    {g.buzzer?.winner === t.id && <div className="badge badge-ok mt-2">Đang giữ chuông</div>}
+                    {top && (
+                      <div className="mt-1.5 h-1 rounded-full bg-line overflow-hidden">
+                        <div
+                          className={`h-full ${rank === 1 ? "bg-gold" : rank === 2 ? "bg-gold/70" : "bg-gold/40"}`}
+                          style={{ width: `${Math.max(5, (t.score / maxScore) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </aside>
+
+      {confirmStart && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setConfirmStart(null)}>
+          <div className="panel w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className={`flex items-center gap-2 ${confirmStart.danger ? "text-danger" : "text-gold"}`}>
+              <span className="text-2xl">⚠️</span>
+              <h3 className="font-display font-bold">{confirmStart.title}</h3>
+            </div>
+            <p className="text-mist mt-3 leading-relaxed">{confirmStart.message}</p>
+            <div className="flex gap-2 mt-5">
+              <button type="button" className="btn flex-1" onClick={() => setConfirmStart(null)}>
+                Hủy
+              </button>
+              <button
+                type="button"
+                className={`btn flex-1 ${confirmStart.danger ? "btn-danger" : "btn-ok"}`}
+                onClick={() => {
+                  const { roundId } = confirmStart;
+                  setConfirmStart(null);
+                  act("round.start", { round: roundId });
+                }}
+              >
+                Tiếp tục
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    </>
   );
 }

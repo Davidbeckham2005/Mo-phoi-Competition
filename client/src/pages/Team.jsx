@@ -276,7 +276,7 @@ function KhoiDongBody({ g, d, team }) {
       <div className="text-center">
         <div className="round-badge">Lượt {curName || "?"}</div>
         <p className="text-mist mt-4 text-lg">
-          {g.roundStarted ? "Đang chờ MC hiển thị câu hỏi…" : "Đang chờ MC bắt đầu vòng…"}
+          Đang chờ MC hiển thị câu hỏi…
         </p>
       </div>
     );

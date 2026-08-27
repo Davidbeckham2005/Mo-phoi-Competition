@@ -1,565 +1,334 @@
+# AGENTS.md — QUY TẮC LÀM VIỆC CHO AI AGENT
 
-# QUY TẮC LÀM VIỆC CHUNG CHO TẤT CẢ AI AGENT
-
-> Đây là bộ quy tắc bắt buộc áp dụng cho **TẤT CẢ AI Agent** làm việc trong repository này.
->
-> Mọi Agent PHẢI đọc và tuân thủ file này trước khi đọc, tạo, sửa, xóa hoặc di chuyển bất kỳ file nào.
+> Quy tắc bắt buộc áp dụng cho tất cả AI Agent làm việc trong repository.
+> Người dùng là người quyết định; Agent là người triển khai.
 
 ---
 
-# 1. NGUYÊN TẮC CỐT LÕI
-
-AI Agent là **trợ lý triển khai**, không phải người quyết định cuối cùng của dự án.
+## 1. NGUYÊN TẮC CỐT LÕI
 
 Agent PHẢI:
 
-* Tuân thủ kiến trúc hiện tại.
-* Tuân thủ yêu cầu của người dùng.
-* Tuân thủ thiết kế Figma.
-* Tuân thủ quy ước code hiện tại.
-* Chỉ thực hiện những thay đổi cần thiết.
-* Giới hạn phạm vi thay đổi.
-* Bảo toàn chức năng hiện có.
-* Kiểm tra code sau khi thay đổi.
-* Báo cáo đầy đủ những gì đã thực hiện.
+- Tuân thủ yêu cầu của người dùng, requirement, kiến trúc và coding convention hiện tại.
+- Tuân thủ thiết kế Figma đối với UI.
+- Chỉ thực hiện thay đổi nhỏ nhất cần thiết cho task.
+- Bảo toàn chức năng hiện có.
+- Kiểm tra code sau khi thay đổi.
+- Báo cáo rõ ràng những gì đã thực hiện.
 
-Agent KHÔNG ĐƯỢC:
+Agent KHÔNG ĐƯỢC tự ý:
 
-* Tự ý thay đổi kiến trúc.
-* Tự ý thay đổi yêu cầu nghiệp vụ.
-* Tự ý thiết kế lại giao diện.
-* Tự ý sửa các file không liên quan.
-* Tự ý refactor code không thuộc task.
-* Tự ý cài thêm dependency không cần thiết.
-* Tự ý xóa code đang hoạt động.
-* Tự ý thay đổi logic cuộc thi.
+- Thay đổi architecture, framework, database, API, authentication hoặc state management.
+- Thay đổi business logic hoặc luật cuộc thi.
+- Refactor code không thuộc task.
+- Sửa bug không liên quan.
+- Tạo file/dependency mới nếu không cần thiết.
+- Xóa hoặc ghi đè code đang hoạt động.
+- Thay đổi file ngoài phạm vi khi chưa được cho phép.
+
+### Thứ tự ưu tiên khi instruction mâu thuẫn
+
+1. Yêu cầu trực tiếp của người dùng.
+2. Requirement chính thức của project.
+3. `AGENTS.md`.
+4. Kiến trúc hiện tại.
+5. Coding convention.
+6. Sở thích của Agent.
 
 ---
 
-# 2. PHẢI ĐỌC FILE NÀY TRƯỚC
+## 2. TRƯỚC KHI CODE
 
-Trước khi thực hiện BẤT KỲ task nào, Agent PHẢI:
+Trước mọi task, Agent PHẢI:
 
 1. Đọc `AGENTS.md`.
-2. Đọc yêu cầu của task hiện tại.
-3. Xác định phạm vi được phép thay đổi.
-4. Kiểm tra các file liên quan.
-5. Kiểm tra xem chức năng được yêu cầu đã tồn tại chưa.
-6. Xác định các dependency liên quan.
+2. Đọc và hiểu yêu cầu hiện tại.
+3. Xác định phạm vi thay đổi.
+4. Kiểm tra các file/module liên quan.
+5. Tìm kiếm code hiện có trước khi tạo mới.
+6. Kiểm tra dependency và architecture liên quan.
 
-Agent KHÔNG ĐƯỢC bắt đầu code ngay khi chưa hiểu phạm vi task.
+Không bắt đầu code khi chưa hiểu task.
 
----
-
-# 3. PHẠM VI CỦA TASK
-
-Mỗi task phải có phạm vi rõ ràng.
-
-Agent phải xác định:
+### Xác định phạm vi
 
 ```text
 TASK:
-Đang được yêu cầu làm gì?
+Đang yêu cầu làm gì?
 
-FILE ĐƯỢC PHÉP SỬA:
-Những file/thư mục nào được phép thay đổi?
+FILES TO MODIFY:
+Những file nào được phép sửa?
 
-FILE CHỈ ĐƯỢC ĐỌC:
-Những file nào có thể đọc để tham khảo nhưng không được sửa?
+FILES TO READ:
+Những file nào chỉ được đọc để tham khảo?
 
-KẾT QUẢ MONG MUỐN:
-Sau khi hoàn thành thì điều gì phải đúng?
+EXPECTED RESULT:
+Sau khi hoàn thành điều gì phải đúng?
 ```
 
-Nếu người dùng chỉ rõ file cần sửa:
-
-> Ưu tiên tuyệt đối những file đó.
+Nếu người dùng chỉ rõ file cần sửa, ưu tiên tuyệt đối các file đó.
 
 ---
 
-# 4. QUY TẮC QUAN TRỌNG NHẤT: CHỈ SỬA FILE CẦN THIẾT
+## 3. PHẠM VI THAY ĐỔI
 
-Agent CHỈ ĐƯỢC sửa:
+Chỉ được sửa:
 
-1. File mà người dùng yêu cầu sửa.
+1. File người dùng yêu cầu; hoặc
+2. File khác thực sự bắt buộc để hoàn thành task.
 
-HOẶC
+Không sửa file khác chỉ vì:
 
-2. File khác nhưng **thực sự bắt buộc** phải sửa để hoàn thành task.
+- Có thể refactor.
+- Có thể tối ưu.
+- Code chưa đẹp.
+- Agent thích cách khác.
+- Muốn "dọn code".
 
-Không được sửa file khác chỉ vì:
+Nếu phát hiện cần sửa file ngoài phạm vi:
 
-* Có thể refactor tốt hơn.
-* Code cũ chưa đẹp.
-* Có thể tối ưu.
-* Agent thích cách khác.
-* Muốn "dọn code".
+> Dừng và báo người dùng lý do, ảnh hưởng và file cần sửa. Không tự ý tiếp tục.
 
----
+### Nguyên tắc
 
-# 5. NẾU CẦN SỬA FILE NGOÀI PHẠM VI
-
-Nếu Agent phát hiện cần sửa một file không nằm trong phạm vi ban đầu:
-
-**KHÔNG ĐƯỢC tự ý sửa.**
-
-Agent phải dừng và báo:
-
-```text
-Tôi phát hiện task cần sửa thêm:
-
-File:
-src/xxx/xxx.ts
-
-Lý do:
-<giải thích>
-
-File này nằm ngoài phạm vi task ban đầu.
-
-Ảnh hưởng:
-<giải thích>
-
-Tôi sẽ KHÔNG sửa file này nếu chưa được cho phép.
-```
-
-Chỉ tiếp tục sau khi người dùng cho phép.
+> **MAKE THE SMALLEST CORRECT CHANGE.**
 
 ---
 
-# 6. KHÔNG TỰ Ý REFACTOR CODE
+## 4. CODE & ARCHITECTURE
 
-Trong quá trình làm task, nếu Agent phát hiện code có thể cải thiện:
-
-> KHÔNG tự ý refactor.
-
-Ví dụ:
-
-Người dùng yêu cầu:
-
-```text
-Sửa timer Vòng 1 từ 12 giây thành 15 giây.
-```
-
-Agent KHÔNG được nhân tiện:
-
-* Đổi tên Timer.
-* Di chuyển Timer.
-* Viết lại Timer.
-* Đổi state management.
-* Refactor các vòng khác.
-
-Chỉ sửa phần cần thiết.
-
----
-
-# 7. KHÔNG TỰ Ý CÀI DEPENDENCY
-
-Không được tự ý chạy:
-
-```bash
-npm install ...
-```
-
-hoặc:
-
-```bash
-pnpm add ...
-```
-
-hoặc:
-
-```bash
-yarn add ...
-```
-
-nếu dependency đó không thực sự cần thiết.
-
-Trước khi cài package mới:
-
-1. Kiểm tra dependency hiện có.
-2. Kiểm tra khả năng sử dụng code hiện tại.
-3. Nếu vẫn cần package mới → báo người dùng.
-
-Format:
-
-```text
-Dependency:
-<package>
-
-Lý do:
-<lý do cần thiết>
-
-Đã kiểm tra:
-<giải pháp hiện tại>
-
-Ảnh hưởng:
-<ảnh hưởng>
-```
-
----
-
-# 8. KHÔNG ĐƯỢC TỰ Ý THAY ĐỔI KIẾN TRÚC
-
-Agent không được tự ý:
-
-* Đổi framework.
-* Đổi state management.
-* Đổi router.
-* Đổi database.
-* Đổi API architecture.
-* Đổi WebSocket architecture.
-* Đổi authentication.
-* Di chuyển toàn bộ source code.
-* Tạo architecture mới.
-
-Nếu Agent cho rằng kiến trúc hiện tại không phù hợp:
-
-> Phải báo và đề xuất trước.
-
-Không được tự ý thực hiện.
-
----
-
-# 9. FIGMA LÀ SOURCE OF TRUTH CHO UI
-
-Đối với UI/UX:
-
-> **Figma là nguồn tham chiếu chính.**
-
-Agent phải tôn trọng:
-
-* Layout.
-* Màu sắc.
-* Typography.
-* Font.
-* Spacing.
-* Border radius.
-* Shadow.
-* Component.
-* Animation.
-* Trạng thái.
-* Responsive behavior.
-
-Agent KHÔNG được tự ý:
-
-> "Thiết kế này đẹp hơn nếu..."
-
-và thay đổi giao diện.
-
-Nếu Figma và code hiện tại mâu thuẫn:
-
-> Báo người dùng trước khi quyết định.
-
----
-
-# 10. PHẢI KIỂM TRA CODE HIỆN TẠI TRƯỚC KHI TẠO MỚI
+### Không tạo code trùng lặp
 
 Trước khi tạo:
 
-* Component.
-* Service.
-* Store.
-* Hook.
-* Composable.
-* Utility.
-* API client.
-* Type.
-* Helper.
+- Component
+- Service
+- Store
+- Hook
+- Composable
+- Utility
+- API client
+- Type
+- Helper
 
-Agent PHẢI tìm kiếm repository trước.
+PHẢI tìm kiếm repository trước.
 
-Mục tiêu:
+Ưu tiên sử dụng code hiện có thay vì tạo implementation mới.
 
-> Không tạo code trùng lặp.
+### Single Source of Truth
 
-Ví dụ nếu đã có:
-
-```text
-src/core/timer/Timer.ts
-```
-
-thì KHÔNG được tự tạo:
-
-```text
-Round1Timer.ts
-Round2Timer.ts
-Round3Timer.ts
-Round4Timer.ts
-```
-
-trừ khi có lý do kiến trúc rõ ràng.
-
----
-
-# 11. LOGIC QUAN TRỌNG PHẢI CÓ SINGLE SOURCE OF TRUTH
-
-Các logic quan trọng phải có một nơi quản lý chính.
+Logic quan trọng phải có một nơi quản lý chính.
 
 Ví dụ:
 
-```text
-Score
-Timer
-Buzzer
-Team
-Competition State
-Question
-Round State
-```
+- Score
+- Timer
+- Buzzer
+- Team
+- Competition State
+- Question
+- Round State
 
-Không được để mỗi component tự xử lý một phiên bản riêng.
+Không để nhiều component tự duy trì các phiên bản logic khác nhau.
 
-Không nên:
+Nếu project đã có store/service quản lý logic, phải sử dụng hệ thống đó.
 
-```ts
-team.score += 10;
-```
+### State
 
-ở nhiều component khác nhau.
+Trước khi sửa state phải xác định:
 
-Nếu project đã có:
+- State thuộc về ai?
+- Ai tạo?
+- Ai đọc?
+- Ai được phép thay đổi?
+- Component/module nào phụ thuộc?
 
-```ts
-scoreStore.addScore(teamId, 10);
-```
+Không tự ý chuyển Global State ↔ Local State nếu không có lý do rõ ràng.
 
-thì phải sử dụng hệ thống đó.
+### Architecture
 
----
+Không tự ý:
 
-# 12. KHÔNG ĐƯỢC TỰ Ý THAY ĐỔI LUẬT CUỘC THI
+- Đổi framework.
+- Đổi state management.
+- Đổi router.
+- Đổi database.
+- Đổi API architecture.
+- Đổi WebSocket architecture.
+- Đổi authentication.
+- Di chuyển toàn bộ source.
+- Tạo architecture mới.
 
-Các luật của cuộc thi là requirement.
-
-Agent KHÔNG được tự ý thay đổi:
-
-* Số điểm.
-* Thời gian.
-* Luật bấm chuông.
-* Luật trả lời.
-* Luật Chướng ngại vật.
-* Luật Ngôi sao hy vọng.
-* Luật trừ điểm.
-* Luật cộng điểm.
-* Luật xác định đội thắng.
-
-Nếu phát hiện requirement có vẻ sai hoặc mâu thuẫn:
-
-> Dừng và hỏi người dùng.
-
-Không được tự quyết định.
+Nếu architecture hiện tại có vấn đề, báo và đề xuất trước.
 
 ---
 
-# 13. QUẢN LÝ STATE
+## 5. UI / FIGMA
 
-Trước khi sửa state, Agent phải xác định:
+Figma là source of truth cho UI/UX.
 
-```text
-State này thuộc về ai?
+Phải tôn trọng:
 
-Ai tạo state?
+- Layout
+- Màu sắc
+- Typography / Font
+- Spacing
+- Border radius
+- Shadow
+- Component
+- Animation
+- State
+- Responsive behavior
 
-Ai đọc state?
+Không tự ý thay đổi UI với lý do "đẹp hơn".
 
-Ai được phép thay đổi state?
-
-Component nào phụ thuộc state?
-```
-
-Không được tự ý chuyển:
-
-```text
-Global State → Local State
-```
-
-hoặc:
-
-```text
-Local State → Global State
-```
-
-nếu chưa có lý do rõ ràng.
+Nếu Figma và code mâu thuẫn, hỏi người dùng trước khi quyết định.
 
 ---
 
-# 14. API / BACKEND
+## 6. BUSINESS LOGIC
 
-Trước khi sửa API:
+Business requirement và luật cuộc thi là bắt buộc.
 
-Agent phải kiểm tra:
+Không tự ý thay đổi:
 
-* API hiện tại.
-* Service hiện tại.
-* Request.
-* Response.
-* Type.
-* Error handling.
-* Authentication.
-* Authorization.
+- Điểm số.
+- Thời gian.
+- Luật bấm chuông.
+- Luật trả lời.
+- Luật chướng ngại vật.
+- Ngôi sao hy vọng.
+- Luật cộng/trừ điểm.
+- Điều kiện thắng.
+- Logic nghiệp vụ.
 
-Không được tạo API client trùng lặp.
+Nếu requirement mâu thuẫn hoặc không rõ và có thể ảnh hưởng behavior:
 
-Không được tự ý thay đổi API contract.
-
----
-
-# 15. REALTIME / WEBSOCKET
-
-Nếu project sử dụng realtime:
-
-Agent phải tuân thủ architecture realtime hiện tại.
-
-Không tự ý tạo nhiều WebSocket connection không cần thiết.
-
-Không tạo realtime state riêng cho từng vòng nếu đã có hệ thống realtime trung tâm.
+> **PHẢI HỎI — KHÔNG ĐƯỢC ĐOÁN.**
 
 ---
 
-# 16. XỬ LÝ LỖI
+## 7. API / BACKEND / REALTIME
 
-Không được âm thầm bỏ qua lỗi.
+Trước khi sửa API phải kiểm tra:
 
-Không được viết:
+- API hiện tại.
+- Service.
+- Request / Response.
+- Type.
+- Error handling.
+- Authentication.
+- Authorization.
+
+Không tạo API client trùng lặp và không tự ý thay đổi API contract.
+
+Nếu project dùng WebSocket/realtime:
+
+- Tuân thủ architecture hiện tại.
+- Không tạo connection không cần thiết.
+- Không tạo realtime state riêng nếu đã có hệ thống trung tâm.
+
+---
+
+## 8. DEPENDENCY
+
+Không tự ý cài dependency mới.
+
+Trước khi thêm package:
+
+1. Kiểm tra dependency hiện có.
+2. Kiểm tra khả năng dùng code hiện tại.
+3. Nếu vẫn thực sự cần package mới, báo người dùng:
+   - Package.
+   - Lý do.
+   - Giải pháp hiện tại đã kiểm tra.
+   - Ảnh hưởng.
+
+Không tự ý upgrade package/framework.
+
+---
+
+## 9. ERROR & SECURITY
+
+### Error handling
+
+Không âm thầm bỏ qua lỗi.
+
+Không viết:
 
 ```ts
 try {
-   ...
+  ...
 } catch {
 }
 ```
 
-mà không có lý do.
+nếu không có lý do rõ ràng.
 
-Nếu lỗi cần xử lý:
+Lỗi phải được:
 
-* Xử lý rõ ràng.
-* Giữ thông tin cần thiết để debug.
-* Hiển thị lỗi phù hợp cho người dùng nếu cần.
+- Xử lý rõ ràng.
+- Giữ thông tin cần thiết để debug.
+- Hiển thị phù hợp cho người dùng nếu cần.
 
----
+### Security
 
-# 17. BẢO MẬT
+KHÔNG được:
 
-Agent KHÔNG được:
+- Hard-code API key/password.
+- Commit secret.
+- Đưa secret vào frontend.
+- Tắt authentication/authorization.
+- Bỏ qua security check.
+- Bỏ qua validation quan trọng.
 
-* Hard-code API key.
-* Hard-code password.
-* Commit secret.
-* Tắt authentication.
-* Tắt authorization.
-* Bỏ qua security check.
-* Đưa secret vào frontend.
-* Bỏ qua validation quan trọng.
-
-Nếu phát hiện vấn đề bảo mật:
-
-> Báo người dùng.
+Nếu phát hiện vấn đề bảo mật, báo người dùng.
 
 ---
 
-# 18. TEST
+## 10. TESTING
 
-Sau khi hoàn thành task, Agent phải kiểm tra các lệnh phù hợp với project:
+Sau khi hoàn thành task, chạy các kiểm tra phù hợp với project:
 
-```text
-Lint
-Type check
-Unit test
-Integration test
-Build
-```
+- Lint
+- Type check
+- Unit test
+- Integration test
+- Build
 
-Không được báo "hoàn thành" nếu chưa kiểm tra.
+Không chạy những kiểm tra không tồn tại trong project.
 
-Nếu test/build thất bại:
+Không báo `DONE` nếu chưa kiểm tra.
 
-Phải báo rõ:
+Nếu test/build fail, báo:
 
 ```text
-Lệnh:
-npm run build
+COMMAND:
+<command>
 
-Kết quả:
+RESULT:
 FAILED
 
-Lỗi:
+ERROR:
 <error>
 
-Lỗi do:
-- Thay đổi của task
-- Lỗi có sẵn
-- Chưa xác định
+CAUSE:
+- Task change
+- Existing issue
+- Unknown
 ```
+
+Nếu lỗi có sẵn và không liên quan task:
+
+> Không tự ý sửa. Báo lỗi và giữ nguyên file.
 
 ---
 
-# 19. KHÔNG TỰ Ý SỬA LỖI KHÔNG LIÊN QUAN
+## 11. GIT — COMMIT & PUSH
 
-Nếu trong quá trình làm task phát hiện lỗi có sẵn:
+### Trước khi commit
 
-Ví dụ:
-
-```text
-src/xxx.ts
-TypeError...
-```
-
-nhưng lỗi không liên quan task:
-
-> KHÔNG tự ý sửa.
-
-Báo:
-
-```text
-Phát hiện lỗi có sẵn:
-
-File:
-src/xxx.ts
-
-Lỗi:
-<error>
-
-Lỗi này không liên quan task hiện tại.
-
-Tôi không thay đổi file này.
-```
-
----
-
-# 20. GIT
-
-Agent phải kiểm tra:
-
-```bash
-git status
-git diff
-```
-
-trước khi hoàn thành.
-
-Agent KHÔNG được tự ý:
-
-```bash
-git reset --hard
-git clean -fd
-git push --force
-```
-
-hoặc các thao tác có khả năng làm mất dữ liệu.
-
-Không được xóa branch.
-
-Không được ghi đè thay đổi của người dùng hoặc agent khác.
-
----
-# 20. GIT, COMMIT VÀ PUSH MAIN
-
-Agent được người dùng ủy quyền commit và push các thay đổi hoàn thành lên `origin/main`, nhưng PHẢI tuân thủ đầy đủ các quy tắc an toàn bên dưới.
-
-## 20.1. KIỂM TRA TRƯỚC KHI COMMIT
-
-Trước khi commit, Agent PHẢI chạy:
+PHẢI chạy:
 
 ```bash
 git status
@@ -567,44 +336,26 @@ git diff
 git branch --show-current
 ```
 
-Agent phải xác nhận:
+Xác nhận:
 
-* Đang ở đúng branch.
-* Chỉ có thay đổi thuộc task hiện tại.
-* Không ghi đè thay đổi của người dùng hoặc Agent khác.
-* Không có secret, API key hoặc password.
-* Không có file ngoài phạm vi bị sửa.
-* Code đã được kiểm tra phù hợp với project.
+- Đúng branch.
+- Chỉ có thay đổi thuộc task.
+- Không ghi đè thay đổi của người dùng/Agent khác.
+- Không có secret.
+- Không có file ngoài phạm vi.
+- Code đã được kiểm tra.
 
-Agent PHẢI chạy các kiểm tra phù hợp:
+### Commit
 
-```text
-Lint
-Type Check
-Unit Test
-Integration Test
-Build
-```
+Chỉ stage đúng file thuộc task.
 
-Không bắt buộc chạy những kiểm tra không tồn tại trong project.
-
-Nếu test hoặc build thất bại do thay đổi của task:
-
-> KHÔNG ĐƯỢC COMMIT HOẶC PUSH.
-
-Phải báo lỗi trước.
-
-## 20.2. QUY TẮC COMMIT
-
-Chỉ commit những file thuộc task hiện tại.
-
-KHÔNG sử dụng:
+Không dùng:
 
 ```bash
 git add .
 ```
 
-trong trường hợp working tree có thay đổi không thuộc task.
+nếu working tree có thay đổi ngoài task.
 
 Ưu tiên:
 
@@ -612,9 +363,7 @@ trong trường hợp working tree có thay đổi không thuộc task.
 git add <file1> <file2> ...
 ```
 
-Commit message phải mô tả chính xác thay đổi.
-
-Format:
+Commit message dùng Conventional Commits:
 
 ```text
 feat: <feature>
@@ -625,16 +374,7 @@ test: <test>
 chore: <maintenance>
 ```
 
-Ví dụ:
-
-```text
-feat: implement round 2 answer selection
-fix: prevent duplicate answer submission
-fix: synchronize round timer
-docs: update round 2 documentation
-```
-
-Không sử dụng commit message chung chung:
+Không dùng message chung chung như:
 
 ```text
 update
@@ -644,24 +384,48 @@ done
 final
 ```
 
-## 20.3. PUSH LÊN MAIN
+### Auto Commit
 
-Sau khi commit thành công, Agent PHẢI push lên:
+Khi người dùng đã ủy quyền cho Agent tự commit:
+
+```text
+IMPLEMENT
+    ↓
+TEST / LINT / TYPECHECK / BUILD
+    ↓
+PASS?
+ ├── NO  → STOP + REPORT
+ └── YES
+        ↓
+git status
+git diff
+git branch --show-current
+        ↓
+git add <đúng file>
+        ↓
+git commit
+```
+
+Chỉ commit khi tất cả kiểm tra cần thiết PASS.
+
+### Push main
+
+Khi người dùng đã ủy quyền push main và task đã PASS:
 
 ```bash
 git push origin main
 ```
 
-Chỉ được push khi:
+Chỉ push khi:
 
-* Task đã hoàn thành.
-* Kiểm tra code đã PASS.
-* Commit chỉ chứa thay đổi thuộc task.
-* Không có conflict.
-* Không có thay đổi không rõ nguồn gốc.
-* Đang push đúng repository và branch.
+- Task hoàn thành.
+- Kiểm tra PASS.
+- Commit chỉ chứa thay đổi của task.
+- Không có conflict.
+- Không có thay đổi không rõ nguồn gốc.
+- Đúng repository và branch.
 
-Agent TUYỆT ĐỐI KHÔNG được sử dụng:
+TUYỆT ĐỐI KHÔNG dùng:
 
 ```bash
 git push --force
@@ -670,570 +434,271 @@ git reset --hard
 git clean -fd
 ```
 
-Không được xóa branch hoặc ghi đè thay đổi của người khác.
+Không xóa branch hoặc ghi đè code của người khác.
 
-## 20.4. MAIN ĐÃ CÓ THAY ĐỔI MỚI
+### Remote main có thay đổi
 
-Nếu push bị từ chối vì `main` trên remote đã có commit mới:
+Nếu push bị từ chối:
 
 ```bash
 git fetch origin
 git status
 ```
 
-Agent PHẢI kiểm tra và xử lý an toàn.
+Không force push.
 
-KHÔNG được force push để giải quyết vấn đề.
-
-Nếu việc đồng bộ `main` có thể gây conflict hoặc ảnh hưởng code của người khác:
+Nếu đồng bộ có nguy cơ conflict hoặc ảnh hưởng code người khác:
 
 > DỪNG và báo người dùng.
 
-Không tự ý giải quyết bằng cách xóa hoặc ghi đè thay đổi.
+### Sau khi push
 
-## 20.5. SAU KHI PUSH
-
-Sau khi push thành công, Agent PHẢI kiểm tra:
+Kiểm tra:
 
 ```bash
 git status
 git log -1
 ```
 
-Sau đó báo cáo:
+Báo:
 
 ```text
 ## GIT
 
-Branch:
-main
-
-Commit:
-<commit hash>
-
-Commit message:
-<commit message>
-
-Push:
-SUCCESS
-
-Remote:
-origin/main
+Branch: <branch>
+Commit: <hash>
+Message: <message>
+Push: SUCCESS / FAILED
+Remote: origin/main
 ```
 
-Nếu commit thành công nhưng push thất bại:
-
-```text
-## GIT
-
-Commit:
-SUCCESS
-
-Push:
-FAILED
-
-Lý do:
-<error>
-
-Action:
-Không sử dụng force push.
-```
-
-Nếu không thể push an toàn:
-
-```text
-## GIT BLOCKED
-
-Branch:
-<branch>
-
-Lý do:
-<reason>
-
-Commit:
-<status>
-
-Push:
-NOT PERFORMED
-
-Cần người dùng xử lý:
-<action>
-```
-
-## 20.6. NGUYÊN TẮC
-
-Quy trình chuẩn:
-
-```text
-TASK
- ↓
-Đọc AGENTS.md
- ↓
-Sửa code
- ↓
-Kiểm tra
- ↓
-git status
- ↓
-git diff
- ↓
-git branch --show-current
- ↓
-git add đúng file
- ↓
-git commit
- ↓
-git push origin main
- ↓
-git status
- ↓
-git log -1
- ↓
-Báo cáo
-```
-
-Mục tiêu:
-
-> **Chỉ commit đúng thay đổi của task, không làm mất code của người khác, không force push và chỉ push code đã được kiểm tra.**
-
-
-# 21. KHÔNG GHI ĐÈ CODE CỦA NGƯỜI KHÁC
-
-Nếu working tree đã có thay đổi:
-
-> Không được tự ý overwrite.
-
-Phải xác định thay đổi đó đến từ:
-
-* Người dùng.
-* Agent khác.
-* Task trước đó.
-
-Nếu không xác định được:
-
-> Dừng và hỏi.
+Nếu push fail, không force push.
 
 ---
 
-# 22. QUY TẮC MULTI-AGENT
+## 12. MULTI-AGENT
 
-Có thể có nhiều Agent cùng làm project.
-
-Vì vậy Agent phải giả định:
-
-> Có thể Agent khác đang làm một phần khác của project.
+Giả định repository có thể được nhiều Agent sử dụng đồng thời.
 
 Agent phải:
 
-* Tôn trọng module boundary.
-* Không sửa module của Agent khác.
-* Không refactor toàn project.
-* Không tự ý sửa shared code.
-* Không tự ý thay đổi interface dùng chung.
+- Tôn trọng module boundary.
+- Không sửa module của Agent khác.
+- Không refactor toàn project.
+- Không tự ý sửa shared code.
+- Không tự ý thay đổi interface dùng chung.
 
 Ví dụ:
 
 ```text
-Agent Core
-→ src/core/
-
-Agent UI
-→ src/components/
-
-Agent Vòng 1
-→ src/rounds/round1/
-
-Agent Vòng 2
-→ src/rounds/round2/
-
-Agent Vòng 3
-→ src/rounds/round3/
-
-Agent Vòng 4
-→ src/rounds/round4/
-```
-
-Agent Vòng 1 KHÔNG được tự ý sửa:
-
-```text
+src/core/
+src/components/
+src/rounds/round1/
 src/rounds/round2/
 src/rounds/round3/
 src/rounds/round4/
 ```
 
----
+Agent của Round 1 không tự ý sửa Round 2/3/4.
 
-# 23. KHI CẦN SỬA SHARED CODE
+### Shared code
 
-Nếu Agent cần sửa:
+Nếu task cần sửa shared code ngoài phạm vi:
 
-```text
-src/core/
-```
-
-nhưng task không thuộc Core:
-
-Agent phải báo:
-
-```text
-Task hiện tại cần thay đổi Core.
-
-File:
-src/core/scoring/ScoreStore.ts
-
-Lý do:
-<lý do>
-
-Ảnh hưởng:
-Có thể ảnh hưởng Round 1, Round 2, Round 3, Round 4.
-
-Tôi chưa sửa file này.
-```
-
-Không tự ý sửa.
+> Báo người dùng trước và chờ cho phép.
 
 ---
 
-# 24. DOCUMENTATION
+## 13. FILE & DOCUMENTATION
 
-Với feature quan trọng, Agent phải cập nhật documentation phù hợp.
-
-Documentation nên mô tả:
-
-* Feature làm gì.
-* Code nằm ở đâu.
-* Data flow.
-* Logic quan trọng.
-* Cách custom.
-* Các giới hạn.
-* Những module liên quan.
-
-Không cần tạo documentation cho thay đổi cực kỳ nhỏ.
-
----
-
-# 25. GIẢI THÍCH TRƯỚC KHI THAY ĐỔI LỚN
-
-Đối với thay đổi lớn, Agent phải trình bày:
-
-```text
-1. Hiện tại hệ thống hoạt động như thế nào?
-2. Vấn đề hiện tại là gì?
-3. Giải pháp đề xuất là gì?
-4. Những file nào cần sửa?
-5. Có ảnh hưởng module nào khác?
-```
-
-Nếu là thay đổi kiến trúc:
-
-> Phải chờ người dùng xác nhận.
-
----
-
-# 26. ƯU TIÊN THAY ĐỔI NHỎ NHẤT
-
-Nguyên tắc:
-
-> **MAKE THE SMALLEST CORRECT CHANGE.**
-
-Ví dụ:
-
-Người dùng yêu cầu:
-
-```text
-Đổi timer Vòng 1 từ 12 giây thành 15 giây.
-```
-
-Không được nhân tiện:
-
-* Viết lại Timer.
-* Đổi architecture.
-* Đổi Score.
-* Đổi UI.
-* Đổi Round 2.
-* Đổi Round 3.
-
-Chỉ thay đổi phần cần thiết.
-
----
-
-# 27. TẠO FILE MỚI
-
-Không được tạo file mới nếu không cần thiết.
+### File mới
 
 Trước khi tạo file:
 
-```text
-Chức năng này có thể đặt trong file hiện tại không?
-```
+> Chức năng này có thể đặt trong file hiện tại không?
 
-Nếu có:
-
-> Ưu tiên sử dụng cấu trúc hiện tại.
+Ưu tiên cấu trúc hiện tại.
 
 Chỉ tạo file mới khi:
 
-* Cần thiết.
-* Giúp architecture rõ ràng.
-* Phù hợp convention hiện tại.
+- Thực sự cần.
+- Làm architecture rõ ràng.
+- Phù hợp convention.
+
+### Documentation
+
+Feature quan trọng nên cập nhật documentation về:
+
+- Feature làm gì.
+- Code nằm ở đâu.
+- Data flow.
+- Logic quan trọng.
+- Cách custom.
+- Giới hạn.
+- Module liên quan.
+
+Không cần documentation cho thay đổi cực kỳ nhỏ.
+
+### Thay đổi lớn
+
+Trước thay đổi lớn hoặc thay đổi architecture, phải trình bày:
+
+1. Hệ thống hiện tại hoạt động thế nào?
+2. Vấn đề là gì?
+3. Giải pháp đề xuất?
+4. File nào cần sửa?
+5. Module nào bị ảnh hưởng?
+
+Thay đổi architecture phải chờ người dùng xác nhận.
 
 ---
 
-# 28. KHI REQUIREMENT KHÔNG RÕ
+## 14. TASK BLOCKED
 
-Nếu requirement ảnh hưởng đến:
+Nếu không thể tiếp tục an toàn:
 
-* Architecture.
-* Business logic.
-* Database.
-* Security.
-* UI behavior.
-* Score.
-* Timer.
-* Buzzer.
+> **KHÔNG ĐƯỢC ĐOÁN.**
 
-→ **PHẢI HỎI.**
-
-Không được đoán.
-
-Đối với chi tiết nhỏ không ảnh hưởng behavior:
-
-> Sử dụng convention hiện tại của project.
-
----
-
-# 29. BÁO CÁO SAU KHI HOÀN THÀNH
-
-Mọi task đều PHẢI kết thúc bằng báo cáo theo format:
-
-```text
-## BÁO CÁO TASK
-
-### 1. Task
-<Mô tả task>
-
-### 2. Trạng thái
-DONE / PARTIAL / BLOCKED
-
-### 3. File đã sửa
-- file1
-- file2
-
-### 4. File đã tạo
-- file1
-- file2
-- Không có
-
-### 5. File đã xóa
-- Không có
-
-### 6. Dependency thêm mới
-- Không có
-
-### 7. Thay đổi chính
-- Thay đổi 1
-- Thay đổi 2
-- Thay đổi 3
-
-### 8. Ảnh hưởng kiến trúc
-Không có
-
-HOẶC:
-
-<Giải thích>
-
-### 9. Kiểm thử
-
-- Lint: PASS / FAIL / KHÔNG CÓ
-- Type Check: PASS / FAIL / KHÔNG CÓ
-- Test: PASS / FAIL / KHÔNG CÓ
-- Build: PASS / FAIL / KHÔNG CÓ
-
-### 10. Lỗi đã biết
-- Không có
-
-HOẶC:
-
-<Lỗi>
-
-### 11. Lỗi có sẵn không liên quan
-- Không có
-
-HOẶC:
-
-<Lỗi>
-
-### 12. File ngoài phạm vi đã sửa
-- Không có
-
-HOẶC:
-
-<File + lý do>
-
-### 13. Ghi chú
-<Thông tin quan trọng khác>
-```
-
----
-
-# 30. KHI TASK BỊ BLOCK
-
-Nếu không thể tiếp tục một cách an toàn:
-
-> KHÔNG ĐƯỢC ĐOÁN.
-
-Sử dụng:
+Dừng và báo:
 
 ```text
 ## TASK BLOCKED
 
 ### Lý do
-<Lý do>
+<reason>
 
 ### Vấn đề
-<Vấn đề>
+<problem>
 
-### Quyết định cần người dùng đưa ra
-<Quyết định>
+### Quyết định cần người dùng
+<decision>
 
 ### File có khả năng cần sửa
 - <file>
 
 ### Rủi ro
-<Rủi ro>
+<risk>
 
 Đang chờ xác nhận.
 ```
 
 ---
 
-# 31. KHÔNG TỰ MỞ RỘNG PHẠM VI
+## 15. FINAL CHECKLIST
 
-Câu:
+Trước khi kết thúc task:
 
-> "Làm cho chức năng này hoạt động."
-
-KHÔNG có nghĩa là được phép:
-
-* Refactor project.
-* Thiết kế lại UI.
-* Sửa bug không liên quan.
-* Upgrade package.
-* Đổi architecture.
-* Đổi database.
-* Đổi API.
-
-Chỉ làm đúng chức năng được yêu cầu.
+- [ ] Đã đọc `AGENTS.md`.
+- [ ] Đã hiểu task.
+- [ ] Đúng phạm vi.
+- [ ] Chỉ sửa file cần thiết.
+- [ ] Không refactor ngoài phạm vi.
+- [ ] Không thêm dependency không cần thiết.
+- [ ] Không thay đổi business rule ngoài yêu cầu.
+- [ ] Không phá architecture hiện tại.
+- [ ] Không phá UI/Figma ngoài yêu cầu.
+- [ ] Không có secret/security issue.
+- [ ] Đã chạy test/lint/typecheck/build phù hợp.
+- [ ] Đã kiểm tra `git diff`.
+- [ ] Đã kiểm tra `git status`.
+- [ ] Commit đúng file nếu được ủy quyền.
+- [ ] Push `origin/main` nếu được ủy quyền và mọi kiểm tra PASS.
+- [ ] Đã báo cáo kết quả.
 
 ---
 
-# 32. TRƯỚC KHI KẾT THÚC TASK
+## 16. BÁO CÁO TASK
 
-Agent PHẢI tự kiểm tra:
+Mỗi task phải kết thúc bằng:
 
 ```text
-[ ] Đã đọc AGENTS.md
-[ ] Đã hiểu đúng task
-[ ] Chỉ sửa file cần thiết
-[ ] Không sửa file không liên quan
-[ ] Không refactor ngoài phạm vi
-[ ] Không thêm dependency không cần thiết
-[ ] Không thay đổi business rules
-[ ] Không thay đổi Figma ngoài yêu cầu
-[ ] Không phá chức năng hiện tại
-[ ] Đã chạy test/lint/build phù hợp
-[ ] Đã kiểm tra git diff
-[ ] Đã kiểm tra git status
-[ ] Đã tạo báo cáo task
+## BÁO CÁO TASK
+
+### Task
+<Mô tả>
+
+### Trạng thái
+DONE / PARTIAL / BLOCKED
+
+### File đã sửa
+- <file>
+- <file>
+
+### File đã tạo
+- <file>
+- Không có
+
+### File đã xóa
+- <file>
+- Không có
+
+### Dependency
+- <package>
+- Không có
+
+### Thay đổi chính
+- <change>
+
+### Kiểm thử
+- Lint: PASS / FAIL / N/A
+- Type Check: PASS / FAIL / N/A
+- Test: PASS / FAIL / N/A
+- Build: PASS / FAIL / N/A
+
+### Lỗi đã biết
+- Không có
+- <error>
+
+### Lỗi có sẵn không liên quan
+- Không có
+- <error>
+
+### Git
+- Commit: <hash / N/A>
+- Push: SUCCESS / FAILED / N/A
+
+### Ghi chú
+<important information>
 ```
 
 ---
 
-# 33. QUY TẮC VÀNG
+# QUY TẮC VÀNG
 
 > **CHỈ SỬA ĐÚNG THỨ ĐƯỢC YÊU CẦU.**
 
+> **MAKE THE SMALLEST CORRECT CHANGE.**
+
 > **KHÔNG SỬA FILE KHÔNG CẦN THIẾT.**
 
-> **KHÔNG TỰ Ý THAY ĐỔI KIẾN TRÚC.**
+> **KHÔNG TỰ Ý THAY ĐỔI ARCHITECTURE.**
 
-> **KHÔNG TỰ Ý THAY ĐỔI LUẬT CUỘC THI.**
+> **KHÔNG TỰ Ý THAY ĐỔI BUSINESS LOGIC.**
 
 > **KHÔNG TỰ Ý REFACTOR CODE KHÔNG LIÊN QUAN.**
 
-> **KHÔNG CHE GIẤU THAY ĐỔI.**
-
-> **LUÔN BÁO CÁO FILE ĐÃ THAY ĐỔI.**
+> **KHÔNG CHE GIẤU THAY ĐỔI HOẶC LỖI.**
 
 > **LUÔN KIỂM TRA CODE TRƯỚC KHI KẾT THÚC.**
+
+> **CHỈ COMMIT/PUSH CODE ĐÃ ĐƯỢC KIỂM TRA.**
+
+> **KHÔNG FORCE PUSH HOẶC THAO TÁC CÓ THỂ LÀM MẤT DỮ LIỆU.**
 
 > **KHI KHÔNG CHẮC CHẮN → HỎI NGƯỜI DÙNG.**
 
 ---
 
-# 34. THỨ TỰ ƯU TIÊN
-
-Nếu có nhiều instruction mâu thuẫn nhau, ưu tiên theo thứ tự:
+## FINAL PRINCIPLE
 
 ```text
-1. Yêu cầu trực tiếp của người dùng
-2. Requirement chính thức của project
-3. AGENTS.md
-4. Kiến trúc hiện tại
-5. Coding convention hiện tại
-6. Sở thích của AI Agent
+USER        = DECISION MAKER
+AGENT       = IMPLEMENTER
+AGENTS.md   = COMMON RULES
+GIT         = CHANGE PROTECTION
+TEST        = VERIFICATION
 ```
 
-Sở thích cá nhân của Agent luôn có mức ưu tiên thấp nhất.
-
----
-
-# 35. XÁC NHẬN TRƯỚC KHI LÀM
-
-Trước khi bắt đầu task, Agent phải tự xác nhận:
-
-```text
-Tôi đã đọc AGENTS.md.
-
-Tôi hiểu task hiện tại.
-
-Tôi hiểu phạm vi được phép thay đổi.
-
-Tôi biết những file nào được phép sửa.
-
-Tôi sẽ không sửa file không liên quan.
-
-Tôi sẽ không tự ý thay đổi kiến trúc.
-
-Tôi sẽ không tự ý thay đổi requirement.
-
-Tôi sẽ kiểm tra code sau khi thực hiện.
-
-Tôi sẽ báo cáo đầy đủ những thay đổi.
-```
-
-Sau đó mới bắt đầu thực hiện task.
-
----
-
-# 36. NGUYÊN TẮC CUỐI CÙNG
-
-Agent phải luôn ghi nhớ:
-
-```text
-NGƯỜI DÙNG = NGƯỜI QUYẾT ĐỊNH
-
-AGENT = NGƯỜI TRIỂN KHAI
-
-AGENTS.md = LUẬT CHUNG
-
-GIT = CƠ CHẾ BẢO VỆ
-
-TEST = CƠ CHẾ XÁC MINH
-```
-
-Mục tiêu không phải là tạo ra càng nhiều code càng tốt.
-
-Mục tiêu là:
+Mục tiêu:
 
 > **Tạo ra thay đổi nhỏ nhất, đúng yêu cầu nhất, dễ kiểm tra nhất và không phá code hiện có.**

@@ -44,7 +44,7 @@ export default function Audience() {
     || (g.phase === "finished" ? "Chung cuộc" : "Chờ bắt đầu");
 
   return (
-    <div className="min-h-screen flex flex-col px-6 py-5 gap-5">
+    <div className="min-h-screen flex flex-col px-6 py-4 gap-3">
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <div className="kicker">{state.settings?.subtitle}</div>
@@ -60,7 +60,7 @@ export default function Audience() {
         </div>
       </div>
 
-      <div className="relative flex-1 grid place-items-center min-h-[40vh]">
+      <div className="relative flex-1 grid place-items-center min-h-[52vh]">
         {g.buzzer?.winner && (
           <div className="round-badge absolute top-2 left-1/2 -translate-x-1/2 z-10">
             Quyền trả lời: {state.teams.find((t) => t.id === g.buzzer.winner)?.name}
@@ -113,15 +113,6 @@ function Stage({ state }) {
         <div className="mt-7 w-[min(900px,92%)] mx-auto">
           <TeamsRow state={state} flash={null} currentTeam="" ranked={ranked} />
         </div>
-      </div>
-    );
-  }
-
-  if (g.round && !g.roundStarted) {
-    return (
-      <div className="text-center">
-        <div className="kicker">{(state.rounds || []).find((r) => r.id === g.round)?.name || g.round}</div>
-        <div className="stage-q mt-3 text-mist">Đang chờ MC bắt đầu…</div>
       </div>
     );
   }

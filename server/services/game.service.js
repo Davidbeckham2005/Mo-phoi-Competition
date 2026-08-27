@@ -188,7 +188,7 @@ export function resetKhoiDong(teamId = null) {
     game.currentTeam = "a";
     game.questionStatus = "idle";
     game.finished = false;
-    game.roundStarted = false;
+    game.roundStarted = true;
     game.display = {
       mode: "idle",
       title: ROUNDS.find((r) => r.id === roundId)?.name || "",
@@ -216,28 +216,6 @@ export function resetKhoiDong(teamId = null) {
     if (roundId === "ve_dich") {
       game.veDich = { packagePoints: 20, star: false, answeringTeam: "a", stealOpen: false };
     }
-    saveDb();
-    emit();
-  }
-
-  export function beginRound() {
-    const game = g();
-    if (!game.round) return;
-    game.roundStarted = true;
-    saveDb();
-    emit();
-  }
-
-  export function stopRound() {
-    const game = g();
-    game.roundStarted = false;
-    game.questionStatus = "idle";
-    game.display.mode = game.round === "vuot_cnv" ? "puzzle" : "idle";
-    game.display.question = "";
-    game.display.answer = "";
-    game.display.answerRevealed = false;
-    game.display.note = "";
-    if (game.timer.running) pauseTimer();
     saveDb();
     emit();
   }
@@ -301,11 +279,6 @@ export function resetKhoiDong(teamId = null) {
 
   export function showQuestion() {
     const game = g();
-    if (game.round && !game.roundStarted) {
-      const err = new Error("Vòng chưa bắt đầu — hãy bấm \"Bắt đầu vòng\" trước.");
-      err.status = 400;
-      throw err;
-    }
     const q = currentQuestion();
     if (!q) {
       const err = new Error("Chưa có câu hỏi phù hợp — hãy chọn đội/gói câu hỏi trước khi hiện.");

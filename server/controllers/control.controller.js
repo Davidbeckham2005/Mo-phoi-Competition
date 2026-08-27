@@ -3,8 +3,6 @@ import * as game from "../services/game.service.js";
 
 const actions = {
   "round.start": (p) => game.startRound(p.round),
-  "round.begin": () => game.beginRound(),
-  "round.stop": () => game.stopRound(),
   "timer.set": (p) => game.setTimer(p.seconds, p.running !== false),
   "timer.pause": () => game.pauseTimer(),
   "timer.resume": () => game.resumeTimer(),

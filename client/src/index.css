@@ -244,6 +244,17 @@
     color: #1a1400;
     box-shadow: 0 0 18px rgba(255, 214, 10, 0.4);
   }
+  .aside-col {
+    min-width: 0;
+    overflow: hidden;
+  }
+  @media (min-width: 1024px) {
+    .aside-strip {
+      height: 100%;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+  }
   .table {
     width: 100%;
     border-collapse: collapse;
