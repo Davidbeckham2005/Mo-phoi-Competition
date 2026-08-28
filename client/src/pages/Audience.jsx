@@ -118,115 +118,6 @@ function Stage({ state }) {
     );
   }
 
-  if (d.mode === "puzzle" || (g.round === "vuot_cnv" && d.mode !== "question" && d.mode !== "media")) {
-    const p = g.puzzle || {};
-    const cnv = state.cnv;
-    const solved = [0, 1, 2, 3].map((i) => isOpen(p, i));
-    const locked = [0, 1, 2, 3].map((i) => isLocked(p, i));
-    const media = cnv?.media;
-    return (
-      <div className="w-full max-w-[1200px] mx-auto grid lg:grid-cols-2 gap-6 items-center">
-        {/* CỘT TRÁI — Bảng ảnh ghép */}
-        <div className="flex flex-col items-center justify-center gap-4 min-w-0">
-          {media?.url &&
-            (media.type === "video" ? (
-              <video src={media.url} controls className="max-h-[34vh] max-w-full rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)]" />
-            ) : (
-              <img src={media.url} alt="Ảnh ghép" className="max-h-[34vh] max-w-full object-contain rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)]" />
-            ))}
-          <div className="relative w-[clamp(250px,26vw,420px)] aspect-[16/10] rounded-2xl overflow-hidden ring-1 ring-line">
-            <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
-              {[0, 1, 2, 3].map((r) => (
-                <div
-                  key={r}
-                  className={`grid place-items-center font-display font-bold text-[clamp(28px,3.4vw,50px)] transition-colors ${
-                    solved[r]
-                      ? "bg-gold/90 text-[#1a1400]"
-                      : locked[r]
-                        ? "bg-danger/10 text-danger/80"
-                        : "bg-panel-solid text-mist"
-                  }`}
-                >
-                  {solved[r] ? r + 1 : locked[r] ? "✕" : "?"}
-                </div>
-              ))}
-            </div>
-
-            {/* Đường chia mảnh ghép */}
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute left-1/2 top-0 bottom-0 w-px bg-line" />
-              <div className="absolute top-1/2 left-0 right-0 h-px bg-line" />
-            </div>
-
-            {/* Ô trung tâm nằm chồng lên điểm gặp nhau của 4 mảnh */}
-            <div
-              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[38%] h-[46%] rounded-xl border-2 grid place-items-center font-display font-bold text-[clamp(22px,2.6vw,38px)] ${
-                p.centerRevealed
-                  ? "bg-gold text-[#1a1400] border-gold shadow-[0_0_26px_rgba(255,214,10,0.45)]"
-                  : "bg-night border-line text-mist"
-              }`}
-            >
-              {p.centerRevealed ? "★" : "?"}
-            </div>
-          </div>
-        </div>
-
-        {/* CỘT PHẢI — Danh mục từ khóa */}
-        <div className="flex flex-col items-center gap-2.5">
-          {(cnv?.rows || []).map((row, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <span className={`text-sm w-14 shrink-0 text-right ${row.status === "open" ? "text-gold" : row.status === "locked" ? "text-danger/80" : "text-mist"}`}>
-                Hàng {i + 1}
-              </span>
-              <div className="flex gap-1.5">
-                {row.status === "open"
-                  ? row.word.replace(/\s/g, "").split("").map((ch, j) => (
-                      <span key={j} className="ltr ltr-open">{ch}</span>
-                    ))
-                  : row.status === "locked"
-                    ? Array.from({ length: row.letterCount }, (_, j) => (
-                        <span key={j} className="ltr ltr-locked">✕</span>
-                      ))
-                    : Array.from({ length: row.letterCount }, (_, j) => (
-                        <span key={j} className="ltr" />
-                      ))}
-              </div>
-            </div>
-          ))}
-
-          {/* Từ khóa */}
-          <div className="flex items-center justify-center gap-1.5 mt-2">
-            <span className="text-sm w-14 shrink-0 text-right text-gold">Từ khóa</span>
-            {p.keywordSolved && cnv?.keyword
-              ? cnv.keyword.split("").map((ch, j) => (
-                  <span key={j} className={`ltr ltr-kw ${/\s/.test(ch) ? "" : "ltr-gold"}`}>
-                    {/\s/.test(ch) ? "" : ch}
-                  </span>
-                ))
-              : Array.from({ length: cnv?.keywordLetterCount || 0 }, (_, j) => (
-                  <span key={j} className="ltr ltr-kw" />
-                ))}
-            {!!cnv?.keywordLetterCount && (
-              <span className="text-mist text-sm ml-2">{cnv.keywordLetterCount} chữ cái</span>
-            )}
-          </div>
-
-          {p.centerRevealed && cnv?.centerHint && (
-            <div className="stage-note mt-1">★ {cnv.centerHint}</div>
-          )}
-        </div>
-
-        <div className="md:col-span-2 text-center">
-          {p.awaitingSteal && (
-            <div className="badge badge-warn text-base! px-4 py-2">Hết giờ / sai — mở chuông giành quyền trả lời!</div>
-          )}
-          {d.question && <div className="text-mist">{d.question}</div>}
-          {d.note && <div className="stage-note">{d.note}</div>}
-        </div>
-      </div>
-    );
-  }
-
   if (d.mode === "media" && d.mediaUrl) {
     return d.mediaType === "video" ? (
       <video src={d.mediaUrl} autoPlay controls className="max-w-[90%] max-h-[50vh]" />
@@ -240,6 +131,17 @@ function Stage({ state }) {
       <div className="w-[90%]">
         <TeamsRow state={state} flash={null} currentTeam="" />
       </div>
+    );
+  }
+
+  // Vòng 2 (Vượt CNV): màn hình lớn CHUYỂN QUA LẠI giữa 2 màn hình theo logic vòng 2:
+  //   • d.mode === "question" → MÀN HÌNH CÂU HỎI (MC hiện câu hỏi hàng ngang)
+  //   • ngược lại            → MÀN HÌNH ẢNH GHÉP + HÀNG NGANG (bảng chính)
+  if (g.round === "vuot_cnv") {
+    return d.mode === "question" ? (
+      <Round2Question d={d} g={g} />
+    ) : (
+      <Round2Board state={state} g={g} />
     );
   }
 
@@ -307,6 +209,154 @@ function Stage({ state }) {
           {state.leaderboard.slice(0, 3).map((c) => `${c.rank}. ${c.name} (${c.score})`).join(" • ")}
         </div>
       )}
+    </div>
+  );
+}
+
+// MÀN HÌNH 1 — CÂU HỎI (Round 2): hiển thị câu hỏi hàng ngang, toàn màn hình
+function Round2Question({ d, g }) {
+  const p = g.puzzle || {};
+  return (
+    <div className="w-full max-w-[1000px] mx-auto text-center">
+      {d.mediaUrl && d.mediaType === "image" && (
+        <img src={d.mediaUrl} alt="" className="max-h-[38vh] mx-auto rounded-2xl object-contain border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)]" />
+      )}
+      {d.mediaUrl && d.mediaType === "video" && (
+        <video src={d.mediaUrl} autoPlay controls className="max-h-[38vh] mx-auto rounded-2xl" />
+      )}
+      {d.question && <div className="stage-q mt-4">{d.question}</div>}
+      {d.options?.length > 0 && (
+        <div className="grid gap-2.5 mt-6 text-left w-[min(720px,90%)] mx-auto">
+          {d.options.map((o) => (
+            <div key={o} className="opt cursor-default">{o}</div>
+          ))}
+        </div>
+      )}
+      {d.note && <div className="stage-note">{d.note}</div>}
+      {d.answerRevealed && <div className="stage-answer">Đáp án: {d.answer}</div>}
+      {p.awaitingSteal && (
+        <div className="badge badge-warn text-base! px-4 py-2 mt-6">Hết giờ / sai — mở chuông giành quyền trả lời!</div>
+      )}
+    </div>
+  );
+}
+
+// MÀN HÌNH 2 — ẢNH GHÉP + HÀNG NGANG (Round 2): bảng chính khi chưa/không hiện câu hỏi
+function Round2Board({ state, g }) {
+  const d = g.display || {};
+  const p = g.puzzle || {};
+  const cnv = state.cnv;
+  const solved = [0, 1, 2, 3].map((i) => isOpen(p, i));
+  const locked = [0, 1, 2, 3].map((i) => isLocked(p, i));
+  const media = cnv?.media;
+  return (
+    <div className="w-full max-w-[1200px] mx-auto grid lg:grid-cols-2 gap-6 items-center">
+      {/* CỘT TRÁI — Bảng ảnh ghép */}
+      <div className="flex flex-col items-center justify-center gap-4 min-w-0">
+        {media?.url &&
+          (media.type === "video" ? (
+            <video src={media.url} controls className="max-h-[34vh] max-w-full rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)]" />
+          ) : (
+            <img src={media.url} alt="Ảnh ghép" className="max-h-[34vh] max-w-full object-contain rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)]" />
+          ))}
+        <div className="relative w-[clamp(250px,26vw,420px)] aspect-[16/10] rounded-2xl overflow-hidden ring-1 ring-line">
+          <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
+            {[0, 1, 2, 3].map((r) => {
+                const owner = state.teams.find((t) => t.id === p.teamForRow?.[r]);
+                return (
+                  <div
+                    key={r}
+                    className={`relative grid place-items-center font-display font-bold text-[clamp(28px,3.4vw,50px)] transition-colors ${
+                      solved[r]
+                        ? "bg-gold/90 text-[#1a1400]"
+                        : locked[r]
+                          ? "bg-danger/10 text-danger/80"
+                          : "bg-panel-solid text-mist"
+                    }`}
+                  >
+                    {solved[r] ? r + 1 : locked[r] ? "✕" : "?"}
+                    {owner && (
+                      <span
+                        className="absolute top-1.5 left-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-night"
+                        style={{ background: owner.color }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+
+          {/* Đường chia mảnh ghép */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-line" />
+            <div className="absolute top-1/2 left-0 right-0 h-px bg-line" />
+          </div>
+
+          {/* Ô trung tâm nằm chồng lên điểm gặp nhau của 4 mảnh */}
+          <div
+            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[38%] h-[46%] rounded-xl border-2 grid place-items-center font-display font-bold text-[clamp(22px,2.6vw,38px)] ${
+              p.centerRevealed
+                ? "bg-gold text-[#1a1400] border-gold shadow-[0_0_26px_rgba(255,214,10,0.45)]"
+                : "bg-night border-line text-mist"
+            }`}
+          >
+            {p.centerRevealed ? "★" : "?"}
+          </div>
+        </div>
+      </div>
+
+      {/* CỘT PHẢI — Danh mục từ khóa */}
+      <div className="flex flex-col items-center gap-2.5">
+        {(cnv?.rows || []).map((row, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <span className={`text-sm w-14 shrink-0 text-right ${row.status === "open" ? "text-gold" : row.status === "locked" ? "text-danger/80" : "text-mist"}`}>
+              Hàng {i + 1}
+            </span>
+            <div className="flex gap-1.5">
+              {row.status === "open"
+                ? row.word.replace(/\s/g, "").split("").map((ch, j) => (
+                    <span key={j} className="ltr ltr-open">{ch}</span>
+                  ))
+                : row.status === "locked"
+                  ? Array.from({ length: row.letterCount }, (_, j) => (
+                      <span key={j} className="ltr ltr-locked">✕</span>
+                    ))
+                  : Array.from({ length: row.letterCount }, (_, j) => (
+                      <span key={j} className="ltr" />
+                    ))}
+            </div>
+          </div>
+        ))}
+
+        {/* Từ khóa */}
+        <div className="flex items-center justify-center gap-1.5 mt-2">
+          <span className="text-sm w-14 shrink-0 text-right text-gold">Từ khóa</span>
+          {p.keywordSolved && cnv?.keyword
+            ? cnv.keyword.split("").map((ch, j) => (
+                <span key={j} className={`ltr ltr-kw ${/\s/.test(ch) ? "" : "ltr-gold"}`}>
+                  {/\s/.test(ch) ? "" : ch}
+                </span>
+              ))
+            : Array.from({ length: cnv?.keywordLetterCount || 0 }, (_, j) => (
+                <span key={j} className="ltr ltr-kw" />
+              ))}
+          {!!cnv?.keywordLetterCount && (
+            <span className="text-mist text-sm ml-2">{cnv.keywordLetterCount} chữ cái</span>
+          )}
+        </div>
+
+        {p.centerRevealed && cnv?.centerHint && (
+          <div className="stage-note mt-1">★ {cnv.centerHint}</div>
+        )}
+      </div>
+
+      <div className="md:col-span-2 text-center">
+        {p.awaitingSteal && (
+          <div className="badge badge-warn text-base! px-4 py-2">Hết giờ / sai — mở chuông giành quyền trả lời!</div>
+        )}
+        {d.question && <div className="text-mist">{d.question}</div>}
+        {d.note && <div className="stage-note">{d.note}</div>}
+      </div>
     </div>
   );
 }

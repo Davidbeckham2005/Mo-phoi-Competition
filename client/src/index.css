@@ -210,6 +210,9 @@
   .buzz-btn:disabled {
     filter: grayscale(0.6);
   }
+  .buzz-live {
+    animation: buzzLive 0.7s ease-in-out infinite;
+  }
   .ltr {
     display: inline-flex;
     align-items: center;
@@ -302,5 +305,21 @@
 @keyframes pulse {
   50% {
     opacity: 0.55;
+  }
+}
+
+@keyframes buzzLive {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 rgba(255, 77, 109, 0.7),
+      0 20px 60px rgba(255, 77, 109, 0.5);
+  }
+  50% {
+    transform: scale(1.07);
+    box-shadow:
+      0 0 0 22px rgba(255, 77, 109, 0),
+      0 20px 70px rgba(255, 77, 109, 0.75);
   }
 }

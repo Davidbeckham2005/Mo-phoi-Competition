@@ -382,6 +382,18 @@ export function resetKhoiDong(teamId = null) {
     emit();
   }
 
+  // Bật/tắt màn hình hiển thị trên màn hình lớn (chỉ dùng cho Vòng 2):
+  //   mode === "question" → MÀN HÌNH CÂU HỎI
+  //   còn lại            → MÀN HÌNH ẢNH GHÉP + HÀNG NGANG
+  // Giữ nguyên dữ liệu câu hỏi (display.question/answer...) để MC chuyển qua lại thoải mái.
+  export function setScreenMode(mode) {
+    const game = g();
+    if (game.round !== "vuot_cnv") return;
+    game.display.mode = mode === "question" ? "question" : "puzzle";
+    saveDb();
+    emit();
+  }
+
   export function markAnswer(correct, teamId = null) {
     const game = g();
     const q = currentQuestion();
@@ -656,12 +668,28 @@ export function resetKhoiDong(teamId = null) {
     emit();
   }
 
-  export function selectRow(rowIndex) {
+  export function selectRow(rowIndex, teamId) {
     const game = g();
     const p = game.puzzle;
     const i = Number(rowIndex);
     if (!(i >= 0 && i <= 3)) return;
     if (p.rowsSolved?.[i] || p.rowsLocked?.[i] || p.keywordSolved) return;
+    if (!teamId || !["a", "b", "c", "d"].includes(teamId)) {
+      throw new Error("Phải chọn đội thi cho ô này trước khi mở câu hỏi.");
+    }
+    p.teamForRow = p.teamForRow || [null, null, null, null];
+    const owner = p.teamForRow[i];
+    if (owner) {
+      if (owner !== teamId) {
+        const rowActive =
+          (p.currentRow === i && game.questionStatus !== "idle") || p.awaitingSteal;
+        if (rowActive) {
+          throw new Error(`Ô này đang thi đấu thuộc đội ${String(owner).toUpperCase()} — không chuyển sang đội ${teamId.toUpperCase()} được.`);
+        }
+      }
+    }
+    p.teamForRow[i] = teamId;
+    game.currentTeam = teamId;
     p.currentRow = i;
     p.awaitingSteal = false;
     // Dọn trạng thái chuông của hàng trước để tránh giữ lại đội giữ chuông cũ

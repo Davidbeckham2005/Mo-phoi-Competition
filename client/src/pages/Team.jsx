@@ -4,7 +4,6 @@ import { socket, on } from "../lib/socket.js";
 import { loginTeam } from "../lib/api/team.js";
 import { formatTime } from "../lib/format.js";
 import { useGameState } from "../lib/useGame.js";
-import { isOpen, isLocked } from "../lib/cnv.js";
 
 const SESSION_KEY = "team_session";
 
@@ -163,21 +162,14 @@ export default function Team() {
     body = <KhoiDongBody g={g} d={d} team={team} />;
   } else if (g.round === "vuot_cnv") {
     body = (
-      <div className="w-full max-w-[1240px] mx-auto grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-        <PuzzlePanel cnv={state.cnv} puzzle={g.puzzle || {}} />
-        <div className="flex flex-col items-start min-w-0 gap-2.5">
-          <KeywordPanel cnv={state.cnv} puzzle={g.puzzle || {}} />
-          <button
-            type="button"
-            className="buzz-btn mt-4"
-            style={{ width: 150, height: 150, fontSize: 15, borderWidth: 8 }}
-            disabled={!canBuzz && !winner}
-            onClick={buzz}
-          >
-            {winner ? "BẠN ĐƯỢC TRẢ LỜI!" : canBuzz ? "CHUÔNG" : "CHỜ"}
-          </button>
-        </div>
-      </div>
+      <Round2Status
+        g={g}
+        teams={state.teams || []}
+        me={team.id}
+        remaining={remaining}
+        running={running}
+        onBuzz={buzz}
+      />
     );
   } else if (g.round === "tang_toc") {
     body = (
@@ -309,101 +301,120 @@ function KhoiDongBody({ g, d, team }) {
   );
 }
 
-function PuzzlePanel({ cnv, puzzle }) {
-  const media = cnv?.media;
-  const solved = [0, 1, 2, 3].map((i) => isOpen(puzzle, i));
-  const locked = [0, 1, 2, 3].map((i) => isLocked(puzzle, i));
-  return (
-    <div className="flex flex-col items-center justify-center gap-4 min-w-0">
-      {media?.url &&
-        (media.type === "video" ? (
-          <video src={media.url} controls className="max-h-[28vh] max-w-full rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)]" />
-        ) : (
-          <img src={media.url} alt="Ảnh ghép" className="max-h-[28vh] max-w-full object-contain rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)]" />
-        ))}
-      <div className="relative w-[clamp(240px,24vw,400px)] aspect-[16/10] rounded-2xl overflow-hidden ring-1 ring-line">
-        <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
-          {[0, 1, 2, 3].map((r) => (
-            <div
-              key={r}
-              className={`grid place-items-center font-display font-bold text-[clamp(28px,3vw,46px)] transition-colors ${
-                solved[r]
-                  ? "bg-gold/90 text-[#1a1400]"
-                  : locked[r]
-                    ? "bg-danger/10 text-danger/80"
-                    : "bg-panel-solid text-mist"
-              }`}
-            >
-              {solved[r] ? r + 1 : locked[r] ? "✕" : "?"}
-            </div>
-          ))}
-        </div>
+// Vòng 2 (Vượt CNV): thí sinh theo dõi câu hỏi/hàng ngang trên màn hình khán giả.
+// Màn hình thí sinh chỉ hiển thị: đồng hồ đếm giây + trạng thái quyền trả lời + chuông.
+// Vòng 2 (Vượt CNV): các đội TRẢ LỜI THEO LƯỢT, không bấm chuông.
+// Chỉ khi đội đó sai / hết giờ, chuông mới mở để đội khác giành quyền trả lời.
+function Round2Status({ g, teams, me, remaining, running, onBuzz }) {
+  const curId = g.currentTeam;
+  const curName = teams.find((t) => t.id === curId)?.name;
+  const winnerId = g.buzzer?.winner;
+  const winnerName = teams.find((t) => t.id === winnerId)?.name;
+  const blocked = (g.buzzer?.blocked || []).includes(me);
+  const open = !!g.buzzer?.open;
+  const awaitingSteal = !!g.puzzle?.awaitingSteal;
+  const keywordDone = !!g.puzzle?.keywordSolved;
+  const rowsOpen = (g.puzzle?.rowsSolved || []).filter(Boolean).length;
+  const keywordPhase = !keywordDone && (!!g.puzzle?.centerRevealed || rowsOpen === 4);
+  const showing = g.questionStatus === "showing";
 
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-line" />
-          <div className="absolute top-1/2 left-0 right-0 h-px bg-line" />
-        </div>
+  const won = winnerId === me;
+  const someoneWon = !!winnerId && !won;
+  const canSteal = open && !blocked && !winnerId && !(awaitingSteal && me === curId);
+  const myTurn = showing && !awaitingSteal && !keywordPhase && !keywordDone && !winnerId && curId === me;
+  const otherTurn = showing && !awaitingSteal && !keywordPhase && !keywordDone && !winnerId && !!curId && curId !== me;
 
-        <div
-          className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[38%] h-[46%] rounded-xl border-2 grid place-items-center font-display font-bold text-[clamp(22px,2.4vw,36px)] ${
-            puzzle.centerRevealed
-              ? "bg-gold text-[#1a1400] border-gold shadow-[0_0_26px_rgba(255,214,10,0.45)]"
-              : "bg-night border-line text-mist"
-          }`}
+  let status;
+  if (keywordDone) {
+    status = (
+      <div className="flex flex-col items-center gap-3">
+        <div className="badge badge-ok text-base! px-5 py-2">ĐÃ TÌM RA TỪ KHÓA</div>
+        <p className="text-mist">Vòng 2 kết thúc — chờ MC chuyển vòng tiếp theo.</p>
+      </div>
+    );
+  } else if (won) {
+    status = (
+      <div className="flex flex-col items-center gap-3 animate-pulse">
+        <div className="badge badge-ok text-base! px-5 py-2">QUYỀN TRẢ LỜI THUỘC VỀ BẠN</div>
+        <div className="font-display font-bold text-gold text-[clamp(38px,6vw,72px)] leading-tight">
+          BẠN ĐƯỢC TRẢ LỜI!
+        </div>
+        <p className="text-mist">Trả lời to, rõ ràng — MC sẽ xác nhận kết quả.</p>
+      </div>
+    );
+  } else if (someoneWon) {
+    status = (
+      <div className="flex flex-col items-center gap-3">
+        <div className="badge badge-ok text-base! px-5 py-2">CÓ ĐỘI GIÀNH ĐƯỢC QUYỀN</div>
+        <div className="font-display font-bold text-gold text-[clamp(30px,4.5vw,54px)]">Đội {winnerName}</div>
+        <p className="text-mist">đang trả lời — quan sát diễn biến trên màn hình lớn.</p>
+      </div>
+    );
+  } else if (canSteal) {
+    status = (
+      <div className="flex flex-col items-center gap-5">
+        <div className="badge badge-warn text-base! px-5 py-2 animate-pulse">ĐANG MỞ CHUÔNG — BẤM NGAY!</div>
+        <button
+          type="button"
+          className="buzz-btn buzz-live"
+          style={{ width: "clamp(220px,30vw,300px)", height: "clamp(220px,30vw,300px)", fontSize: 26 }}
+          onClick={onBuzz}
         >
-          {puzzle.centerRevealed ? "★" : "?"}
-        </div>
+          BẤM CHUÔNG
+        </button>
+        <p className="text-mist">Ai bấm trước sẽ giành quyền trả lời.</p>
       </div>
-    </div>
-  );
-}
+    );
+  } else if (awaitingSteal && me === curId) {
+    status = (
+      <div className="flex flex-col items-center gap-3">
+        <div className="badge badge-no text-base! px-5 py-2">ĐỘI BẠN TRẢ LỜI CHƯA ĐÚNG</div>
+        <p className="text-mist">Các đội khác đang giành quyền — theo dõi trên màn hình lớn.</p>
+      </div>
+    );
+  } else if (myTurn) {
+    status = (
+      <div className="flex flex-col items-center gap-3">
+        <div className="badge badge-warn text-base! px-5 py-2">LƯỢT TRẢ LỜI</div>
+        <div className="font-display font-bold text-gold text-[clamp(34px,5.5vw,64px)]">
+          LƯỢT CỦA BẠN!
+        </div>
+        <p className="text-mist">Đây là lượt trả lời của đội bạn — quan sát câu hỏi trên màn hình lớn rồi trả lời.</p>
+      </div>
+    );
+  } else if (otherTurn) {
+    status = (
+      <div className="flex flex-col items-center gap-3">
+        <div className="badge text-base! px-5 py-2">ĐANG TRẢ LỜI</div>
+        <div className="font-display font-bold text-gold text-[clamp(30px,4.5vw,54px)]">Lượt đội {curName}</div>
+        <p className="text-mist">Quan sát câu hỏi trên màn hình lớn — chờ đến lượt đội bạn.</p>
+      </div>
+    );
+  } else if (keywordPhase) {
+    status = (
+      <div className="flex flex-col items-center gap-3">
+        <div className="badge badge-warn text-base! px-5 py-2">ĐOÁN TỪ KHÓA</div>
+        <p className="text-mist">4 góc đã mở — quan sát và đoán chướng ngại vật trên màn hình lớn.</p>
+      </div>
+    );
+  } else {
+    status = (
+      <div className="flex flex-col items-center gap-3">
+        <div className="round-badge">Vòng 2 — Vượt chướng ngại vật</div>
+        <p className="text-mist">Chờ MC bắt đầu. Quan sát câu hỏi, hình ảnh và hàng ngang trên màn hình lớn.</p>
+      </div>
+    );
+  }
 
-function KeywordPanel({ cnv, puzzle }) {
   return (
-    <div className="flex flex-col items-start gap-2.5 min-w-0">
-      {(cnv?.rows || []).map((row, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <span className={`text-sm w-14 shrink-0 text-right ${row.status === "open" ? "text-gold" : row.status === "locked" ? "text-danger/80" : "text-mist"}`}>
-            Hàng {i + 1}
-          </span>
-          <div className="flex gap-1.5">
-            {row.status === "open"
-              ? row.word.replace(/\s/g, "").split("").map((ch, j) => (
-                  <span key={j} className="ltr ltr-open">{ch}</span>
-                ))
-              : row.status === "locked"
-                ? Array.from({ length: row.letterCount }, (_, j) => (
-                    <span key={j} className="ltr ltr-locked">✕</span>
-                  ))
-                : Array.from({ length: row.letterCount }, (_, j) => (
-                    <span key={j} className="ltr" />
-                  ))}
-          </div>
-        </div>
-      ))}
-
-      <div className="flex items-center justify-start gap-1.5 mt-2">
-        <span className="text-sm w-14 shrink-0 text-right text-gold">Từ khóa</span>
-        {puzzle.keywordSolved && cnv?.keyword
-          ? cnv.keyword.split("").map((ch, j) => (
-              <span key={j} className={`ltr ltr-kw ${/\s/.test(ch) ? "" : "ltr-gold"}`}>
-                {/\s/.test(ch) ? "" : ch}
-              </span>
-            ))
-          : Array.from({ length: cnv?.keywordLetterCount || 0 }, (_, j) => (
-              <span key={j} className="ltr ltr-kw" />
-            ))}
-        {!!cnv?.keywordLetterCount && (
-          <span className="text-mist text-sm ml-2">{cnv.keywordLetterCount} chữ cái</span>
-        )}
+    <div className="flex flex-col items-center gap-8 w-full min-w-0">
+      <div
+        className={`timer-xl ${remaining <= 5 && running ? "timer-danger" : ""}`}
+        style={{ fontSize: "clamp(80px, 14vw, 150px)" }}
+      >
+        {formatTime(remaining)}
       </div>
-
-      {puzzle.centerRevealed && cnv?.centerHint && (
-        <div className="stage-note mt-1">★ {cnv.centerHint}</div>
-      )}
-      {puzzle.awaitingSteal && (
-        <div className="badge badge-warn mt-2">Hết giờ / sai — mở chuông giành quyền trả lời!</div>
-      )}
+      {status}
     </div>
   );
 }

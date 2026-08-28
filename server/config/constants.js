@@ -16,6 +16,7 @@ export function emptyPuzzle() {
   return {
     rowsSolved: [false, false, false, false],
     rowsLocked: [false, false, false, false],
+    teamForRow: [null, null, null, null],
     centerRevealed: false,
     keywordSolved: false,
     keywordWinner: null,
