@@ -19,6 +19,8 @@ router.post("/teams", requirePin, asyncHandler(admin.saveTeams));
 router.post("/questions/so-khao", requirePin, asyncHandler(admin.saveSoKhaoQuestion));
 router.delete("/questions/so-khao/:id", requirePin, asyncHandler(admin.deleteSoKhaoQuestion));
 router.post("/questions/main", requirePin, asyncHandler(admin.saveMainQuestions));
+router.post("/khoi-dong-answer-seconds", requirePin, asyncHandler(admin.setKhoiDongAnswerSeconds));
+router.post("/khoi-dong-timer-seconds", requirePin, asyncHandler(admin.setKhoiDongTimerSeconds));
 router.post("/upload", requirePin, upload.single("file"), asyncHandler(admin.uploadMedia));
 router.delete("/media/:id", requirePin, asyncHandler(admin.deleteMedia));
 

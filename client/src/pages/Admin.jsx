@@ -13,6 +13,8 @@ import {
   saveMainQuestions,
   uploadFile,
   saveSettings,
+  setKhoiDongAnswerSeconds,
+  setKhoiDongTimerSeconds,
   resetContest,
 } from "../lib/api/admin.js";
 import { getPin } from "../lib/session.js";
@@ -694,6 +696,8 @@ function MediaTab({ state, reload, setMsg }) {
 
 function SettingsTab({ state, reload, setMsg }) {
   const [s, setS] = useState(state.settings);
+  const [kdAnswerSec, setKdAnswerSec] = useState(() => Number(state.game?.khoiDong?.answerSeconds) || 4);
+  const [kdTimerSec, setKdTimerSec] = useState(() => Number(state.game?.khoiDong?.timerSeconds) || 60);
   return (
     <div className="panel grid gap-3.5 max-w-[560px]">
       <label className="label-grid">
@@ -729,8 +733,17 @@ function SettingsTab({ state, reload, setMsg }) {
         />
         Hiện bảng xếp hạng live
       </label>
+      <label className="label-grid">
+        Thời gian hiện đáp án khởi động (giây — 0 = sang câu kế ngay)
+        <input type="number" value={kdAnswerSec} onChange={(e) => setKdAnswerSec(Number(e.target.value))} />
+      </label>
+      <label className="label-grid">
+        Thời gian mỗi lượt khởi động (giây)
+        <input type="number" value={kdTimerSec} onChange={(e) => setKdTimerSec(Number(e.target.value))} />
+      </label>
       <div className="flex gap-2">
         <button type="button" className="btn" onClick={async () => { await saveSettings(s); setMsg("Đã lưu cài đặt"); reload(); }}>Lưu</button>
+        <button type="button" className="btn btn-ghost" onClick={async () => { await setKhoiDongAnswerSeconds(kdAnswerSec || 0); await setKhoiDongTimerSeconds(kdTimerSec || 60); setMsg("Đã lưu cấu hình khởi động"); reload(); }}>Lưu thời gian khởi động</button>
         <button
           type="button"
           className="btn btn-danger"

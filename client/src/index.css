@@ -244,6 +244,31 @@
     color: #1a1400;
     box-shadow: 0 0 18px rgba(255, 214, 10, 0.4);
   }
+  /* Ô chữ nhỏ gọn trên bàn MC (round 2) để không tràn khỏi cột */
+  .cnv-mc .ltr {
+    width: clamp(18px, 2.2vw, 34px);
+    height: clamp(18px, 2.2vw, 34px);
+    font-size: clamp(10px, 1.3vw, 18px);
+    border-radius: 8px;
+  }
+  .cnv-mc .ltr-open {
+    border-color: var(--color-gold);
+    color: #1a1400;
+    background: var(--color-gold);
+  }
+  .cnv-mc .ltr-gold {
+    border-color: var(--color-gold);
+    background: var(--color-gold);
+    color: #1a1400;
+  }
+  .cnv-mc .ltr-open,
+  .cnv-mc .ltr-gold {
+    box-shadow: none;
+  }
+  .cnv-mc .ltr-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
   .aside-col {
     min-width: 0;
     overflow: hidden;

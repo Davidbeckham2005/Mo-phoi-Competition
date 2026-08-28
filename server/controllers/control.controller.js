@@ -17,6 +17,7 @@ const actions = {
   "score.add": (p) => game.addScore(p.teamId, p.points),
   "score.set": (p) => game.setScore(p.teamId, p.score),
   "khoi_dong.timer": (p) => game.setKhoiDongTimer(p.seconds),
+  "khoi_dong.answerSeconds": (p) => game.setKhoiDongAnswerSeconds(p.seconds),
   "khoi_dong.reset": (p) => game.resetKhoiDong(p.teamId),
   "team.set": (p) => game.setCurrentTeam(p.teamId),
   "buzzer.open": () => game.openBuzzer(),
@@ -37,6 +38,14 @@ const actions = {
   "tangtoc.settle": () => game.settleTangToc(),
   "contest.finish": () => game.finishContest(),
   "contest.resetGame": () => game.resetGameKeepTeams(),
+  "main.resetQuestions": (p) => {
+    if (p.pin !== getDb().settings.pin) {
+      const err = new Error("Sai PIN ban tổ chức — không thể reset câu hỏi.");
+      err.status = 401;
+      throw err;
+    }
+    return game.resetMainRoundState();
+  },
 };
 
 export function runAction(req) {

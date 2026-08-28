@@ -17,6 +17,14 @@ export function saveSettings(body) {
   return request("/api/admin/settings", { method: "POST", body });
 }
 
+export function setKhoiDongAnswerSeconds(seconds) {
+  return request("/api/admin/khoi-dong-answer-seconds", { method: "POST", body: { seconds } });
+}
+
+export function setKhoiDongTimerSeconds(seconds) {
+  return request("/api/admin/khoi-dong-timer-seconds", { method: "POST", body: { seconds } });
+}
+
 export function openPrelim(open) {
   return request("/api/admin/prelim/open", { method: "POST", body: { open } });
 }

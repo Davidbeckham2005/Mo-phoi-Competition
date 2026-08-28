@@ -1,6 +1,7 @@
   import { getDb, saveDb, defaultGame, emptyPuzzle, ROUNDS } from "../models/store.js";
 
   let timerHandle = null;
+  let khoiDongTimer = null;
   let broadcast = () => {};
 
   export function setBroadcast(fn) {
@@ -81,6 +82,13 @@
         game.timer.endsAt = null;
         if (game.round === "tang_toc") {
           settleTangToc();
+        } else if (game.round === "vuot_cnv" && !game.puzzle.keywordSolved && !cornersResolved()) {
+          // Hết thời gian trả lời: mở chuông cho các đội khác giành quyền
+          const p = game.puzzle;
+          if (!p.awaitingSteal) {
+            p.awaitingSteal = true;
+            resetBuzzer(true);
+          }
         }
         broadcast("game:timer", game.timer);
         emit();
@@ -162,6 +170,22 @@ export function setKhoiDongTimer(seconds) {
   setTimer(game.khoiDong.timerSeconds, false);
 }
 
+export function setKhoiDongAnswerSeconds(seconds) {
+  const game = g();
+  game.khoiDong = game.khoiDong || { submissions: {} };
+  game.khoiDong.answerSeconds = Math.max(0, Number(seconds) || 0);
+  saveDb();
+  emit();
+}
+
+export function setKhoiDongTimerSeconds(seconds) {
+  const game = g();
+  game.khoiDong = game.khoiDong || { submissions: {} };
+  game.khoiDong.timerSeconds = Math.max(5, Number(seconds) || 60);
+  saveDb();
+  emit();
+}
+
 // Reset trạng thái trả lời vòng Khởi động (đưa các câu về "chưa trả lời")
 export function resetKhoiDong(teamId = null) {
   const game = g();
@@ -182,6 +206,10 @@ export function resetKhoiDong(teamId = null) {
 
   export function startRound(roundId) {
     const game = g();
+    if (khoiDongTimer) {
+      clearTimeout(khoiDongTimer);
+      khoiDongTimer = null;
+    }
     game.phase = "main";
     game.round = roundId;
     game.questionIndex = 0;
@@ -210,7 +238,7 @@ export function resetKhoiDong(teamId = null) {
       game.tangToc = { submissions: {}, ranked: [] };
     }
     if (roundId === "khoi_dong") {
-      game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60, history: {} };
+      game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60, answerSeconds: game.khoiDong?.answerSeconds, history: {} };
       setTimer(game.khoiDong.timerSeconds, false);
     }
     if (roundId === "ve_dich") {
@@ -229,7 +257,7 @@ export function resetKhoiDong(teamId = null) {
       return list[game.questionIndex] || null;
     }
     if (game.round === "vuot_cnv") {
-      if (cornersResolved()) {
+      if (game.puzzle.centerRevealed) {
         return {
           id: "cnv-keyword",
           question: `Chướng ngại vật (${main.vuotCnv.letterCount} chữ cái, không tính dấu cách). Gợi ý: ${main.vuotCnv.hint}`,
@@ -257,8 +285,9 @@ export function resetKhoiDong(teamId = null) {
 
   function keywordPoints() {
     const p = g().puzzle;
-    if (p.centerRevealed) return 20;
     const opened = p.rowsSolved.filter(Boolean).length;
+    if (opened >= 4) return 20;
+    if (p.centerRevealed) return 20;
     if (opened <= 0) return 60;
     if (opened === 1) return 50;
     if (opened === 2) return 40;
@@ -297,7 +326,7 @@ export function resetKhoiDong(teamId = null) {
     game.display.title = ROUNDS.find((r) => r.id === game.round)?.name || "";
     if (game.round === "vuot_cnv" && !cornersResolved()) {
       game.display.note = `Hàng ngang ${game.puzzle.currentRow + 1} • ${q.letterCount || ""} chữ`;
-      setTimer(15, false);
+      setTimer(game.vuotCnv?.answerSeconds || 30, true);
     }
     if (game.round === "tang_toc") {
       game.tangToc = { submissions: {}, ranked: [] };
@@ -371,9 +400,13 @@ export function resetKhoiDong(teamId = null) {
     }
     if (correct) {
       if (game.round === "vuot_cnv" && !cornersResolved() && game.puzzle.awaitingSteal) {
-        // Đội giành quyền trả lời đúng: +10 và mở mảnh
-        addScore(game.buzzer.winner || tid, points);
-        revealRow(game.puzzle.currentRow);
+        // Đội giành quyền trả lời đúng: +10 và mở mảnh.
+        // Chỉ cộng điểm khi THỰC SỰ có đội cướp (buzzer.winner) — không fallback về
+        // đội đang chọn (vốn đã trả lời sai ở bước trước).
+        if (game.buzzer.winner) {
+          addScore(game.buzzer.winner, points);
+          revealRow(game.puzzle.currentRow);
+        }
         game.puzzle.awaitingSteal = false;
       } else {
         addScore(tid, points);
@@ -386,6 +419,7 @@ export function resetKhoiDong(teamId = null) {
       if (!p.awaitingSteal) {
         // Sai lần đầu: mở chuông cho đội khác giành quyền trả lời
         p.awaitingSteal = true;
+        pauseTimer();
         resetBuzzer(true);
       } else {
         // Đội giành quyền trả lời sai: -20 và khóa mảnh vĩnh viễn
@@ -396,17 +430,27 @@ export function resetKhoiDong(teamId = null) {
     } else if (game.round === "ve_dich" && game.veDich.star && tid === game.currentTeam) {
       addScore(tid, -game.veDich.packagePoints * 2);
     }
-    // Vòng Khởi động: chấm xong tự sang câu kế và hiện luôn câu mới
+    // Vòng Khởi động: chấm xong hiện đáp án trong answerSeconds rồi mới tự sang câu kế
     if (game.round === "khoi_dong" && game.display.mode === "question") {
       // Lưu lịch sử đúng/sai
       game.khoiDong.history = game.khoiDong.history || {};
       game.khoiDong.history[tid] = game.khoiDong.history[tid] || [];
       game.khoiDong.history[tid][game.questionIndex] = !!correct;
-      const before = `${game.currentTeam}:${game.questionIndex}`;
-      nextQuestion();
-      const moved = `${game.currentTeam}:${game.questionIndex}` !== before;
-      if (moved && currentQuestion()) {
-        showQuestion();
+      const seconds = Math.max(0, Number(game.khoiDong?.answerSeconds) || 0);
+      if (seconds > 0) {
+        game.display.answerRevealed = true;
+        game.questionStatus = "revealed";
+        saveDb();
+        emit();
+        scheduleKhoiDongAdvance();
+      } else {
+        // 0 giây: giữ hành vi cũ — chuyển ngay sang câu kế
+        const before = `${game.currentTeam}:${game.questionIndex}`;
+        nextQuestion();
+        const moved = `${game.currentTeam}:${game.questionIndex}` !== before;
+        if (moved && currentQuestion()) {
+          showQuestion();
+        }
       }
       return;
     }
@@ -417,6 +461,32 @@ export function resetKhoiDong(teamId = null) {
     }
     saveDb();
     emit();
+  }
+
+  // Khởi động: sau khi chấm, hiện đáp án answerSeconds rồi tự chuyển sang câu kế
+  function scheduleKhoiDongAdvance() {
+    const game = g();
+    const secs = Math.max(1, Number(game.khoiDong?.answerSeconds) || 4);
+    if (khoiDongTimer) clearTimeout(khoiDongTimer);
+    khoiDongTimer = setTimeout(() => {
+      khoiDongTimer = null;
+      advanceKhoiDongNext();
+    }, secs * 1000);
+  }
+
+  // Chuyển sang câu kế (đã hết thời gian hiện đáp án)
+  function advanceKhoiDongNext() {
+    const game = g();
+    if (game.round !== "khoi_dong") return;
+    const before = `${game.currentTeam}:${game.questionIndex}`;
+    nextQuestion();
+    const moved = `${game.currentTeam}:${game.questionIndex}` !== before;
+    if (moved && currentQuestion()) {
+      showQuestion();
+    } else {
+      saveDb();
+      emit();
+    }
   }
 
   export function nextQuestion() {
@@ -470,7 +540,7 @@ export function resetKhoiDong(teamId = null) {
     if (game.round === "khoi_dong") {
       const timerSec = game.khoiDong?.timerSeconds || 60;
       const history = game.khoiDong?.history || {};
-      game.khoiDong = { submissions: {}, timerSeconds: timerSec, history };
+      game.khoiDong = { submissions: {}, timerSeconds: timerSec, answerSeconds: game.khoiDong?.answerSeconds, history };
       setTimer(timerSec, false);
       showQuestion();
       return;
@@ -492,7 +562,7 @@ export function resetKhoiDong(teamId = null) {
       const timerSec = game.khoiDong?.timerSeconds || 60;
       if (teamId !== prevTeam) {
         const history = game.khoiDong?.history || {};
-        game.khoiDong = { submissions: {}, timerSeconds: timerSec, history };
+        game.khoiDong = { submissions: {}, timerSeconds: timerSec, answerSeconds: game.khoiDong?.answerSeconds, history };
       }
       setTimer(timerSec, false);
       showQuestion();
@@ -594,6 +664,8 @@ export function resetKhoiDong(teamId = null) {
     if (p.rowsSolved?.[i] || p.rowsLocked?.[i] || p.keywordSolved) return;
     p.currentRow = i;
     p.awaitingSteal = false;
+    // Dọn trạng thái chuông của hàng trước để tránh giữ lại đội giữ chuông cũ
+    game.buzzer = { open: false, locked: false, winner: null, order: [], blocked: game.buzzer?.blocked || [] };
     game.questionStatus = "idle";
     game.display.mode = "puzzle";
     game.display.answerRevealed = false;
@@ -608,6 +680,7 @@ export function resetKhoiDong(teamId = null) {
     const i = Number(rowIndex);
     if (!(i >= 0 && i <= 3)) return;
     if (game.puzzle.rowsLocked?.[i]) return; // khóa vĩnh viễn, không mở lại
+    pauseTimer();
     game.puzzle.rowsSolved[i] = true;
     saveDb();
     emit();
@@ -618,6 +691,7 @@ export function resetKhoiDong(teamId = null) {
     const game = g();
     const i = Number(rowIndex);
     if (!(i >= 0 && i <= 3)) return;
+    pauseTimer();
     game.puzzle.rowsLocked[i] = true;
     saveDb();
     emit();
@@ -643,6 +717,7 @@ export function resetKhoiDong(teamId = null) {
   export function solveKeyword(teamId, correct) {
     const game = g();
     if (!teamId) return;
+    if (!cornersResolved()) return; // chỉ đoán từ khóa khi đã xử lý hết 4 hàng ngang
     const pts = keywordPoints();
     if (correct) {
       game.puzzle.keywordSolved = true;
@@ -796,6 +871,43 @@ export function resetKhoiDong(teamId = null) {
     });
     db.game = defaultGame();
     db.game.phase = "teams_ready";
+    saveDb();
+    emit();
+  }
+
+  // Reset trạng thái trả lời vòng chính (Khởi động + round 2) để chạy demo lại.
+  // Giữ nguyên vòng hiện tại, câu hỏi và điểm số của các đội.
+  export function resetMainRoundState() {
+    const game = g();
+    if (khoiDongTimer) {
+      clearTimeout(khoiDongTimer);
+      khoiDongTimer = null;
+    }
+    stopTimerLoop();
+    setTimer(0, false);
+    game.currentTeam = "a";
+    game.questionIndex = 0;
+    game.questionStatus = "idle";
+    game.finished = false;
+    game.buzzer = { open: false, locked: false, winner: null, order: [], blocked: [] };
+    game.display = {
+      mode: "idle",
+      title: ROUNDS.find((r) => r.id === game.round)?.name || "",
+      question: "",
+      options: [],
+      mediaUrl: "",
+      mediaType: "",
+      answer: "",
+      answerRevealed: false,
+      note: "",
+    };
+    game.khoiDong = game.khoiDong || {};
+    game.khoiDong.history = {};
+    game.khoiDong.submissions = {};
+    game.tangToc = { submissions: {}, ranked: [] };
+    game.puzzle = emptyPuzzle();
+    game.veDich = { packagePoints: 20, star: false, answeringTeam: "a", stealOpen: false };
+    if (game.round === "vuot_cnv") game.display.mode = "puzzle";
     saveDb();
     emit();
   }

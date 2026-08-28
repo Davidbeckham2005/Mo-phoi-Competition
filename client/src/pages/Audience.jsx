@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { formatTime } from "../lib/format.js";
 import { on } from "../lib/socket.js";
 import { useGameState } from "../lib/useGame.js";
+import { isOpen, isLocked } from "../lib/cnv.js";
 
 function playBuzz() {
   try {
@@ -120,8 +121,8 @@ function Stage({ state }) {
   if (d.mode === "puzzle" || (g.round === "vuot_cnv" && d.mode !== "question" && d.mode !== "media")) {
     const p = g.puzzle || {};
     const cnv = state.cnv;
-    const solved = p.rowsSolved || [false, false, false, false];
-    const locked = p.rowsLocked || [false, false, false, false];
+    const solved = [0, 1, 2, 3].map((i) => isOpen(p, i));
+    const locked = [0, 1, 2, 3].map((i) => isLocked(p, i));
     const media = cnv?.media;
     return (
       <div className="w-full max-w-[1200px] mx-auto grid lg:grid-cols-2 gap-6 items-center">
@@ -216,6 +217,9 @@ function Stage({ state }) {
         </div>
 
         <div className="md:col-span-2 text-center">
+          {p.awaitingSteal && (
+            <div className="badge badge-warn text-base! px-4 py-2">Hết giờ / sai — mở chuông giành quyền trả lời!</div>
+          )}
           {d.question && <div className="text-mist">{d.question}</div>}
           {d.note && <div className="stage-note">{d.note}</div>}
         </div>
@@ -241,18 +245,30 @@ function Stage({ state }) {
 
   if (d.mode === "question") {
     const isKd = g.round === "khoi_dong";
+    if (isKd && d.answerRevealed) {
+      return (
+        <div className="text-center">
+          {d.mediaUrl && (
+            <img src={d.mediaUrl} alt="" className="max-h-[26vh] max-w-[42vw] mx-auto rounded-2xl object-contain" />
+          )}
+          <div className="kicker mt-3">ĐÁP ÁN</div>
+          <div className="stage-answer mt-3">{d.answer}</div>
+          <div className="text-mist mt-2 text-sm">{state.teams.find((t) => t.id === g.currentTeam)?.name || ""} • Ảnh {(g.questionIndex || 0) + 1}</div>
+        </div>
+      );
+    }
     return (
       <div className="text-center">
         {isKd ? (
           <>
             {d.mediaUrl ? (
-              <img src={d.mediaUrl} alt="" className="max-h-[45vh] max-w-[80vw] mx-auto rounded-2xl object-contain" />
+              <img src={d.mediaUrl} alt="" className="max-h-[30vh] max-w-[60vw] mx-auto rounded-2xl object-contain" />
             ) : (
-              <div className="mx-auto w-[min(500px,80vw)] aspect-[4/3] rounded-2xl bg-panel-solid border border-line grid place-items-center">
-                <div className="text-6xl text-mist/40">?</div>
+              <div className="mx-auto w-[min(380px,60vw)] aspect-[4/3] rounded-2xl bg-panel-solid border border-line grid place-items-center">
+                <div className="text-4xl text-mist/40">?</div>
               </div>
             )}
-            {d.question && <div className="stage-q mt-4">{d.question}</div>}
+            {d.question && <div className="stage-q mt-3 text-[clamp(18px,2.4vw,30px)]">{d.question}</div>}
           </>
         ) : (
           <>
@@ -272,8 +288,8 @@ function Stage({ state }) {
             ))}
           </div>
         )}
-        <div className="stage-note">{d.note}</div>
-        {d.answerRevealed && <div className="stage-answer">Đáp án: {d.answer}</div>}
+        {!isKd && <div className="stage-note">{d.note}</div>}
+        {!isKd && d.answerRevealed && <div className="stage-answer">Đáp án: {d.answer}</div>}
       </div>
     );
   }

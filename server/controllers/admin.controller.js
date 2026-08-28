@@ -126,3 +126,15 @@
     saveDb();
     return db.media;
   }
+
+  export function setKhoiDongAnswerSeconds(req) {
+    const v = Math.max(0, Number(req.body.seconds) || 0);
+    game.setKhoiDongAnswerSeconds(v);
+    return { ok: true, seconds: v };
+  }
+
+  export function setKhoiDongTimerSeconds(req) {
+    const v = Math.max(5, Number(req.body.seconds) || 60);
+    game.setKhoiDongTimerSeconds(v);
+    return { ok: true, seconds: v };
+  }
