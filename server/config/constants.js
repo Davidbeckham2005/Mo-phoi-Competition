@@ -22,7 +22,23 @@ export function emptyPuzzle() {
     keywordWinner: null,
     keywordPointsAwarded: 0,
     currentRow: 0,
+    order: [],
+    turnIndex: 0,
+    orderPending: false,
+    pendingPick: [],
     awaitingSteal: false,
+    // Cửa sổ giành quyền đoán TỪ KHÓA giữa vòng: mở sau mỗi hàng ngang, đóng khi chọn ô mới
+    keywordWindow: false,
+    // Các đội đã đoán TỪ KHÓA sai (giữ nguyên tới khi ra từ khóa, không được đoán lại)
+    keywordBlocked: [],
+    // Đội đang ghi danh (nắm giữ quyền) đoán TỪ KHÓA qua nút TỪ KHÓA — bất kỳ lúc nào trong vòng
+    keywordClaim: null,
+    // Kết quả hàng ngang vừa xử lý xong (đúng/sai) để hiển thị hiệu ứng phản hồi,
+    // tự động xóa khi chọn ô kế tiếp (selectRow)
+    lastResult: null,
+    // Các đội đoán TỪ KHÓA (chướng ngại vật) SAI → bị cấm trả lời câu hỏi hàng ngang
+    // tiếp theo (không làm đội chính, không được cướp) cho tới hết vòng.
+    rowBanned: [],
   };
 }
 

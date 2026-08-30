@@ -127,6 +127,35 @@
     border-color: rgba(255, 214, 10, 0.45);
     background: rgba(255, 214, 10, 0.12);
   }
+  .r2-feedback {
+    animation: r2FeedbackIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .r2-feedback-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 22px;
+    border-radius: 16px;
+    font-family: var(--font-display);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  }
+  .r2-pill-ok {
+    color: var(--color-ok);
+    background: rgba(128, 237, 153, 0.16);
+    border: 2px solid rgba(128, 237, 153, 0.6);
+    box-shadow: 0 0 34px rgba(128, 237, 153, 0.45);
+  }
+  .r2-pill-no {
+    color: #ffb3c1;
+    background: rgba(255, 77, 109, 0.16);
+    border: 2px solid rgba(255, 77, 109, 0.6);
+    box-shadow: 0 0 34px rgba(255, 77, 109, 0.45);
+  }
+  @keyframes r2FeedbackIn {
+    0% { transform: scale(0.4) translateY(-14px); opacity: 0; }
+    60% { transform: scale(1.12) translateY(0); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
   .round-badge {
     display: inline-block;
     font-weight: 800;

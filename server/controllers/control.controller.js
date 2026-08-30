@@ -2,7 +2,17 @@ import { getDb } from "../models/store.js";
 import * as game from "../services/game.service.js";
 
 const actions = {
-  "round.start": (p) => game.startRound(p.round),
+  // Reset vòng 2 (Vượt chướng ngại vật) yêu cầu nhập mật khẩu admin để xác nhận.
+  "round.start": (p) => {
+    if (p.round === "vuot_cnv" && getDb().game.round === "vuot_cnv") {
+      if (!p.pin || p.pin !== getDb().settings.pin) {
+        const err = new Error("Vui lòng nhập mật khẩu admin để reset vòng Vượt chướng ngại vật.");
+        err.status = 401;
+        throw err;
+      }
+    }
+    return game.startRound(p.round);
+  },
   "timer.set": (p) => game.setTimer(p.seconds, p.running !== false),
   "timer.pause": () => game.pauseTimer(),
   "timer.resume": () => game.resumeTimer(),
@@ -24,13 +34,15 @@ const actions = {
   "buzzer.open": () => game.openBuzzer(),
   "buzzer.close": () => game.closeBuzzer(),
   "buzzer.reset": (p) => game.resetBuzzer(!!p.open),
-  "buzzer.press": (p) => game.pressBuzzer(p.teamId),
+  "buzzer.press": (p) => game.pressBuzzer(p.teamId, p.intent),
   "puzzle.piece": (p) => game.revealPiece(p.index, p.value !== false),
   "puzzle.select": (p) => game.selectRow(p.row, p.teamId),
   "puzzle.row": (p) => game.revealRow(p.row),
-  "puzzle.center": () => game.revealCenter(),
+  "puzzle.center": (p) => game.revealCenter(p.teamId),
   "puzzle.all": () => game.revealAllPuzzle(),
   "puzzle.show": () => game.showPuzzle(),
+  "puzzle.skip": () => game.skipSteal(),
+  "order.pick": (p) => game.pickOrder(p.teamId),
   "keyword.solve": (p) => game.solveKeyword(p.teamId, !!p.correct),
   "media.show": (p) => game.showMedia(p.url, p.type),
   "scores.show": () => game.showScores(),

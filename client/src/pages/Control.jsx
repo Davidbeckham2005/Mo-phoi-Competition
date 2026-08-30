@@ -9,7 +9,7 @@ import {
   isOpen,
   isLocked,
   isRowPhase,
-  isKeywordPhase,
+  keywordGuessOpen,
   cornersDone as allCornersDone,
 } from "../lib/cnv.js";
 import QuestionScorePanel from "./control/QuestionScorePanel.jsx";
@@ -22,13 +22,11 @@ export default function Control() {
   const nav = useNavigate();
   const { state, timer } = useGameState();
   const [current, setCurrent] = useState(null);
-  const [seconds, setSeconds] = useState(15);
   const [sideOpen, setSideOpen] = useState(true);
   const [scoreOpen, setScoreOpen] = useState(true);
-  const [scoreSort, setScoreSort] = useState("rank");
   const [customScore, setCustomScore] = useState({});
   const [confirmStart, setConfirmStart] = useState(null);
-  const [pickTeam, setPickTeam] = useState("a");
+  const [roundPin, setRoundPin] = useState("");
 
   async function refreshQ() {
     try {
@@ -66,7 +64,7 @@ export default function Control() {
   const locked = [0, 1, 2, 3].map((i) => isLocked(p, i));
   const cornersDone = allCornersDone(p);
   const cnvRowPhase = g.round === "vuot_cnv" && isRowPhase(p);
-  const cnvKeywordPhase = g.round === "vuot_cnv" && isKeywordPhase(p);
+  const cnvKeywordPhase = g.round === "vuot_cnv" && keywordGuessOpen(p);
   const rowOwner = (i) => {
     const id = p.teamForRow?.[i];
     return state.teams.find((t) => t.id === id);
@@ -84,6 +82,19 @@ export default function Control() {
     }
     if (id === g.round) {
       const active = showing || running || (g.questionStatus && g.questionStatus !== "idle");
+      // Reset vòng 2 (Vượt chướng ngại vật) luôn cần nhập mật khẩu admin — kể cả
+      // khi chưa có gì đang chạy, vì việc reset sẽ xóa toàn bộ bảng mảnh ghép.
+      if (id === "vuot_cnv") {
+        setConfirmStart({
+          roundId: id,
+          title: `Reset vòng ${label}?`,
+          message:
+            "Reset vòng 2 (Vượt chướng ngại vật) sẽ đặt lại toàn bộ bảng mảnh ghép. Vui lòng nhập mật khẩu admin để xác nhận.",
+          danger: true,
+          needPin: true,
+        });
+        return;
+      }
       if (!active) {
         act("round.start", { round: id });
         return;
@@ -128,9 +139,6 @@ export default function Control() {
       return acc;
     }, {});
   const maxScore = Math.max(1, ...(state.teams || []).map((t) => t.score));
-  const sortedTeams = [...(state.teams || [])].sort((a, b) =>
-    scoreSort === "asc" ? a.score - b.score : scoreSort === "desc" ? b.score - a.score : rankedById[a.id] - rankedById[b.id]
-  );
   const rankBadge = (rank) =>
     rank === 1 ? "1" : rank === 2 ? "2" : rank === 3 ? "3" : `#${rank}`;
 
@@ -152,6 +160,10 @@ export default function Control() {
   if (isKd && showing) status = { cls: "ok", text: "ĐANG THI" };
   else if (p.keywordSolved && g.round === "vuot_cnv") status = { cls: "ok", text: "ĐÃ XUẤT TỪ KHÓA" };
   else if (p.awaitingSteal) status = { cls: "warn", text: "CHỜ CƯỚP QUYỀN" };
+  else if (g.round === "vuot_cnv" && p.keywordWindow && !p.keywordSolved && !showing)
+    status = p.lastResult
+      ? { cls: p.lastResult.correct ? "ok" : "warn", text: p.lastResult.correct ? `ĐÚNG +${p.lastResult.pts} • HÀNG ${p.lastResult.row + 1} MỞ` : `SAI −${Math.abs(p.lastResult.pts || 0)} • HÀNG ${p.lastResult.row + 1} KHÓA` }
+      : { cls: "warn", text: "CHỜ CÂU HỎI KẾ TIẾP — CHỌN Ô HOẶC ĐOÁN TỪ KHÓA" };
   else if (showing && revealed) status = { cls: "warn", text: "ĐÃ LẬT ĐÁP ÁN" };
   else if (showing) status = { cls: "ok", text: "ĐANG HIỆN CÂU HỎI" };
 
@@ -198,15 +210,13 @@ export default function Control() {
     answering,
     rankedById,
     maxScore,
-    sortedTeams,
     firstValidIndex,
     pts,
     status,
     progress,
     saiText,
     act,
-    pickTeam,
-    setPickTeam,
+    pickTeam: cur?.id || "a",
   };
 
   return (
@@ -358,71 +368,6 @@ export default function Control() {
         <RoundVeDich ctx={ctx} />
         <RoundKhoiDong ctx={ctx} />
         <RoundTangToc ctx={ctx} />
-
-        {/* 5 · THIẾT BỊ — ẩn khi vòng Khởi động */}
-        {!isKd && (
-          <div className="panel">
-            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Hẹn giờ &amp; chuông</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="number"
-                value={seconds}
-                onChange={(e) => setSeconds(e.target.value)}
-                className="w-20!"
-              />
-              <button type="button" className="btn" onClick={() => act("timer.set", { seconds: Number(seconds), running: true })}>
-                Bắt đầu giờ
-              </button>
-              <button type="button" className="btn btn-ghost" disabled={!running} onClick={() => act("timer.pause")}>
-                Dừng
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={!!running || !(remaining > 0)}
-                onClick={() => act("timer.resume")}
-              >
-                Tiếp
-              </button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 mt-3">
-              <button type="button" className="btn" disabled={!!g.buzzer?.open} onClick={() => act("buzzer.open")}>
-                Mở chuông
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => act("buzzer.reset", { open: true })}>
-                Reset chuông (mở)
-              </button>
-              <button type="button" className="btn btn-ghost" disabled={!g.buzzer?.open} onClick={() => act("buzzer.close")}>
-                Khóa chuông
-              </button>
-              {!!g.buzzer?.winner && <span className="badge badge-ok">Giữ chuông: {winner?.name || g.buzzer.winner}</span>}
-            </div>
-            <div className="text-mist text-xs mt-2">
-              Chuông: {g.buzzer?.open ? "MỞ" : "KHÓA"}
-              {(g.buzzer?.order || []).length > 0 &&
-                ` • Thứ tự bấm: ${g.buzzer.order.map((id) => state.teams.find((t) => t.id === id)?.name || id).join(" → ")}`}
-            </div>
-          </div>
-        )}
-
-        {/* 6 · MEDIA */}
-        {!isKd && (state.media || []).length > 0 && (
-          <div className="panel">
-            <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Media gợi ý</div>
-            <div className="flex flex-wrap gap-2">
-              {state.media.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => act("media.show", { url: m.url, type: m.type })}
-                >
-                  {m.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </main>
 
       {/* CỘT PHẢI — Bảng điểm */}
@@ -430,29 +375,10 @@ export default function Control() {
         <b>Bảng điểm</b>
         {scoreOpen && (
           <>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs tracking-[0.18em] text-mist uppercase">Sắp xếp</span>
-              <div className="flex gap-1">
-                {[
-                  ["rank", "Thứ tự"],
-                  ["desc", "Điểm ↓"],
-                  ["asc", "Điểm ↑"],
-                ].map(([val, label]) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setScoreSort(val)}
-                    className={`btn btn-ghost text-xs py-0.5! px-2! ${scoreSort === val ? "!border-gold text-gold" : ""}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
             <div className="flex flex-col gap-3 mt-3">
-              {sortedTeams.map((t) => {
+              {state.teams.map((t) => {
                 const rank = rankedById[t.id];
-                const top = rank <= 3 && (scoreSort === "rank" || scoreSort === "desc");
+                const top = rank <= 3;
                 return (
                   <div
                     key={t.id}
@@ -486,7 +412,7 @@ export default function Control() {
                       <button
                         type="button"
                         className="btn btn-danger flex-1! py-1! text-base!"
-                        onClick={() => act("score.add", { teamId: t.id, points: -(Number(customScore[t.id]) || 0) })}
+                        onClick={() => act("score.add", { teamId: t.id, points: -(Number(customScore[t.id] ?? 10) || 0) })}
                       >
                         −
                       </button>
@@ -499,7 +425,7 @@ export default function Control() {
                       <button
                         type="button"
                         className="btn btn-ok flex-1! py-1! text-base!"
-                        onClick={() => act("score.add", { teamId: t.id, points: Number(customScore[t.id]) || 0 })}
+                        onClick={() => act("score.add", { teamId: t.id, points: Number(customScore[t.id] ?? 10) || 0 })}
                       >
                         +
                       </button>
@@ -529,17 +455,37 @@ export default function Control() {
               <h3 className="font-display font-bold">{confirmStart.title}</h3>
             </div>
             <p className="text-mist mt-3 leading-relaxed">{confirmStart.message}</p>
+            {confirmStart.needPin && (
+              <input
+                autoFocus
+                type="password"
+                placeholder="Nhập mật khẩu admin"
+                value={roundPin}
+                onChange={(e) => setRoundPin(e.target.value)}
+                className="mt-3 w-full!"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && roundPin) {
+                    const { roundId } = confirmStart;
+                    setConfirmStart(null);
+                    setRoundPin("");
+                    act("round.start", { round: roundId, pin: roundPin });
+                  }
+                }}
+              />
+            )}
             <div className="flex gap-2 mt-5">
               <button type="button" className="btn flex-1" onClick={() => setConfirmStart(null)}>
                 Hủy
               </button>
               <button
                 type="button"
+                disabled={confirmStart.needPin && !roundPin}
                 className={`btn flex-1 ${confirmStart.danger ? "btn-danger" : "btn-ok"}`}
                 onClick={() => {
-                  const { roundId } = confirmStart;
+                  const { roundId, needPin } = confirmStart;
                   setConfirmStart(null);
-                  act("round.start", { round: roundId });
+                  setRoundPin("");
+                  act("round.start", { round: roundId, pin: needPin ? roundPin : getPin() });
                 }}
               >
                 Tiếp tục

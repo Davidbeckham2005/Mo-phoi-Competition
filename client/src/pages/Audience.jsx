@@ -41,6 +41,10 @@ export default function Audience() {
   const g = state.game || {};
   const remaining = timer?.remaining ?? g.timer?.remaining ?? 0;
   const running = timer?.running ?? g.timer?.running;
+  // "Chờ giữa các câu hỏi" (vòng 2): vừa xử lý xong một hàng ngang, chưa chọn ô kế tiếp
+  const p = g.puzzle || {};
+  const waitingCnv = g.round === "vuot_cnv" && !p.keywordSolved && !!p.keywordWindow
+    && !p.awaitingSteal && g.questionStatus !== "showing" && !g.buzzer?.winner;
   const roundName = (state.rounds || []).find((r) => r.id === g.round)?.name
     || (g.phase === "finished" ? "Chung cuộc" : "Chờ bắt đầu");
 
@@ -56,7 +60,7 @@ export default function Audience() {
         <div className="text-right">
           <div className="round-badge">{roundName}</div>
           <div className={`timer-xl mt-2 ${remaining <= 5 && running ? "timer-danger" : ""}`}>
-            {formatTime(remaining)}
+            {waitingCnv ? "CHỜ" : formatTime(remaining)}
           </div>
         </div>
       </div>
@@ -237,6 +241,9 @@ function Round2Question({ d, g }) {
       {p.awaitingSteal && (
         <div className="badge badge-warn text-base! px-4 py-2 mt-6">Hết giờ / sai — mở chuông giành quyền trả lời!</div>
       )}
+      {p.keywordWindow && !p.keywordSolved && (
+        <div className="badge badge-warn text-base! px-4 py-2 mt-6 animate-pulse">Đã mở hàng ngang — bấm chuông giành quyền đoán từ khóa!</div>
+      )}
     </div>
   );
 }
@@ -249,8 +256,42 @@ function Round2Board({ state, g }) {
   const solved = [0, 1, 2, 3].map((i) => isOpen(p, i));
   const locked = [0, 1, 2, 3].map((i) => isLocked(p, i));
   const media = cnv?.media;
+  const last = p.lastResult;
+  const lastTeam = last ? state.teams.find((t) => t.id === last.teamId) : null;
   return (
-    <div className="w-full max-w-[1200px] mx-auto grid lg:grid-cols-2 gap-6 items-center">
+    <div className="w-full max-w-[1200px] mx-auto">
+      {/* Hiệu ứng phản hồi đúng/sai cho hàng ngang vừa xử lý xong */}
+      {last && (
+        <div
+          key={`${last.row}-${last.correct}`}
+          className={`flex justify-center pb-5 r2-feedback ${last.correct ? "r2-correct" : "r2-wrong"}`}
+        >
+          <div className={`r2-feedback-pill ${last.correct ? "r2-pill-ok" : "r2-pill-no"}`}>
+            <span className="text-2xl font-display font-black tracking-wide">
+              {last.correct ? "ĐÚNG!" : "SAI"}
+            </span>
+            <span className="text-sm opacity-80">
+              {last.correct
+                ? `+${last.pts} • Hàng ${last.row + 1} đã mở`
+                : `−${Math.abs(last.pts || 0)} • Hàng ${last.row + 1} đã khóa`}
+            </span>
+            {lastTeam && <span className="text-sm" style={{ color: lastTeam.color }}>{lastTeam.name}</span>}
+          </div>
+        </div>
+      )}
+      {p.awaitingSteal && (
+        <div className="flex justify-center pb-5">
+          <div className="badge badge-warn text-base! px-4 py-2">Hết giờ / sai — mở chuông giành quyền trả lời!</div>
+        </div>
+      )}
+      {p.keywordWindow && !p.keywordSolved && !p.awaitingSteal && (
+        <div className="flex justify-center pb-5">
+          <div className="badge badge-warn text-base! px-4 py-2 animate-pulse">
+            Đang chờ câu hỏi kế tiếp — bấm nút <b className="text-gold">TỪ KHÓA</b> để đoán chướng ngại vật
+          </div>
+        </div>
+      )}
+      <div className="grid lg:grid-cols-2 gap-6 items-center">
       {/* CỘT TRÁI — Bảng ảnh ghép */}
       <div className="flex flex-col items-center justify-center gap-4 min-w-0">
         {media?.url &&
@@ -306,7 +347,7 @@ function Round2Board({ state, g }) {
       </div>
 
       {/* CỘT PHẢI — Danh mục từ khóa */}
-      <div className="flex flex-col items-center gap-2.5">
+      <div className="flex flex-col items-start gap-2.5">
         {(cnv?.rows || []).map((row, i) => (
           <div key={i} className="flex items-center gap-3">
             <span className={`text-sm w-14 shrink-0 text-right ${row.status === "open" ? "text-gold" : row.status === "locked" ? "text-danger/80" : "text-mist"}`}>
@@ -345,17 +386,21 @@ function Round2Board({ state, g }) {
           )}
         </div>
 
+        {p.keywordClaim && !p.keywordSolved && (
+          <div className="badge badge-warn text-base! px-4 py-2 mt-2">
+            {state.teams.find((t) => t.id === p.keywordClaim)?.name} đang giành quyền đoán từ khóa!
+          </div>
+        )}
+
         {p.centerRevealed && cnv?.centerHint && (
           <div className="stage-note mt-1">★ {cnv.centerHint}</div>
         )}
       </div>
 
-      <div className="md:col-span-2 text-center">
-        {p.awaitingSteal && (
-          <div className="badge badge-warn text-base! px-4 py-2">Hết giờ / sai — mở chuông giành quyền trả lời!</div>
-        )}
+      <div className="text-center">
         {d.question && <div className="text-mist">{d.question}</div>}
         {d.note && <div className="stage-note">{d.note}</div>}
+      </div>
       </div>
     </div>
   );

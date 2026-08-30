@@ -28,6 +28,7 @@ export default function Admin() {
   const [state, setState] = useState(null);
   const [board, setBoard] = useState([]);
   const [msg, setMsg] = useState("");
+  const [timer, setTimer] = useState(null);
 
   async function load() {
     try {
@@ -54,6 +55,11 @@ export default function Admin() {
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!getPin()) return;
+    return on("game:timer", setTimer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!state) return <div className="min-h-screen grid place-items-center text-mist">Đang tải quản trị…</div>;
 
   return (
@@ -73,6 +79,7 @@ export default function Admin() {
           ["bang-diem", "Bảng điểm"],
           ["cau-hoi", "Câu hỏi"],
           ["media", "Hình ảnh / Video"],
+          ["dieu-khien", "Hẹn giờ & chuông"],
           ["cai-dat", "Cài đặt"],
         ].map(([id, label]) => (
           <button
@@ -94,6 +101,7 @@ export default function Admin() {
       {tab === "bang-diem" && <ScoreTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "cau-hoi" && <QuestionsTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "media" && <MediaTab state={state} reload={load} setMsg={setMsg} />}
+      {tab === "dieu-khien" && <TimerBuzzerTab state={state} timer={timer} setMsg={setMsg} />}
       {tab === "cai-dat" && <SettingsTab state={state} reload={load} setMsg={setMsg} />}
     </div>
   );
@@ -689,6 +697,67 @@ function MediaTab({ state, reload, setMsg }) {
             </button>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function TimerBuzzerTab({ state, timer: liveTimer, setMsg }) {
+  const g = state.game || {};
+  const t = liveTimer || g.timer || {};
+  const [seconds, setSeconds] = useState(() => Number(t.remaining) || 15);
+  const remaining = t.remaining ?? 0;
+  const running = !!t.running;
+  const winner = state.teams.find((x) => x.id === g.buzzer?.winner);
+  const act = async (action, body) => {
+    try {
+      await sendControl(action, body);
+    } catch (e) {
+      setMsg(e.message);
+    }
+  };
+  return (
+    <div className="panel max-w-[560px]">
+      <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Hẹn giờ</div>
+      <span className={`timer-xl text-4xl ${remaining <= 5 && running ? "timer-danger" : ""}`}>
+        {formatTime(remaining)}
+      </span>
+      <div className="flex flex-wrap items-center gap-2 mt-3">
+        <input type="number" value={seconds} onChange={(e) => setSeconds(e.target.value)} className="w-20!" />
+        <button type="button" className="btn" onClick={() => act("timer.set", { seconds: Number(seconds), running: true })}>
+          Bắt đầu giờ
+        </button>
+        <button type="button" className="btn btn-ghost" disabled={!running} onClick={() => act("timer.pause")}>
+          Dừng
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={!!running || !(remaining > 0)}
+          onClick={() => act("timer.resume")}
+        >
+          Tiếp
+        </button>
+        <span className="text-mist text-xs">{running ? "Đang chạy" : "Đã dừng"}</span>
+      </div>
+
+      <div className="text-xs tracking-[0.18em] text-mist uppercase mt-6 mb-2">Chuông</div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn" disabled={!!g.buzzer?.open} onClick={() => act("buzzer.open")}>
+          Mở chuông
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => act("buzzer.reset", { open: true })}>
+          Reset chuông (mở)
+        </button>
+        <button type="button" className="btn btn-ghost" disabled={!g.buzzer?.open} onClick={() => act("buzzer.close")}>
+          Khóa chuông
+        </button>
+        {!!g.buzzer?.winner && <span className="badge badge-ok">Giữ chuông: {winner?.name || g.buzzer.winner}</span>}
+      </div>
+      <div className="text-mist text-xs mt-2">
+        Chuông: {g.buzzer?.open ? "MỞ" : "KHÓA"}
+        {(g.buzzer?.order || []).length > 0 &&
+          ` • Thứ tự bấm: ${g.buzzer.order.map((id) => state.teams.find((x) => x.id === id)?.name || id).join(" → ")}`}
       </div>
     </div>
   );

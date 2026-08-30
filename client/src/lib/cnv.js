@@ -31,15 +31,25 @@ export function cornersDone(p) {
   return [0, 1, 2, 3].every((i) => rowStatus(p, i) !== "hidden");
 }
 
-// Giai đoạn của vòng 2: "rows" (đang chơi hàng ngang) | "keyword" (đoán từ khóa) | "done" (đã xong)
+// Giai đoạn của vòng 2:
+//   "rows"    – đang chơi hàng ngang (chưa có mốc nào)
+//   "window"  – cửa sổ ĐOÁN TỪ KHÓA giữa vòng (vừa xử lý xong một hàng ngang,
+//               chuông mở cho các đội giành quyền đoán với mức điểm theo mốc)
+//   "keyword" – đoán từ khóa (đã đủ 4 góc)
+//   "done"    – đã ra từ khóa
 export function cnvPhase(p) {
   if (p?.keywordSolved) return "done";
   if (cornersDone(p)) return "keyword";
+  if (p?.keywordWindow) return "window";
   return "rows";
 }
 
 export const isRowPhase = (p) => cnvPhase(p) === "rows";
 export const isKeywordPhase = (p) => cnvPhase(p) === "keyword";
+export const isKeywordWindow = (p) => cnvPhase(p) === "window";
+
+// Đội có thể bấm chuông đoán TỪ KHÓA (cửa sổ giữa vòng hoặc giai đoạn đủ 4 góc)?
+export const keywordGuessOpen = (p) => cnvPhase(p) === "keyword" || cnvPhase(p) === "window";
 
 // Hàng đang chọn, ngăn giá trị ngoài 0..3
 export function currentRow(p) {

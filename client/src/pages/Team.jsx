@@ -75,8 +75,8 @@ export default function Team() {
       });
   }
 
-  function buzz() {
-    socket.emit("buzzer:press", { teamId: session.teamId, pass: session.pass });
+  function buzz(intent = "row") {
+    socket.emit("buzzer:press", { teamId: session.teamId, pass: session.pass, intent });
   }
 
   function submitTt(e) {
@@ -154,6 +154,18 @@ export default function Team() {
   const running = timer?.running ?? g.timer?.running;
   const canBuzz = !!g.buzzer?.open && !(g.buzzer.blocked || []).includes(team.id) && !g.buzzer.winner;
   const isKd = g.round === "khoi_dong";
+  // Nút nhỏ CỐ ĐỊNH góc phải dành riêng cho ĐOÁN ĐÁP ÁN CHƯỚNG NGẠI VẬT:
+  // sáng BẤT KỲ LÚC NÀO trong vòng 2 (chưa ra từ khóa, chưa có đội nào đang giữ),
+  // bấm = ghi danh giành quyền đoán từ khóa (kể cả khi đang chơi hàng ngang).
+  const kwOpen =
+    g.round === "vuot_cnv" &&
+    !g.puzzle?.keywordSolved &&
+    !g.puzzle?.keywordClaim;
+  const kwBlocked = (g.puzzle?.keywordBlocked || []).includes(team.id);
+  // Cấm ghi danh/trả lời chướng ngại vật khi đang có đội khác trả lời câu hỏi hàng ngang
+  // (questionStatus === "showing"): nút TỪ KHÓA sẽ tạm khóa, hết câu hỏi mới mở lại.
+  const rowAnswerActive = g.questionStatus === "showing";
+  const buzzKeywordEnabled = kwOpen && !kwBlocked && !rowAnswerActive;
 
   let body;
   if (g.phase === "finished") {
@@ -174,7 +186,7 @@ export default function Team() {
   } else if (g.round === "tang_toc") {
     body = (
       <>
-        <button type="button" className="buzz-btn mt-3" disabled={!canBuzz && !winner} onClick={buzz}>
+        <button type="button" className="buzz-btn mt-3" disabled={!canBuzz && !winner} onClick={() => buzz("row")}>
           {winner ? "BẠN GIỮ CHUÔNG — NHANH TAY!" : canBuzz ? "CHUÔNG" : "CHỜ"}
         </button>
         {g.timer?.running && (
@@ -208,9 +220,36 @@ export default function Team() {
 
   // === Khung bố cục thống nhất giữa các vòng (nội dung từng vòng thiết kế sau) ===
   return (
-    <TeamLayout team={team} remaining={remaining} running={running} onLogout={quit}>
-      {body}
-    </TeamLayout>
+    <>
+      {g.round === "vuot_cnv" && (
+        <button
+          type="button"
+          onClick={buzzKeywordEnabled ? () => buzz("keyword") : undefined}
+          disabled={!buzzKeywordEnabled}
+          title={
+            buzzKeywordEnabled
+              ? "Nhấn để ghi danh giành quyền đoán đáp án chướng ngại vật"
+              : rowAnswerActive
+                ? "Đang có đội khác trả lời câu hỏi hàng ngang — chờ xong mới đoán từ khóa"
+                : "Từ khóa đã ra hoặc đội bạn đã đoán sai"
+          }
+          className={`fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full px-4 h-12 text-sm font-semibold tracking-wide border transition ${
+            buzzKeywordEnabled
+              ? "bg-gold text-[#1a1400] border-gold shadow-[0_0_22px_rgba(255,214,10,0.5)] animate-pulse"
+              : "bg-panel-solid text-mist/55 border-line cursor-not-allowed opacity-75"
+          }`}
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          TỪ KHÓA
+        </button>
+      )}
+      <TeamLayout team={team} remaining={remaining} running={running} onLogout={quit}>
+        {body}
+      </TeamLayout>
+    </>
   );
 }
 
@@ -301,34 +340,87 @@ function KhoiDongBody({ g, d, team }) {
   );
 }
 
-// Vòng 2 (Vượt CNV): thí sinh theo dõi câu hỏi/hàng ngang trên màn hình khán giả.
-// Màn hình thí sinh chỉ hiển thị: đồng hồ đếm giây + trạng thái quyền trả lời + chuông.
-// Vòng 2 (Vượt CNV): các đội TRẢ LỜI THEO LƯỢT, không bấm chuông.
-// Chỉ khi đội đó sai / hết giờ, chuông mới mở để đội khác giành quyền trả lời.
+// Vòng 2 (Vượt CNV): trả lời HÀNG NGANG theo lượt, chỉ mở chuông cướp khi đội đó
+// trả lời sai / hết giờ. Riêng giai đoạn TỪ KHÓA (chướng ngại vật): chuông bấm
+// TỰ DO bất kỳ lúc nào để giành quyền trả lời.
 function Round2Status({ g, teams, me, remaining, running, onBuzz }) {
   const curId = g.currentTeam;
   const curName = teams.find((t) => t.id === curId)?.name;
   const winnerId = g.buzzer?.winner;
   const winnerName = teams.find((t) => t.id === winnerId)?.name;
   const blocked = (g.buzzer?.blocked || []).includes(me);
+  const rowBanned = (g.puzzle?.rowBanned || []).includes(me);
   const open = !!g.buzzer?.open;
   const awaitingSteal = !!g.puzzle?.awaitingSteal;
   const keywordDone = !!g.puzzle?.keywordSolved;
-  const rowsOpen = (g.puzzle?.rowsSolved || []).filter(Boolean).length;
-  const keywordPhase = !keywordDone && (!!g.puzzle?.centerRevealed || rowsOpen === 4);
+  const cornersAllDone = [0, 1, 2, 3].every((i) => g.puzzle?.rowsSolved?.[i] || g.puzzle?.rowsLocked?.[i]);
+  // Cửa sổ đoán từ khóa theo lối cũ (sau từng hàng ngang / đủ 4 góc) — vẫn dùng để hiện hướng dẫn,
+  // còn việc đoán vòng 2 giờ được ghi danh (puzzle.keywordClaim) bất kỳ lúc nào qua nút TỪ KHÓA.
+  const keywordGuessOpen = !keywordDone && (!!g.puzzle?.keywordWindow || cornersAllDone);
+  const kwClaim = g.puzzle?.keywordClaim;
+  const kwBlocked = (g.puzzle?.keywordBlocked || []).includes(me);
   const showing = g.questionStatus === "showing";
+  const last = g.puzzle?.lastResult;
+  const lastTeam = last ? teams.find((t) => t.id === last.teamId) : null;
+  // "Chờ giữa các câu hỏi" (vòng 2): đã xử lý xong một hàng ngang, chưa chọn ô kế tiếp,
+  // không còn câu hỏi nào đang thi. Đồng hồ hiện "CHỜ" thay vì đứng yên mãi.
+  const waitingBetween = g.round === "vuot_cnv" && !keywordDone && !!g.puzzle?.keywordWindow
+    && !awaitingSteal && g.questionStatus !== "showing" && !winnerId;
 
   const won = winnerId === me;
   const someoneWon = !!winnerId && !won;
-  const canSteal = open && !blocked && !winnerId && !(awaitingSteal && me === curId);
-  const myTurn = showing && !awaitingSteal && !keywordPhase && !keywordDone && !winnerId && curId === me;
-  const otherTurn = showing && !awaitingSteal && !keywordPhase && !keywordDone && !winnerId && !!curId && curId !== me;
+  // Chuông to ở giữa CHỈ dành cho trả lời/cướp HÀNG NGANG (dựa riêng vào trạng thái
+  // buzer + lượt hàng ngang). TÁCH HOÀN TOÀN khỏi cửa sổ/ghi danh từ khóa
+  // (puzzle.keywordClaim) để 2 nút không đè lẫn nhau. Đoán từ khóa dùng nút vàng TỪ KHÓA.
+  const canSteal = open && !blocked && !rowBanned && !winnerId && !(awaitingSteal && me === curId);
+  const myTurn = showing && !awaitingSteal && !keywordDone && !winnerId && curId === me && !rowBanned;
+  const otherTurn = showing && !awaitingSteal && !keywordDone && !winnerId && !!curId && curId !== me;
 
   let status;
-  if (keywordDone) {
+  if (last) {
+    status = (
+      <div key={`${last.row}-${last.correct}`} className={`flex flex-col items-center gap-3 r2-feedback ${last.correct ? "r2-correct" : "r2-wrong"}`}>
+        <div className={`r2-feedback-pill ${last.correct ? "r2-pill-ok" : "r2-pill-no"}`}>
+          <span className="text-[clamp(28px,5vw,44px)] font-display font-black tracking-wide">
+            {last.correct ? "ĐÚNG!" : "SAI"}
+          </span>
+          {lastTeam && (
+            <span className="text-sm font-bold" style={{ color: lastTeam.color }}>{lastTeam.name}</span>
+          )}
+        </div>
+        <p className="text-mist">
+          {last.correct
+            ? `Trả lời đúng — cộng ${last.pts} điểm và mở hàng ${last.row + 1}.`
+            : `Trả lời sai — trừ ${Math.abs(last.pts || 0)} điểm và khóa hàng ${last.row + 1}.`}
+        </p>
+      </div>
+    );
+  } else if (waitingBetween) {
+    status = (
+      <div className="flex flex-col items-center gap-3">
+        <div className="badge badge-warn text-base! px-5 py-2 animate-pulse">CHỜ CÂU HỎI KẾ TIẾP</div>
+        <p className="text-mist max-w-sm">
+          Đang chờ MC chọn ô hàng ngang tiếp theo. Muốn giành quyền đoán từ khóa, bấm nút vàng{" "}
+          <b className="text-gold">TỪ KHÓA</b> ở góc phải.
+        </p>
+      </div>
+    );
+  } else if (keywordDone) {
+    const kwWinnerTeam = g.puzzle?.keywordWinner
+      ? teams.find((t) => t.id === g.puzzle.keywordWinner)
+      : null;
     status = (
       <div className="flex flex-col items-center gap-3">
         <div className="badge badge-ok text-base! px-5 py-2">ĐÃ TÌM RA TỪ KHÓA</div>
+        {kwWinnerTeam ? (
+          <div className="font-display font-bold text-gold text-[clamp(28px,4.5vw,54px)]">
+            {kwWinnerTeam.name}
+          </div>
+        ) : (
+          <div className="font-display font-bold text-mist text-[clamp(24px,4vw,44px)]">
+            Không ai giải
+          </div>
+        )}
         <p className="text-mist">Vòng 2 kết thúc — chờ MC chuyển vòng tiếp theo.</p>
       </div>
     );
@@ -350,6 +442,17 @@ function Round2Status({ g, teams, me, remaining, running, onBuzz }) {
         <p className="text-mist">đang trả lời — quan sát diễn biến trên màn hình lớn.</p>
       </div>
     );
+  } else if (rowBanned && open && !winnerId) {
+    status = (
+      <div className="flex flex-col items-center gap-3">
+        <div className="badge badge-no text-base! px-5 py-2">ĐỘI BẠN BỊ CẤM TRẢ LỜI HÀNG NGANG</div>
+        <div className="font-display font-bold text-mist text-[clamp(24px,4vw,40px)]">KHÔNG ĐƯỢC GIÀNH QUYỀN</div>
+        <p className="text-mist max-w-sm">
+          Đội bạn đã đoán từ khóa chưa đúng nên không được bấm chuông / cướp hàng ngang nữa.
+          Vẫn có thể dùng nút vàng <b className="text-gold">TỪ KHÓA</b> nếu chưa bị chặn.
+        </p>
+      </div>
+    );
   } else if (canSteal) {
     status = (
       <div className="flex flex-col items-center gap-5">
@@ -358,11 +461,31 @@ function Round2Status({ g, teams, me, remaining, running, onBuzz }) {
           type="button"
           className="buzz-btn buzz-live"
           style={{ width: "clamp(220px,30vw,300px)", height: "clamp(220px,30vw,300px)", fontSize: 26 }}
-          onClick={onBuzz}
+          onClick={() => onBuzz("row")}
         >
           BẤM CHUÔNG
         </button>
         <p className="text-mist">Ai bấm trước sẽ giành quyền trả lời.</p>
+      </div>
+    );
+  } else if (!!kwClaim && kwClaim === me) {
+    status = (
+      <div className="flex flex-col items-center gap-3 animate-pulse">
+        <div className="badge badge-warn text-base! px-5 py-2">BẠN GHI DANH ĐOÁN TỪ KHÓA</div>
+        <div className="font-display font-bold text-gold text-[clamp(30px,5vw,64px)] leading-tight">
+          BẠN ĐANG GIỮ QUYỀN
+        </div>
+        <p className="text-mist">Nêu đáp án chướng ngại vật to, rõ ràng — chờ MC xác nhận đúng/sai.</p>
+      </div>
+    );
+  } else if (!!kwClaim && kwClaim !== me) {
+    status = (
+      <div className="flex flex-col items-center gap-3">
+        <div className="badge badge-warn text-base! px-5 py-2">CÓ ĐỘI GHI DANH ĐOÁN TỪ KHÓA</div>
+        <div className="font-display font-bold text-gold text-[clamp(28px,4.5vw,54px)]">
+          {teams.find((t) => t.id === kwClaim)?.name}
+        </div>
+        <p className="text-mist">Đang trả lời đáp án chướng ngại vật — quan sát diễn biến trên màn hình lớn.</p>
       </div>
     );
   } else if (awaitingSteal && me === curId) {
@@ -390,11 +513,22 @@ function Round2Status({ g, teams, me, remaining, running, onBuzz }) {
         <p className="text-mist">Quan sát câu hỏi trên màn hình lớn — chờ đến lượt đội bạn.</p>
       </div>
     );
-  } else if (keywordPhase) {
+  } else if (keywordGuessOpen && kwBlocked) {
     status = (
       <div className="flex flex-col items-center gap-3">
+        <div className="badge badge-no text-base! px-5 py-2">ĐỘI BẠN ĐOÁN CHƯA ĐÚNG</div>
+        <div className="font-display font-bold text-mist text-[clamp(26px,4vw,44px)]">KHÔNG ĐƯỢC ĐOÁN TIẾP</div>
+        <p className="text-mist">Đội bạn đã đoán từ khóa chưa đúng — các đội khác tiếp tục đoán.</p>
+      </div>
+    );
+  } else if (keywordGuessOpen) {
+    // Cửa sổ đoán TỪ KHÓA: dùng nút vàng cố định ở góc phải (không dùng chuông to)
+    status = (
+      <div className="flex flex-col items-center gap-4">
         <div className="badge badge-warn text-base! px-5 py-2">ĐOÁN TỪ KHÓA</div>
-        <p className="text-mist">4 góc đã mở — quan sát và đoán chướng ngại vật trên màn hình lớn.</p>
+        <p className="text-mist max-w-sm">
+          Nhấn nút vàng <b className="text-gold">TỪ KHÓA</b> ở góc phải màn hình để đoán đáp án chướng ngại vật.
+        </p>
       </div>
     );
   } else {
@@ -412,7 +546,7 @@ function Round2Status({ g, teams, me, remaining, running, onBuzz }) {
         className={`timer-xl ${remaining <= 5 && running ? "timer-danger" : ""}`}
         style={{ fontSize: "clamp(80px, 14vw, 150px)" }}
       >
-        {formatTime(remaining)}
+        {waitingBetween && !last ? "CHỜ" : formatTime(remaining)}
       </div>
       {status}
     </div>

@@ -16,7 +16,7 @@ export function registerSockets(io) {
     socket.on("buzzer:press", (payload) => {
       if (!payload?.teamId) return;
       if (!teamOk(payload)) return;
-      game.pressBuzzer(payload.teamId);
+      game.pressBuzzer(payload.teamId, payload.intent);
     });
 
     socket.on("tangtoc:submit", (payload) => {
