@@ -73,39 +73,39 @@
   "tangToc": [
     {
       "id": "tt-1",
-      "question": "Nhìn nhanh: đây là quốc kỳ của quốc gia nào? (đỏ, sao vàng năm cánh ở giữa)",
+      "question": "Câu 1",
       "answer": "Việt Nam",
-      "timeLimit": 10,
-      "mediaType": "text",
+      "duration": 60,
+      "mediaType": "video",
       "mediaUrl": "",
-      "note": "Câu nhìn nhanh"
+      "note": "Cài video làm câu hỏi"
     },
     {
       "id": "tt-2",
-      "question": "Sắp xếp các sự kiện theo thứ tự thời gian: A. Điện Biên Phủ (1954)  B. Tuyên ngôn Độc lập (1945)  C. Giải phóng miền Nam (1975). Hãy ghi thứ tự đúng (ví dụ: B-A-C).",
+      "question": "Câu 2",
       "answer": "B-A-C",
-      "timeLimit": 20,
-      "mediaType": "text",
+      "duration": 60,
+      "mediaType": "video",
       "mediaUrl": "",
-      "note": "Sắp xếp"
+      "note": "Cài video làm câu hỏi"
     },
     {
       "id": "tt-3",
-      "question": "Tìm số tiếp theo của dãy: 2, 3, 5, 8, 13, ...?",
+      "question": "Câu 3",
       "answer": "21",
-      "timeLimit": 30,
-      "mediaType": "text",
+      "duration": 60,
+      "mediaType": "video",
       "mediaUrl": "",
-      "note": "IQ"
+      "note": "Cài video làm câu hỏi"
     },
     {
       "id": "tt-4",
-      "question": "Gợi ý: Lăng nằm tại Hà Nội; vị lãnh tụ đọc Tuyên ngôn Độc lập năm 1945; tên thật Nguyễn Sinh Cung. Đây là ai?",
+      "question": "Câu 4",
       "answer": "Hồ Chí Minh",
-      "timeLimit": 40,
-      "mediaType": "text",
+      "duration": 60,
+      "mediaType": "video",
       "mediaUrl": "",
-      "note": "Dữ kiện"
+      "note": "Cài video làm câu hỏi"
     }
   ],
   "veDich": {

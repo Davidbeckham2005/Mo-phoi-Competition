@@ -272,6 +272,7 @@ export default function Control() {
           <button type="button" className="btn" onClick={() => act("scores.show")}>Hiện bảng điểm</button>
           <button type="button" className="btn btn-ok" onClick={() => act("contest.finish")}>Kết quả cuối</button>
         </div>
+        {g.round !== "tang_toc" && (<>
         <hr className="my-4 border-line" />
         <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Đội đang thi</div>
         <div className="grid gap-2">
@@ -306,6 +307,7 @@ export default function Control() {
             );
           })}
         </div>
+        </>)}
         {g.round === "ve_dich" && (
           <>
             <div className="text-xs tracking-[0.18em] text-mist uppercase mt-5 mb-2">Gói Về đích</div>
@@ -358,8 +360,8 @@ export default function Control() {
           </span>
         </div>
 
-        {/* 2+3 · CÂU HỎI & CHẤM ĐIỂM — dùng chung cho các vòng không phải Vượt CNV */}
-        {g.round !== "vuot_cnv" && <QuestionScorePanel ctx={ctx} />}
+        {/* 2+3 · CÂU HỎI & CHẤM ĐIỂM — dùng chung cho các vòng không phải Vượt CNV/Tăng tốc */}
+        {g.round !== "vuot_cnv" && g.round !== "tang_toc" && <QuestionScorePanel ctx={ctx} />}
 
         {/* 4 · THEO VÒNG — Vượt chướng ngại vật */}
         <RoundVuotCnv ctx={ctx} />

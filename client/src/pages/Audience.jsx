@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatTime } from "../lib/format.js";
 import { on } from "../lib/socket.js";
 import { useGameState } from "../lib/useGame.js";
@@ -71,7 +71,7 @@ export default function Audience() {
             Quyền trả lời: {state.teams.find((t) => t.id === g.buzzer.winner)?.name}
           </div>
         )}
-        <Stage state={state} />
+        <Stage state={state} timer={timer} />
       </div>
 
       <TeamsRow state={state} flash={flash} currentTeam={g.currentTeam} />
@@ -102,7 +102,7 @@ function TeamsRow({ state, flash, currentTeam, ranked }) {
   );
 }
 
-function Stage({ state }) {
+function Stage({ state, timer }) {
   const g = state.game;
   const d = g.display || {};
 
@@ -138,11 +138,10 @@ function Stage({ state }) {
     );
   }
 
-  // Vòng 3 (Tăng tốc): 2 vùng trên cùng màn hình — vùng 1 chiếu video, vùng 2 liệt kê
-  // đáp án theo thứ tự nộp bài. Chiếu xong video (sự kiện onended) thì tự chuyển sang
-  // màn hình liệt kê đáp án.
+  // Vòng 3 (Tăng tốc): vùng 1 chiếu video (đồng bộ với MC — hiện sau khi MC mở câu hỏi),
+  // vùng 2 liệt kê đáp án theo thứ tự nộp bài khi server chuyển phase "answers".
   if (g.round === "tang_toc") {
-    return <TangTocStage state={state} g={g} />;
+    return <TangTocStage state={state} g={g} timer={timer} />;
   }
 
   // Vòng 2 (Vượt CNV): màn hình lớn CHUYỂN QUA LẠI giữa 2 màn hình theo logic vòng 2:
@@ -413,10 +412,10 @@ function Round2Board({ state, g }) {
   );
 }
 
-// VÒNG 3 — TĂNG TỐC: màn hình khán giả chia 2 vùng.
-//   • phase "video": vùng trái chiếu video lớn, vùng phải liệt kê đáp án đã gửi theo
-//     thứ tự nộp bài (thấp → cao). Chiếu xong (onended) → tự chuyển sang màn hình list.
-//   • phase "answers": toàn bộ màn hình hiện danh sách đáp án (đã có nhận định đúng/sai).
+// VÒNG 3 — TĂNG TỐC: màn hình khán giả.
+//   • phase "video": CHIỀU VIDEO LÀM TRUNG TÂM (toàn màn hình), không hiện kết quả.
+//   • phase "answers" → hiện kết quả (danh sách đáp án + điểm của từng đội).
+//     Khán giả dựa TRÊN CÙNG phase của server như màn hình MC để luôn đồng bộ.
 function _fmtElapsed(sec) {
   if (sec == null) return "—";
   return sec.toFixed(1) + "s";
@@ -460,77 +459,148 @@ function TangTocList({ items, teams, settled, judge }) {
   );
 }
 
-function TangTocStage({ state, g }) {
+function TangTocStage({ state, g, timer }) {
   const d = g.display || {};
   const tt = g.tangToc || {};
   const phase = tt.phase || "video";
-  const settled = !!tt.settled;
-  const [ended, setEnded] = useState(false);
-  const showList = phase === "answers" || ended;
+  // Đồng hồ CHÍNH THỨC là game:timer trực tiếp (prop timer) — state.game.timer bị lược
+  // bỏ ở state.service (publicGame bỏ timer ra khỏi game), nên KHÔNG dùng g.timer.
+  const vidRef = useRef(null);
+  // timer có thể null/undefined ngay khi màn hình vừa nạp (game:timer về sau một nhịp).
+  // Fallback an toàn tránh crash và tránh chiếu video tự do lệch nhịp.
+  const t = timer || {};
+  const timerRunning = !!t.running;
+  const timerDuration = t.duration || 0;
+  const timerRemaining = t.remaining ?? 0;
+  // ĐỒNG BỘ VIDEO + THỜI GIAN với màn hình MC: mọi màn hình SnAP video theo cùng đồng
+  // hồ server (duration - remaining). Bám chặt (sai số ≤0.15s) để khán giả không thấy
+  // lệch so với MC; bám ngay khi video vừa nạp xong (loadedmetadata/canplay) để không
+  // bị lệch lúc bắt đầu chiếu.
+  // Mở trang muộn (giữa lúc video đang chiếu): QUAN TRỌNG — chưa đúng vị trí thì seek
+  // trước rồi MỚI phát (không autoPlay từ 0s rồi nhảy vọt), nên khi vào sau video sẽ hiện
+  // đúng đoạn đang chiếu thay vì chạy lại từ đầu / nhảy lung tung.
+  useEffect(() => {
+    const v = vidRef.current;
+    if (!v) return;
+    // Video mở ở chế độ muted để trình duyệt cho phép phát; khi video ĐÃ phát được thì
+    // bật âm thanh tự động (không cần nút bấm, vẫn hợp autoplay policy).
+    const unmute = () => {
+      if (v.muted) v.muted = false;
+    };
+    const apply = () => {
+      // Chỉ phát trong phase "video". Phase "preparing" (đếm ngược 3·2·1), "answers"
+      // (liệt kê đáp án) hay trước khi MC chiếu → mọi màn hình giữ video dừng lại.
+      if (phase !== "video" || d.mode !== "question") {
+        v.pause();
+        return;
+      }
+      if (!timerRunning || !timerDuration) {
+        v.pause();
+        return;
+      }
+      const elapsed = Math.max(0, timerDuration - timerRemaining);
+      const finiteDur = v.duration && isFinite(v.duration) && v.duration > 0;
+      const target = Math.min(elapsed, finiteDur ? v.duration : timerDuration);
+      // Chưa khớp vị trí: seek + dừng, chờ seeked/canplay rồi mới phát.
+      if (v.readyState >= 1 && Math.abs(v.currentTime - target) > 0.15) {
+        v.currentTime = target;
+        v.pause();
+        return;
+      }
+      v.play().then(unmute).catch(() => {});
+    };
+    apply();
+    // Nạp xong / đổi duration / seek xong / phát được → căn ngay (không chờ nhịp 250ms kế).
+    v.addEventListener("loadedmetadata", apply);
+    v.addEventListener("durationchange", apply);
+    v.addEventListener("canplay", apply);
+    v.addEventListener("seeked", apply);
+    v.addEventListener("playing", unmute);
+    return () => {
+      v.removeEventListener("loadedmetadata", apply);
+      v.removeEventListener("durationchange", apply);
+      v.removeEventListener("canplay", apply);
+      v.removeEventListener("seeked", apply);
+      v.removeEventListener("playing", unmute);
+    };
+  }, [phase, timerRunning, timerDuration, timerRemaining, d.mediaUrl, d.mode]);
+  const showResults = phase === "answers";
+  const showPrep = phase === "preparing";
   const submissions = tt.submissions || {};
   const ranked = tt.ranked || [];
   const teams = state.teams || [];
   const hasVideo = !!d.mediaUrl && d.mediaType === "video";
+  const mcShown = d.mode === "question";
 
-  // Danh sách đáp án sắp theo thời gian thấp → cao; ưu tiên ranked (đã có nhận định),
-  // ngược lại dựng từ submissions (live trong lúc chiếu).
+  // Danh sách đáp án sắp theo thời gian thấp → cao; ưu tiên ranked (đã có nhận định của MC).
   const ordered = ranked.length
     ? ranked
     : Object.entries(submissions)
         .map(([teamId, s]) => ({ teamId, answer: s.answer, elapsed: s.elapsed, correct: null, points: 0, place: null }))
         .sort((a, b) => a.elapsed - b.elapsed);
 
-  // Sau khi chiếu xong (hoặc server đã chuyển phase) → màn hình liệt kê đáp án.
-  if (showList) {
+  // Kết quả hiển thị khi server chuyển phase "answers" — đồng bộ với màn hình MC.
+  if (showResults) {
     return (
       <div className="w-full">
-        <TangTocList items={ordered} teams={teams} settled={settled} judge={true} />
+        <TangTocList items={ordered} teams={teams} settled={tt.settled} judge={true} />
         {d.question && <div className="stage-note text-center mt-4">{d.question}</div>}
       </div>
     );
   }
 
+  // Đếm ngược "chuẩn bị chiếu" (3·2·1) — MC chọn câu rồi bấm Chiếu video; đồng bộ trên
+  // mọi màn hình nhờ chính đồng hồ server (game:timer, đang đếm TANG_TOC_PREP_SECONDS).
+  if (showPrep) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center gap-4 min-h-[60vh]">
+        <div className="kicker text-gold">CHUẨN BỊ CHIẾU VIDEO</div>
+        <div className="font-display font-black leading-none text-gold text-[clamp(90px,16vw,190px)]">
+          {Math.max(0, timerRemaining)}
+        </div>
+        <div className="text-mist text-[clamp(16px,2.4vw,28px)] text-center">
+          Đếm ngược rồi video sẽ được chiếu — hãy sẵn sàng! Hết video, các đội nộp đáp án theo độ nhanh.
+        </div>
+      </div>
+    );
+  }
+
+  // Đang chiếu video — VIDEO LÀM TRUNG TÂM, không hiện kết quả.
+  // Chỉ hiện video sau khi MC ĐÃ CHIẾU (display.mode === "question") để màn hình khán giả
+  // đồng bộ với MC — trước đó hiện màn chờ.
+  if (!mcShown) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center gap-4 min-h-[50vh]">
+        <div className="font-display font-bold text-[clamp(28px,5vw,58px)] text-gold text-center">
+          VÒNG 3 — TĂNG TỐC
+        </div>
+        <div className="text-mist text-[clamp(16px,2.4vw,28px)] text-center">
+          Đang chờ MC mở câu hỏi và chiếu video…
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid lg:grid-cols-3 gap-5 w-full max-w-[1400px] mx-auto items-start">
-      {/* VÙNG 1 — VIDEO */}
-      <div className="lg:col-span-2 flex flex-col items-center gap-3 min-w-0">
+    <div className="w-full">
+      <div className="mx-auto w-full max-w-[1300px]">
         {hasVideo ? (
           <video
+            ref={vidRef}
             src={d.mediaUrl}
-            autoPlay
-            controls
-            onEnded={() => setEnded(true)}
-            className="w-full max-h-[62vh] rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)] bg-black"
+            muted
+            playsInline
+            preload="auto"
+            className="w-full max-h-[70vh] rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)] bg-black"
           />
         ) : (
-          <div className="w-full aspect-video max-h-[62vh] rounded-2xl bg-panel-solid border border-line grid place-items-center">
-            <div className="text-4xl text-mist/40">▶</div>
+          <div className="w-full aspect-video max-h-[70vh] rounded-2xl bg-panel-solid border border-line grid place-items-center">
+            <div className="text-center">
+              <div className="text-6xl text-mist/40">▶</div>
+              <div className="text-mist mt-2">Chưa có video cho câu này</div>
+            </div>
           </div>
         )}
-        {d.question && <div className="stage-q text-center">{d.question}</div>}
-      </div>
-      {/* VÙNG 2 — DANH SÁCH ĐÁP ÁN (thứ tự nộp thấp → cao) */}
-      <div className="lg:col-span-1 min-w-0 flex flex-col gap-2 max-h-[62vh] overflow-y-auto pr-1">
-        <div className="kicker text-center">Đáp án đã gửi</div>
-        {(ordered || []).map((it) => {
-          const t = teams.find((x) => x.id === it.teamId);
-          return (
-            <div
-              key={it.teamId}
-              className="flex items-center gap-3 rounded-xl bg-panel-solid border border-line px-3 py-2"
-            >
-              <span className="font-display font-black w-8 text-center shrink-0"
-                style={{ color: it.place ? "#ffd60a" : "inherit" }}>
-                {it.place ? `${it.place}.` : "•"}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="font-bold text-sm" style={{ color: t?.color }}>{t?.name || it.teamId}</div>
-                <div className="text-mist text-xs truncate" title={it.answer}>“{it.answer}”</div>
-              </div>
-              <span className="text-mist text-xs shrink-0">{_fmtElapsed(it.elapsed)}</span>
-            </div>
-          );
-        })}
       </div>
     </div>
   );

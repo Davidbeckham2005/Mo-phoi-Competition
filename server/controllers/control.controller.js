@@ -23,7 +23,25 @@ const actions = {
   "question.reveal": () => game.revealAnswer(),
   "question.hideAnswer": () => game.hideAnswer(),
   "screen.set": (p) => game.setScreenMode(p.mode),
-  "question.jump": (p) => game.jumpToQuestion(p.teamId, p.questionIndex),
+  "question.jump": (p) => {
+    const db = getDb();
+    const gg = db.game;
+    // Trong vòng Tăng tốc, đang chiếu video: đổi sang câu khác phải nhập mật khẩu
+    // admin (ngăn MC bấm nhầm làm gián đoạn lượt chiếu cho khán giả).
+    if (
+      gg.round === "tang_toc" &&
+      gg.tangToc?.phase === "video" &&
+      gg.timer?.running &&
+      Number(p.questionIndex) !== Number(gg.questionIndex)
+    ) {
+      if (String(p.pin ?? "") !== String(db.settings.pin)) {
+        const err = new Error("Đang chiếu video Tăng tốc — cần mật khẩu admin để đổi câu.");
+        err.status = 401;
+        throw err;
+      }
+    }
+    return game.jumpToQuestion(p.teamId, p.questionIndex);
+  },
   "answer.mark": (p) => game.markAnswer(!!p.correct, p.teamId),
   "score.add": (p) => game.addScore(p.teamId, p.points),
   "score.set": (p) => game.setScore(p.teamId, p.score),
@@ -48,6 +66,8 @@ const actions = {
   "scores.show": () => game.showScores(),
   "vedich.package": (p) => game.setPackage(p.points, p.star),
   "tangtoc.submit": (p) => game.submitTangToc(p.teamId, p.answer),
+  "tangtoc.play": () => game.tangTocPlay(),
+  "tangtoc.stop": (p) => game.tangTocStop(p.pin),
   "tangtoc.settle": () => game.settleTangToc(),
   "tangtoc.phase": (p) => game.tangTocSetPhase(p.phase),
   "tangtoc.mark": (p) => game.tangTocMark(p.teamId, !!p.correct),

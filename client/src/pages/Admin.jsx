@@ -349,6 +349,7 @@ function QuestionsTab({ state, reload, setMsg }) {
   const [mainTab, setMainTab] = useState("khoi_dong");
   const [mainText, setMainText] = useState(JSON.stringify(state.questions.main, null, 2));
   const [kdEdit, setKdEdit] = useState(null);
+  const [ttEdit, setTtEdit] = useState(null);
 
   async function saveSk(e) {
     e.preventDefault();
@@ -388,6 +389,24 @@ function QuestionsTab({ state, reload, setMsg }) {
     m.khoiDong = { ...m.khoiDong, [teamId]: qs };
     await saveMainQuestions(m);
     setMsg("Đã xóa");
+    reload();
+  }
+
+  async function saveTtEdit() {
+    if (!ttEdit) return;
+    const m = { ...state.questions.main };
+    const qs = [...(m.tangToc || [])];
+    qs[ttEdit.index] = {
+      ...qs[ttEdit.index],
+      answer: ttEdit.answer,
+      duration: Number(ttEdit.duration) || 60,
+      mediaUrl: ttEdit.mediaUrl,
+      mediaType: "video",
+    };
+    m.tangToc = qs;
+    await saveMainQuestions(m);
+    setTtEdit(null);
+    setMsg("Đã lưu câu hỏi (video)");
     reload();
   }
 
@@ -601,21 +620,71 @@ function QuestionsTab({ state, reload, setMsg }) {
           </div>
         )}
 
-        {/* Tăng tốc: 4 câu */}
+        {/* Tăng tốc: 4 câu (mỗi câu là 1 video — MC cài video) */}
         {mainTab === "tang_toc" && (
-          <table className="table">
-            <thead><tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th><th>Thời gian</th></tr></thead>
-            <tbody>
+          <div>
+            <p className="text-mist text-sm mb-3">Vòng Tăng tốc: mỗi câu hỏi là <b>1 video</b>. Cài video cho từng câu; nếu chưa cài, video sẽ trống và khán giả thấy ô chờ. Đáp án chỉ để MC tham khảo khi chấm.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
               {(main.tangToc || []).map((qd, i) => (
-                <tr key={qd.id}>
-                  <td className="text-mist">{i + 1}</td>
-                  <td>{qd.question}</td>
-                  <td className="text-ok font-semibold">{qd.answer}</td>
-                  <td className="text-mist">{qd.timeLimit || 20}s</td>
-                </tr>
+                <div key={qd.id} className="rounded-xl border border-line bg-night/40 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-bold text-sm">Câu {i + 1}</span>
+                    {qd.mediaUrl ? (
+                      <span className="badge badge-ok text-xs!">Đã cài video</span>
+                    ) : (
+                      <span className="badge text-xs!">Chưa có video</span>
+                    )}
+                    <button type="button" className="btn btn-ghost text-xs py-1! ml-auto" onClick={() => setTtEdit({ index: i, answer: qd.answer || "", duration: qd.duration || 60, mediaUrl: qd.mediaUrl || "" })}>Chỉnh sửa</button>
+                  </div>
+                  {ttEdit && ttEdit.index === i ? (
+                    <div className="flex gap-4 items-start">
+                      <div className="shrink-0">
+                        {ttEdit.mediaUrl ? (
+                          <video src={ttEdit.mediaUrl} className="w-[200px] h-[120px] object-contain rounded-lg bg-black" controls />
+                        ) : (
+                          <div className="w-[200px] h-[120px] rounded-lg border border-dashed border-line grid place-items-center text-mist text-xs">Chưa có video</div>
+                        )}
+                        <label className="btn btn-ghost mt-2 cursor-pointer inline-block text-xs w-full text-center">
+                          {ttEdit.mediaUrl ? "Đổi video" : "Chọn video"}
+                          <input type="file" accept="video/*" className="hidden" onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            const r = await uploadFile(f);
+                            setTtEdit({ ...ttEdit, mediaUrl: r.url });
+                          }} />
+                        </label>
+                        {ttEdit.mediaUrl && (
+                          <button type="button" className="btn btn-ghost mt-1 text-xs w-full" onClick={() => setTtEdit({ ...ttEdit, mediaUrl: "" })}>Gỡ video</button>
+                        )}
+                      </div>
+                      <div className="grid gap-3 flex-1">
+                        <label className="label-grid">
+                          Đáp án (tham khảo MC)
+                          <input value={ttEdit.answer || ""} onChange={(e) => setTtEdit({ ...ttEdit, answer: e.target.value })} placeholder="Đáp án chuẩn" />
+                        </label>
+                        <label className="label-grid">
+                          Thời lượng (giây, bằng video)
+                          <input type="number" min={1} value={ttEdit.duration} onChange={(e) => setTtEdit({ ...ttEdit, duration: e.target.value })} />
+                        </label>
+                        <div className="flex gap-2">
+                          <button type="button" className="btn" onClick={saveTtEdit}>Lưu</button>
+                          <button type="button" className="btn btn-ghost" onClick={() => setTtEdit(null)}>Hủy</button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-mist text-sm">
+                      Video: {qd.mediaUrl ? <span className="text-ok">đã cài</span> : <span>trống</span>}
+                      <span className="mx-2">•</span>
+                      Đáp án: <span className="text-ok font-semibold">{qd.answer || "—"}</span>
+                      <span className="mx-2">•</span>
+                      {qd.duration || 60}s
+                    </div>
+                  )}
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         )}
 
         {/* Về đích: 4 đội × 3 gói điểm */}
