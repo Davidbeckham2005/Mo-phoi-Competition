@@ -1,5 +1,8 @@
 export default function QuestionScorePanel({ ctx }) {
-  const { isKd, q, d, revealed, showing, pts, saiText, act, cnvRowPhase } = ctx;
+  const { isKd, q, d, revealed, showing, pts, saiText, act, cnvRowPhase, g } = ctx;
+  // Vòng 3 (Tăng tốc) chấm điểm theo từng đội (nhanh → 40/30/20/10) qua bảng riêng,
+  // không dùng nút Đúng/Sai cộng điểm một đội này — ẩn bảng chấm điểm chung.
+  const ttscoring = g?.round === "tang_toc";
   return (
     <>
       {/* CÂU HỎI & ĐÁP ÁN */}
@@ -65,6 +68,7 @@ export default function QuestionScorePanel({ ctx }) {
       </div>
 
       {/* CHẤM ĐIỂM */}
+      {!ttscoring && (
       <div className="panel">
         <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Chấm điểm</div>
         <div className="flex flex-wrap gap-2">
@@ -76,6 +80,7 @@ export default function QuestionScorePanel({ ctx }) {
           </button>
         </div>
       </div>
+      )}
     </>
   );
 }

@@ -67,7 +67,11 @@
         game.timer.running = false;
         game.timer.endsAt = null;
         if (game.round === "tang_toc") {
-          settleTangToc();
+          // Hết video: tự đóng nhận bài, đưa màn hình khán giả sang vùng liệt kê đáp án.
+          // AB: nếu client đã chuyển sớm hơn (onended) thì không làm gì thừa.
+          if (game.tangToc?.phase === "video") {
+            game.tangToc.phase = "answers";
+          }
         } else if (
           game.round === "vuot_cnv" &&
           !game.puzzle.keywordSolved &&
@@ -251,7 +255,7 @@ export function resetKhoiDong(teamId = null) {
       game.display.mode = "puzzle";
     }
     if (roundId === "tang_toc") {
-      game.tangToc = { submissions: {}, ranked: [] };
+      game.tangToc = { submissions: {}, ranked: [], phase: "video", corrections: {}, settled: false };
     }
     if (roundId === "khoi_dong") {
       game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60, answerSeconds: game.khoiDong?.answerSeconds, history: {} };
@@ -329,8 +333,10 @@ export function resetKhoiDong(teamId = null) {
       setTimer(game.vuotCnv?.answerSeconds || 30, true);
     }
     if (game.round === "tang_toc") {
-      game.tangToc = { submissions: {}, ranked: [] };
-      setTimer(q.timeLimit || 20, false);
+      game.tangToc = { submissions: {}, ranked: [], phase: "video", corrections: {}, settled: false, duration: q.duration || q.timeLimit || 120 };
+      const ttDur = q.duration || q.timeLimit || 120;
+      game.display.note = `Chiếu video ${ttDur}s — cả 4 đội gửi đáp án; nộp nhanh được cộng điểm.`;
+      setTimer(ttDur, true);
     }
     if (game.round === "khoi_dong") {
       const timerSec = game.khoiDong?.timerSeconds || 60;
@@ -594,7 +600,7 @@ export function resetKhoiDong(teamId = null) {
       // Hàng ngang do đội chọn trực tiếp (puzzle.select), không tự tăng
     } else if (game.round === "tang_toc") {
       game.questionIndex = Math.min(3, game.questionIndex + 1);
-      game.tangToc = { submissions: {}, ranked: [] };
+      game.tangToc = { submissions: {}, ranked: [], phase: "video", corrections: {}, settled: false };
     } else if (game.round === "ve_dich") {
       game.veDich.star = false;
       game.veDich.stealOpen = false;
@@ -813,7 +819,8 @@ export function resetKhoiDong(teamId = null) {
 
   export function submitTangToc(teamId, answer) {
     const game = g();
-    if (game.round !== "tang_toc" || !game.timer.running) {
+    // Chỉ nhận bài khi đang trong giai đoạn chiếu video, đồng hồ còn chạy.
+    if (game.round !== "tang_toc" || game.tangToc?.phase !== "video" || !game.timer.running) {
       return { ok: false, reason: "not-open" };
     }
     if (game.tangToc.submissions[teamId]) {
@@ -830,45 +837,80 @@ export function resetKhoiDong(teamId = null) {
     return { ok: true };
   }
 
-  function normalize(s) {
-    return String(s || "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/đ/g, "d")
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
+  // Liệt kê bài nộp (theo thứ tự thời gian thấp → cao) kèm nhận định đúng/sai của MC
+  // và điểm dự kiến. Điểm chỉ được cộng thật khi MC bấm "Chốt điểm" (settleTangToc).
+  // QUY TẮC: chỉ đội TRẢ LỜI ĐÚNG mới được điểm, xếp theo độ nhanh GIỮA CÁC ĐỘI ĐÚNG
+  // (nhất 40, nhì 30, ba 20, tư 10). Đội sai = 0 điểm, KHÔNG bị trừ.
+  function computeTangTocRanked() {
+    const game = g();
+    const subs = Object.entries(game.tangToc.submissions || {}).map(([teamId, sub]) => ({
+      teamId,
+      answer: sub.answer,
+      elapsed: sub.elapsed,
+      at: sub.at,
+    }));
+    const corr = game.tangToc.corrections || {};
+    const byElapsed = [...subs].sort((a, b) => a.elapsed - b.elapsed);
+    const correct = byElapsed
+      .filter((s) => corr[s.teamId] === true)
+      .map((s, i) => ({ ...s, place: i + 1, points: [40, 30, 20, 10][i] || 10 }));
+    const correctMap = {};
+    correct.forEach((s) => (correctMap[s.teamId] = s));
+    return byElapsed.map((s) => {
+      const c = correctMap[s.teamId];
+      return {
+        teamId: s.teamId,
+        answer: s.answer,
+        elapsed: s.elapsed,
+        correct: corr[s.teamId] === true ? true : corr[s.teamId] === false ? false : null,
+        points: c ? c.points : 0,
+        place: c ? c.place : null,
+      };
+    });
+  }
+
+  // MC chuyển màn hình khán giả: "video" (đang chiếu) / "answers" (liệt kê đáp án).
+  export function tangTocSetPhase(phase) {
+    const game = g();
+    if (game.round !== "tang_toc") return;
+    if (phase === "video" || phase === "answers") {
+      game.tangToc.phase = phase;
+    }
+    saveDb();
+    emit();
+  }
+
+  // MC chấm đúng/sai từng đội sau khi video chiếu xong. Đúng → tính điểm theo hạng
+  // (sẽ cộng khi Chốt điểm); sai → 0 điểm, không trừ.
+  export function tangTocMark(teamId, correct) {
+    const game = g();
+    if (game.round !== "tang_toc" || game.tangToc.phase !== "answers" || game.tangToc.settled) {
+      return;
+    }
+    if (!game.tangToc.submissions?.[teamId]) return;
+    if (game.tangToc.corrections[teamId] !== undefined) {
+      // đã chấm đội này rồi — cho phép sửa lại
+    }
+    game.tangToc.corrections[teamId] = !!correct;
+    game.tangToc.ranked = computeTangTocRanked();
+    saveDb();
+    emit();
   }
 
   export function settleTangToc() {
-    const db = getDb();
-    const game = db.game;
-    const q = db.questions.main.tangToc[game.questionIndex];
-    if (!q) return;
-    const pointsLadder = [40, 30, 20, 10];
-    const correct = Object.entries(game.tangToc.submissions)
-      .map(([teamId, sub]) => ({ teamId, ...sub }))
-      .filter((s) => normalize(s.answer) === normalize(q.answer))
-      .sort((a, b) => a.elapsed - b.elapsed);
-
-    const ranked = [];
-    let ladderIdx = 0;
-    for (let i = 0; i < correct.length; i++) {
-      if (i > 0 && Math.abs(correct[i].elapsed - correct[i - 1].elapsed) < 0.05) {
-        ranked.push({ ...correct[i], points: ranked[i - 1].points, place: ranked[i - 1].place });
-      } else {
-        ranked.push({
-          ...correct[i],
-          points: pointsLadder[ladderIdx] || 10,
-          place: ladderIdx + 1,
-        });
-        ladderIdx += 1;
-      }
+    const game = g();
+    if (game.round !== "tang_toc" || game.tangToc.phase !== "answers") return;
+    if (game.tangToc.settled) return; // tránh cộng điểm trùng
+    if (!game.tangToc.ranked || game.tangToc.ranked.length === 0) {
+      game.tangToc.ranked = computeTangTocRanked();
     }
-    ranked.forEach((r) => addScore(r.teamId, r.points));
-    game.tangToc.ranked = ranked;
+    game.tangToc.ranked
+      .filter((r) => r.correct === true && r.points > 0)
+      .forEach((r) => addScore(r.teamId, r.points));
+    game.tangToc.settled = true;
+    const q = getDb().questions.main.tangToc[game.questionIndex];
     game.display.answerRevealed = true;
-    game.display.answer = q.answer;
+    game.display.answer = q ? q.answer : "";
     saveDb();
     emit();
   }
@@ -926,7 +968,7 @@ export function resetKhoiDong(teamId = null) {
     game.khoiDong = game.khoiDong || {};
     game.khoiDong.history = {};
     game.khoiDong.submissions = {};
-    game.tangToc = { submissions: {}, ranked: [] };
+    game.tangToc = { submissions: {}, ranked: [], phase: "video", corrections: {}, settled: false };
     game.puzzle = emptyPuzzle();
     game.veDich = { packagePoints: 20, star: false, answeringTeam: "a", stealOpen: false };
     if (game.round === "vuot_cnv") game.display.mode = "puzzle";

@@ -138,6 +138,13 @@ function Stage({ state }) {
     );
   }
 
+  // Vòng 3 (Tăng tốc): 2 vùng trên cùng màn hình — vùng 1 chiếu video, vùng 2 liệt kê
+  // đáp án theo thứ tự nộp bài. Chiếu xong video (sự kiện onended) thì tự chuyển sang
+  // màn hình liệt kê đáp án.
+  if (g.round === "tang_toc") {
+    return <TangTocStage state={state} g={g} />;
+  }
+
   // Vòng 2 (Vượt CNV): màn hình lớn CHUYỂN QUA LẠI giữa 2 màn hình theo logic vòng 2:
   //   • d.mode === "question" → MÀN HÌNH CÂU HỎI (MC hiện câu hỏi hàng ngang)
   //   • ngược lại            → MÀN HÌNH ẢNH GHÉP + HÀNG NGANG (bảng chính)
@@ -401,6 +408,129 @@ function Round2Board({ state, g }) {
         {d.question && <div className="text-mist">{d.question}</div>}
         {d.note && <div className="stage-note">{d.note}</div>}
       </div>
+      </div>
+    </div>
+  );
+}
+
+// VÒNG 3 — TĂNG TỐC: màn hình khán giả chia 2 vùng.
+//   • phase "video": vùng trái chiếu video lớn, vùng phải liệt kê đáp án đã gửi theo
+//     thứ tự nộp bài (thấp → cao). Chiếu xong (onended) → tự chuyển sang màn hình list.
+//   • phase "answers": toàn bộ màn hình hiện danh sách đáp án (đã có nhận định đúng/sai).
+function _fmtElapsed(sec) {
+  if (sec == null) return "—";
+  return sec.toFixed(1) + "s";
+}
+
+function TangTocList({ items, teams, settled, judge }) {
+  return (
+    <div className="w-full max-w-[1200px] mx-auto">
+      <div className="kicker text-center mb-3">
+        {judge ? "ĐÁP ÁN CÁC ĐỘI — THEO THỨ TỰ NỘP BÀI" : "ĐÁP ÁN ĐÃ GỬI — THEO THỨ TỰ NỘP BÀI"}
+      </div>
+      <div className="grid gap-2.5">
+        {(items || []).map((it) => {
+          const t = teams.find((x) => x.id === it.teamId);
+          const ok = it.correct === true;
+          const bad = it.correct === false;
+          return (
+            <div
+              key={it.teamId}
+              className="flex items-center gap-4 rounded-xl bg-panel-solid border border-line px-4 py-3"
+            >
+              <span className="font-display font-black text-[clamp(20px,2.6vw,34px)] w-12 text-center shrink-0"
+                style={{ color: it.place ? "#ffd60a" : "inherit" }}>
+                {it.place ? `${it.place}.` : "•"}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="font-bold" style={{ color: t?.color }}>{t?.name || it.teamId}</div>
+                <div className="text-mist truncate" title={it.answer}>“{it.answer}”</div>
+              </div>
+              <span className="text-mist text-sm shrink-0">{_fmtElapsed(it.elapsed)}</span>
+              {judge && (
+                <span className={`font-display font-bold text-[clamp(18px,2.4vw,30px)] w-20 text-right shrink-0 ${ok ? "text-ok" : bad ? "text-danger" : "text-mist"}`}>
+                  {ok ? `+${it.points}` : bad ? "0" : ""}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TangTocStage({ state, g }) {
+  const d = g.display || {};
+  const tt = g.tangToc || {};
+  const phase = tt.phase || "video";
+  const settled = !!tt.settled;
+  const [ended, setEnded] = useState(false);
+  const showList = phase === "answers" || ended;
+  const submissions = tt.submissions || {};
+  const ranked = tt.ranked || [];
+  const teams = state.teams || [];
+  const hasVideo = !!d.mediaUrl && d.mediaType === "video";
+
+  // Danh sách đáp án sắp theo thời gian thấp → cao; ưu tiên ranked (đã có nhận định),
+  // ngược lại dựng từ submissions (live trong lúc chiếu).
+  const ordered = ranked.length
+    ? ranked
+    : Object.entries(submissions)
+        .map(([teamId, s]) => ({ teamId, answer: s.answer, elapsed: s.elapsed, correct: null, points: 0, place: null }))
+        .sort((a, b) => a.elapsed - b.elapsed);
+
+  // Sau khi chiếu xong (hoặc server đã chuyển phase) → màn hình liệt kê đáp án.
+  if (showList) {
+    return (
+      <div className="w-full">
+        <TangTocList items={ordered} teams={teams} settled={settled} judge={true} />
+        {d.question && <div className="stage-note text-center mt-4">{d.question}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid lg:grid-cols-3 gap-5 w-full max-w-[1400px] mx-auto items-start">
+      {/* VÙNG 1 — VIDEO */}
+      <div className="lg:col-span-2 flex flex-col items-center gap-3 min-w-0">
+        {hasVideo ? (
+          <video
+            src={d.mediaUrl}
+            autoPlay
+            controls
+            onEnded={() => setEnded(true)}
+            className="w-full max-h-[62vh] rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)] bg-black"
+          />
+        ) : (
+          <div className="w-full aspect-video max-h-[62vh] rounded-2xl bg-panel-solid border border-line grid place-items-center">
+            <div className="text-4xl text-mist/40">▶</div>
+          </div>
+        )}
+        {d.question && <div className="stage-q text-center">{d.question}</div>}
+      </div>
+      {/* VÙNG 2 — DANH SÁCH ĐÁP ÁN (thứ tự nộp thấp → cao) */}
+      <div className="lg:col-span-1 min-w-0 flex flex-col gap-2 max-h-[62vh] overflow-y-auto pr-1">
+        <div className="kicker text-center">Đáp án đã gửi</div>
+        {(ordered || []).map((it) => {
+          const t = teams.find((x) => x.id === it.teamId);
+          return (
+            <div
+              key={it.teamId}
+              className="flex items-center gap-3 rounded-xl bg-panel-solid border border-line px-3 py-2"
+            >
+              <span className="font-display font-black w-8 text-center shrink-0"
+                style={{ color: it.place ? "#ffd60a" : "inherit" }}>
+                {it.place ? `${it.place}.` : "•"}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-sm" style={{ color: t?.color }}>{t?.name || it.teamId}</div>
+                <div className="text-mist text-xs truncate" title={it.answer}>“{it.answer}”</div>
+              </div>
+              <span className="text-mist text-xs shrink-0">{_fmtElapsed(it.elapsed)}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

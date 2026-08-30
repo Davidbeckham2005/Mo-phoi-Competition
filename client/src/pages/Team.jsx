@@ -184,18 +184,39 @@ export default function Team() {
       />
     );
   } else if (g.round === "tang_toc") {
+    const tt = g.tangToc || {};
+    const phase = tt.phase || "video";
+    const submitted = !!tt.submissions?.[team.id];
     body = (
-      <>
-        <button type="button" className="buzz-btn mt-3" disabled={!canBuzz && !winner} onClick={() => buzz("row")}>
-          {winner ? "BẠN GIỮ CHUÔNG — NHANH TAY!" : canBuzz ? "CHUÔNG" : "CHỜ"}
-        </button>
-        {g.timer?.running && (
-          <form onSubmit={submitTt} className="flex gap-2 justify-center mt-5">
-            <input value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Nhập đáp án tăng tốc…" />
-            <button className="btn" type="submit" disabled={!answer.trim()}>Gửi đáp án</button>
-          </form>
+      <div className="flex flex-col items-center gap-5 w-full max-w-lg">
+        <div className="round-badge">
+          {phase === "video" ? "TĂNG TỐC — ĐANG CHIẾU VIDEO" : "TĂNG TỐC — CHỌT ĐÁP ÁN"}
+        </div>
+        {submitted ? (
+          <div className="panel w-full text-left">
+            <div className="badge badge-ok inline-block mb-2">Đã gửi đáp án</div>
+            <p className="text-mist">
+              Đáp án của đội bạn: <b className="text-ink">“{tt.submissions[team.id].answer}”</b>. Chờ MC chốt điểm.
+            </p>
+          </div>
+        ) : phase === "video" ? (
+          <>
+            <p className="text-mist max-w-md">
+              Quan sát video trên màn hình lớn, ghi đáp án (dạng tự luận) rồi gửi. Nộp nhanh sẽ được cộng nhiều điểm hơn.
+            </p>
+            {g.timer?.running ? (
+              <form onSubmit={submitTt} className="flex gap-2 justify-center w-full">
+                <input value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Nhập đáp án tăng tốc…" className="flex-1" />
+                <button className="btn" type="submit" disabled={!answer.trim()}>Gửi đáp án</button>
+              </form>
+            ) : (
+              <p className="badge badge-warn">Đã hết thời gian chiếu — chờ MC chốt đáp án.</p>
+            )}
+          </>
+        ) : (
+          <p className="text-mist">Video đã chiếu xong — chờ MC chốt điểm từng đội trên màn hình lớn.</p>
         )}
-      </>
+      </div>
     );
   } else if (g.round === "ve_dich") {
     const cur = state.teams.find((t) => t.id === g.currentTeam);
