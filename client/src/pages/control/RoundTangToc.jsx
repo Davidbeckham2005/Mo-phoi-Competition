@@ -91,7 +91,7 @@ export default function RoundTangToc({ ctx }) {
 
   if (g.round !== "tang_toc") return null;
 
-  let status = { label: "Chưa chọn câu — bấm Câu 1–4", tone: "badge" };
+  let status = { label: "Chưa chọn câu", tone: "badge" };
   if (settled) status = { label: "Đã kết thúc (đã chốt điểm)", tone: "badge-ok" };
   else if (phase === "preparing") status = { label: `Đang chuẩn bị chiếu — đếm ngược ${Math.max(0, remaining)}s`, tone: "badge-warn" };
   else if (phase === "answers") status = { label: "Đang chấm đáp án", tone: "badge-warn" };
@@ -135,9 +135,9 @@ export default function RoundTangToc({ ctx }) {
         </span>
       </div>
 
-      {/* 1. Chọn câu hỏi + điều khiển video */}
+      {/* 1. THANH CÂU HỎI — luôn hiện trên màn hình bàn MC */}
       <div className="rounded-xl border border-line bg-night/40 p-3 mb-3">
-        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Video đang chiếu</div>
+        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Câu hỏi</div>
         <div className="grid gap-2 sm:grid-cols-4 mb-3">
           {qs.map((qd, i) => {
             const isCurrent = i === curIdx;
@@ -147,11 +147,6 @@ export default function RoundTangToc({ ctx }) {
                 key={qd.id}
                 type="button"
                 onClick={() => selectQuestion(i)}
-                title={
-                  switching && i !== curIdx
-                    ? "Đang chiếu video — đổi câu cần mật khẩu admin"
-                    : `Chọn câu ${i + 1} để chuẩn bị chiếu`
-                }
                 className={`rounded-xl border-2 px-3 py-2 text-left transition ${
                   isCurrent ? "border-gold bg-gold/10 text-gold" : "border-line text-mist hover:border-gold/50"
                 }`}
@@ -165,20 +160,6 @@ export default function RoundTangToc({ ctx }) {
             );
           })}
         </div>
-        <video
-          ref={vidRef}
-          src={g.display?.mediaUrl || undefined}
-          controls
-          muted
-          playsInline
-          preload="auto"
-          className="w-full max-h-[42vh] rounded-xl border border-line bg-black object-contain mb-2"
-        />
-        {!g.display?.mediaUrl && (
-          <div className="text-mist text-xs mb-3 text-center">
-            Chưa cài video cho câu này — vào Admin → Câu hỏi → Tăng tốc để đặt video. Chưa có nội dung để phát.
-          </div>
-        )}
         <div className="flex flex-wrap items-center gap-2">
           {phase === "preparing" ? (
             <button type="button" className="btn btn-ok disabled:opacity-60" disabled>
@@ -189,7 +170,7 @@ export default function RoundTangToc({ ctx }) {
               type="button"
               className="btn btn-danger"
               onClick={() => setPrompt({ kind: "stop" })}
-              title="Dừng video — cần mật khẩu admin"
+              title="Cần mật khẩu admin"
             >
               ⏸ Dừng video
             </button>
@@ -199,28 +180,40 @@ export default function RoundTangToc({ ctx }) {
               className="btn btn-ok disabled:opacity-45"
               disabled={settled || phase === "answers"}
               onClick={() => act("tangtoc.play")}
-              title={
-                settled || phase === "answers"
-                  ? "Đang chấm đáp án — chọn câu khác để chiếu"
-                  : `Chuẩn bị ${Math.max(0, remaining)}s rồi chiếu video câu ${curIdx + 1} từ đầu, đồng bộ trên mọi màn hình`
-              }
             >
               ▶ Chiếu video (Câu {curIdx + 1})
             </button>
           )}
           <span className="text-mist text-sm ml-auto">
             {phase === "video" && running
-              ? "Bấm Dừng sẽ hỏi mật khẩu admin. Đang chiếu ⏺"
+              ? "Đang chiếu ⏺"
               : g.display?.mediaUrl
-                ? "Video đã cài — chọn câu rồi bấm Chiếu"
-                : "Chưa cài video — khán giả thấy ô chờ"}
+                ? "Sẵn sàng chiếu"
+                : "Chưa cài video"}
           </span>
         </div>
       </div>
 
+      {/* 1b. VIDEO ĐANG CHIẾU — khung phát / xem trước */}
+      <div className="rounded-xl border border-line bg-night/40 p-3 mb-3">
+        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Video đang chiếu</div>
+        <video
+          ref={vidRef}
+          src={g.display?.mediaUrl || undefined}
+          controls
+          muted
+          playsInline
+          preload="auto"
+          className="w-full max-h-[42vh] rounded-xl border border-line bg-black object-contain mb-2"
+        />
+        {!g.display?.mediaUrl && (
+          <div className="text-mist text-xs mb-0 text-center">Chưa cài video cho câu này.</div>
+        )}
+      </div>
+
       {/* 2. Bảng 4 đội: trạng thái nộp bài + thời gian + thứ hạng + điểm */}
       <div className="rounded-xl border border-line bg-night/40 p-3 mb-3">
-        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Các đội — theo thứ tự nộp bài</div>
+        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Các đội</div>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-mist text-xs uppercase tracking-wider">
@@ -269,9 +262,7 @@ export default function RoundTangToc({ ctx }) {
       {/* 3. Xử lý câu trả lời đúng / sai */}
       <div className="rounded-xl border border-line bg-night/40 p-3">
         <div className="text-xs tracking-[0.18em] text-mist uppercase mb-1">Chấm đúng / sai</div>
-        <p className="text-mist text-sm mb-2">
-          Chỉ đội <b className="text-ok">Đúng</b> mới được điểm theo độ nhanh (40/30/20/10); đội <b className="text-danger">Sai</b> = 0đ, không trừ.
-        </p>
+        <p className="text-mist text-sm mb-2">Đúng +40/30/20/10 theo độ nhanh • Sai 0đ, không trừ.</p>
         <div className="space-y-2">
           {rows.map((r) => {
             const ok = r.correct === true;
@@ -325,9 +316,7 @@ export default function RoundTangToc({ ctx }) {
             {settled ? "Đã chốt điểm ✓" : "Chốt điểm Tăng tốc"}
           </button>
           <span className="text-mist text-sm">
-            {settled
-              ? "Điểm đã cộng vào bảng tổng."
-              : "Chốt điểm sẽ cộng điểm các đội đúng (đúng + sai không bị trừ)."}
+            {settled ? "Điểm đã cộng vào bảng tổng." : "Cộng điểm các đội đúng vào bảng tổng."}
           </span>
         </div>
       </div>
@@ -346,8 +335,8 @@ export default function RoundTangToc({ ctx }) {
             </div>
             <p className="text-mist mt-3 leading-relaxed">
               {prompt.kind === "stop"
-                ? "Đang chiếu video cho khán giả và các đội. Bạn cần nhập mật khẩu admin để dừng video trước khi hết thời lượng."
-                : `Đang chiếu video của Câu ${curIdx + 1}. Bạn cần nhập mật khẩu admin để đổi sang Câu ${prompt.index + 1}.`}
+                ? "Nhập mật khẩu admin để dừng video."
+                : `Nhập mật khẩu admin để đổi sang Câu ${prompt.index + 1}.`}
             </p>
             <input
               autoFocus

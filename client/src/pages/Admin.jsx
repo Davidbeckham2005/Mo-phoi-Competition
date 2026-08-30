@@ -216,81 +216,6 @@ function TeamsTab({ state, board, reload, setMsg }) {
   );
 }
 
-function TeamScoreControls({ team, reload, setMsg, compact }) {
-  const [addAmount, setAddAmount] = useState(10);
-  const [setAmount, setSetAmount] = useState(team.score);
-
-  useEffect(() => {
-    setSetAmount(team.score);
-  }, [team.score]);
-
-  async function add(points) {
-    try {
-      await sendControl("score.add", { teamId: team.id, points });
-    } catch (e) {
-      alert(e.message);
-      return;
-    }
-    setSetAmount(team.score + points);
-    setMsg(`Đã ${points >= 0 ? "cộng" : "trừ"} ${Math.abs(points)} điểm cho ${team.name}`);
-    reload();
-  }
-
-  async function setScore(score) {
-    try {
-      await sendControl("score.set", { teamId: team.id, score });
-    } catch (e) {
-      alert(e.message);
-      return;
-    }
-    setMsg(`Đã đặt điểm ${team.name} thành ${score}`);
-    reload();
-  }
-
-  return (
-    <div className="rounded-xl border p-4 bg-panel-solid" style={{ borderColor: team.color }}>
-      <div className="flex justify-between items-center gap-3">
-        <b style={{ color: team.color }}>{team.name}</b>
-        <span className="font-display text-2xl font-bold">{team.score}</span>
-      </div>
-
-      <div className="text-mist text-xs mt-3 mb-1">Cộng nhanh</div>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(5)}>+5</button>
-        <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(10)}>+10</button>
-        <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(20)}>+20</button>
-        <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(30)}>+30</button>
-        <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(-5)}>−5</button>
-        <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(-10)}>−10</button>
-        <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(-20)}>−20</button>
-      </div>
-
-      <div className="text-mist text-xs mt-3 mb-1">Cộng / trừ tùy chỉnh</div>
-      <div className="flex items-center gap-2">
-        <input
-          type="number"
-          className="w-24!"
-          value={addAmount}
-          onChange={(e) => setAddAmount(Number(e.target.value))}
-        />
-        <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(addAmount || 0)}>+ Cộng</button>
-        <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(-(addAmount || 0))}>− Trừ</button>
-      </div>
-
-      <div className="text-mist text-xs mt-3 mb-1">Đặt điểm trực tiếp</div>
-      <div className="flex items-center gap-2">
-        <input
-          type="number"
-          className="w-24!"
-          value={setAmount}
-          onChange={(e) => setSetAmount(Number(e.target.value))}
-        />
-        <button type="button" className="btn py-1.5! text-sm!" onClick={() => setScore(setAmount || 0)}>Đặt</button>
-      </div>
-    </div>
-  );
-}
-
 function ScoreTab({ state, reload, setMsg }) {
   const [freeAmounts, setFreeAmounts] = useState(() => Object.fromEntries(state.teams.map((t) => [t.id, 10])));
 
@@ -344,397 +269,508 @@ function ScoreTab({ state, reload, setMsg }) {
   );
 }
 
+function clone(v) {
+  return v == null ? v : JSON.parse(JSON.stringify(v));
+}
+function eq(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+function uid() {
+  return "q" + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
+}
+function normalizeMain(v) {
+  const m = {
+    khoiDong: v.khoiDong || {},
+    vuotCnv: v.vuotCnv || { keyword: "", hint: "", letterCount: "", rows: [] },
+    tangToc: v.tangToc || [],
+    veDich: v.veDich || {},
+  };
+  for (const tid of ["a", "b", "c", "d"]) {
+    m.khoiDong[tid] = (m.khoiDong[tid] || []).filter((q) => q && typeof q === "object").map((q) => ({ id: q.id || uid(), answer: q.answer || "", points: q.points || 10, mediaUrl: q.mediaUrl || "", mediaType: q.mediaType || "", ...q }));
+    m.veDich[tid] = (m.veDich[tid] || []).filter((q) => q && typeof q === "object").map((q) => ({ id: q.id || uid(), points: q.points || 20, question: q.question || "", answer: q.answer || "", ...q }));
+  }
+  m.vuotCnv.rows = (m.vuotCnv.rows || []).filter((r) => r && typeof r === "object").map((r) => ({ id: r.id || uid(), question: r.question || "", answer: r.answer || "", letterCount: r.letterCount ?? "", ...r }));
+  m.tangToc = (m.tangToc || []).filter((q) => q && typeof q === "object").map((q) => ({ id: q.id || uid(), answer: q.answer || "", duration: Number(q.duration) || 60, mediaUrl: q.mediaUrl || "", mediaType: "video", ...q }));
+  return m;
+}
+
 function QuestionsTab({ state, reload, setMsg }) {
-  const [edit, setEdit] = useState(null);
-  const [mainTab, setMainTab] = useState("khoi_dong");
-  const [mainText, setMainText] = useState(JSON.stringify(state.questions.main, null, 2));
-  const [kdEdit, setKdEdit] = useState(null);
-  const [ttEdit, setTtEdit] = useState(null);
-
-  async function saveSk(e) {
-    e.preventDefault();
-    await saveSoKhaoQuestion(edit);
-    setEdit(null);
-    setMsg("Đã lưu câu hỏi sơ khảo");
-    reload();
-  }
-
-  async function addKdWithImage(teamId, file) {
-    const result = await uploadFile(file);
-    const m = { ...state.questions.main };
-    const qs = [...(m.khoiDong?.[teamId] || [])];
-    qs.push({ id: `kd-${teamId}-${Date.now()}`, answer: "", points: 10, mediaUrl: result.url, mediaType: result.type });
-    m.khoiDong = { ...m.khoiDong, [teamId]: qs };
-    await saveMainQuestions(m);
-    setMsg("Đã thêm ảnh");
-    reload();
-  }
-
-  async function saveKdEdit() {
-    if (!kdEdit) return;
-    const m = { ...state.questions.main };
-    const qs = [...(m.khoiDong?.[kdEdit.teamId] || [])];
-    qs[kdEdit.index] = { ...qs[kdEdit.index], answer: kdEdit.answer, mediaUrl: kdEdit.mediaUrl, mediaType: kdEdit.mediaType };
-    m.khoiDong = { ...m.khoiDong, [kdEdit.teamId]: qs };
-    await saveMainQuestions(m);
-    setKdEdit(null);
-    setMsg("Đã lưu");
-    reload();
-  }
-
-  async function deleteKdQuestion(teamId, index) {
-    const m = { ...state.questions.main };
-    const qs = [...(m.khoiDong?.[teamId] || [])];
-    qs.splice(index, 1);
-    m.khoiDong = { ...m.khoiDong, [teamId]: qs };
-    await saveMainQuestions(m);
-    setMsg("Đã xóa");
-    reload();
-  }
-
-  async function saveTtEdit() {
-    if (!ttEdit) return;
-    const m = { ...state.questions.main };
-    const qs = [...(m.tangToc || [])];
-    qs[ttEdit.index] = {
-      ...qs[ttEdit.index],
-      answer: ttEdit.answer,
-      duration: Number(ttEdit.duration) || 60,
-      mediaUrl: ttEdit.mediaUrl,
-      mediaType: "video",
-    };
-    m.tangToc = qs;
-    await saveMainQuestions(m);
-    setTtEdit(null);
-    setMsg("Đã lưu câu hỏi (video)");
-    reload();
-  }
-
   const main = state.questions.main || {};
-  const teamIds = ["a", "b", "c", "d"];
+  const [sub, setSub] = useState("sokhao");
+  const [draft, setDraft] = useState({ main: clone(main) });
+  const dirty = !eq(draft.main, main);
+
+  useEffect(() => {
+    setDraft({ main: clone(state.questions.main || {}) });
+  }, [state.questions.main]);
+
+  async function saveDraft() {
+    await saveMainQuestions(draft.main);
+    setMsg("Đã lưu câu hỏi vòng chính");
+    reload();
+  }
+  function revert() {
+    setDraft({ main: clone(main) });
+  }
+
+  const items = [
+    ["sokhao", "Sơ khảo"],
+    ["khoi_dong", "Khởi động"],
+    ["vuot_cnv", "Vượt CNV"],
+    ["tang_toc", "Tăng tốc"],
+    ["ve_dich", "Về đích"],
+    ["json", "Chỉnh JSON"],
+  ];
 
   return (
     <div>
-      <div className="panel">
-        <h3 className="font-bold">Sơ khảo ({state.questions.soKhao.length} câu)</h3>
-        <button
-          type="button"
-          className="btn my-3"
-          onClick={() => setEdit({ id: "", question: "", options: ["A. ", "B. ", "C. ", "D. "], answer: "A", topic: "" })}
-        >
-          Thêm câu
-        </button>
-        {edit && (
-          <form className="grid gap-3.5" onSubmit={saveSk}>
-            <label className="label-grid">
-              Câu hỏi
-              <textarea value={edit.question} onChange={(e) => setEdit({ ...edit, question: e.target.value })} rows={3} />
-            </label>
-            {["A", "B", "C", "D"].map((L, i) => (
-              <label key={L} className="label-grid">
-                Phương án {L}
-                <input value={edit.options[i]} onChange={(e) => {
-                  const options = [...edit.options];
-                  options[i] = e.target.value;
-                  setEdit({ ...edit, options });
-                }} />
-              </label>
-            ))}
-            <label className="label-grid">
-              Đáp án đúng
-              <select value={edit.answer} onChange={(e) => setEdit({ ...edit, answer: e.target.value })}>
-                {["A", "B", "C", "D"].map((L) => <option key={L}>{L}</option>)}
-              </select>
-            </label>
-            <label className="label-grid">
-              Chủ đề
-              <input value={edit.topic} onChange={(e) => setEdit({ ...edit, topic: e.target.value })} />
-            </label>
-            <div className="flex gap-2">
-              <button className="btn" type="submit">Lưu</button>
-              <button type="button" className="btn btn-ghost" onClick={() => setEdit(null)}>Hủy</button>
-            </div>
-          </form>
-        )}
-        <table className="table mt-4">
-          <thead><tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th><th></th></tr></thead>
-          <tbody>
-            {state.questions.soKhao.map((q, i) => (
-              <tr key={q.id}>
-                <td>{i + 1}</td>
-                <td>{q.question}</td>
-                <td>{q.answer}</td>
-                <td>
-                  <div className="flex gap-2">
-                    <button type="button" className="btn btn-ghost" onClick={() => setEdit(q)}>Sửa</button>
-                    <button type="button" className="btn btn-danger" onClick={async () => { await deleteSoKhaoQuestion(q.id); reload(); }}>Xóa</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {items.map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setSub(id)}
+            className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              sub === id ? "bg-gold text-[#1a1400] border-gold" : "border-line text-mist hover:border-gold/60"
+            }`}
+          >
+            {label}
+            {id === "sokhao" && <span className="ml-1 text-xs">{state.questions.soKhao?.length || 0}</span>}
+          </button>
+        ))}
       </div>
 
-      {/* Câu hỏi vòng chính — quản lý theo vòng */}
-      <div className="panel mt-5">
-        <h3 className="font-bold mb-3">Câu hỏi vòng chính</h3>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {[
-            ["khoi_dong", "Khởi động"],
-            ["vuot_cnv", "Vượt CNV"],
-            ["tang_toc", "Tăng tốc"],
-            ["ve_dich", "Về đích"],
-            ["json", "Chỉnh JSON"],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setMainTab(id)}
-              className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
-                mainTab === id ? "bg-gold text-[#1a1400] border-gold" : "border-line text-mist hover:border-gold/60"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+      {sub === "sokhao" ? (
+        <div className="panel">
+          <PrelimManager qs={state.questions.soKhao || []} reload={reload} setMsg={setMsg} />
         </div>
+      ) : (
+        <div className="panel">
+          <div className="flex flex-wrap items-center gap-3 mb-4 rounded-xl border border-line bg-night/40 px-3 py-2">
+            <span className="text-sm font-semibold">Sửa trực tiếp — bấm <b>Lưu vòng chính</b> khi xong</span>
+            <div className="ml-auto flex items-center gap-2">
+              <span className={`text-xs ${dirty ? "badge badge-warn" : "text-mist"}`}>
+                {dirty ? "Có thay đổi chưa lưu" : "Đã lưu hết"}
+              </span>
+              <button type="button" className="btn btn-ghost py-1! text-xs!" disabled={!dirty} onClick={revert}>Hoàn tác</button>
+              <button type="button" className="btn btn-ok py-1! text-xs!" disabled={!dirty} onClick={saveDraft}>Lưu vòng chính</button>
+            </div>
+          </div>
 
-        {mainTab === "khoi_dong" && (
-          <div>
-            <div className="rounded-xl border border-gold/30 bg-gold/5 p-4 mb-4">
-              <h4 className="font-bold mb-3">Cộng điểm linh hoạt — vòng Khởi động</h4>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {state.teams.map((t) => (
-                  <TeamScoreControls key={t.id} team={t} reload={reload} setMsg={setMsg} />
+          {sub === "khoi_dong" && <KhoiDongEditor draft={draft} setDraft={setDraft} teams={state.teams} />}
+          {sub === "vuot_cnv" && <VuotCnvEditor draft={draft} setDraft={setDraft} />}
+          {sub === "tang_toc" && <TangTocEditor draft={draft} setDraft={setDraft} />}
+          {sub === "ve_dich" && <VeDichEditor draft={draft} setDraft={setDraft} teams={state.teams} />}
+          {sub === "json" && <JsonEditor draft={draft} setDraft={setDraft} setMsg={setMsg} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PrelimManager({ qs, reload, setMsg }) {
+  const [search, setSearch] = useState("");
+  const [bulk, setBulk] = useState("");
+  const [draft, setDraft] = useState(() => clone(qs));
+
+  useEffect(() => {
+    setDraft(clone(qs));
+  }, [qs]);
+
+  function patch(i, fn) {
+    setDraft(draft.map((q, k) => (k === i ? fn(q) : q)));
+  }
+  async function saveItem(q) {
+    await saveSoKhaoQuestion({ ...q, options: q.options || ["A.", "B.", "C.", "D."] });
+    setMsg("Đã lưu câu hỏi");
+    reload();
+  }
+  async function saveAll() {
+    const rows = draft.filter((q) => (q.question || "").trim());
+    for (const q of rows) await saveSoKhaoQuestion(q);
+    setMsg("Đã lưu " + rows.length + " câu");
+    reload();
+  }
+  async function del(q) {
+    if (!confirm("Xóa câu hỏi này?")) return;
+    await deleteSoKhaoQuestion(q.id);
+    setMsg("Đã xóa câu hỏi");
+    reload();
+  }
+  function addEmpty() {
+    setDraft([...draft, { id: "", question: "", options: ["A.", "B.", "C.", "D."], answer: "A", topic: "" }]);
+  }
+  function importBulk() {
+    const parsed = [];
+    for (const line of bulk.split("\n")) {
+      const parts = line.split("|").map((s) => s.trim());
+      if (parts.length < 3) continue;
+      const options = [];
+      for (let i = 1; i <= 4; i++) options.push((parts[i] || "").replace(/^[A-D]\.\s*/, ""));
+      parsed.push({
+        id: "",
+        question: parts[0],
+        options,
+        answer: (parts[5] || "A").replace(/\.$/, "").toUpperCase(),
+        topic: (parts[6] || "").trim(),
+      });
+    }
+    if (!parsed.length) {
+      setMsg("Không thấy câu hợp lệ — mỗi dòng: Câu hỏi | A | B | C | D | Đáp án | Chủ đề");
+      return;
+    }
+    setDraft([...draft, ...parsed]);
+    setBulk("");
+    setMsg("Đã thêm " + parsed.length + " câu — bấm Lưu tất cả");
+  }
+
+  const s = search.trim().toLowerCase();
+  const filtered = draft.filter((q) =>
+    !s
+      ? true
+      : (q.question || "").toLowerCase().includes(s) || (q.topic || "").toLowerCase().includes(s) || (q.answer || "").toLowerCase().includes(s)
+  );
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <h3 className="font-bold mr-auto">Câu hỏi sơ khảo</h3>
+        <input className="w-56!" placeholder="🔍 Tìm câu hỏi / chủ đề / đáp án…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <button type="button" className="btn" onClick={addEmpty}>+ Thêm câu</button>
+        <button type="button" className="btn btn-ok" disabled={!draft.some((q) => (q.question || "").trim())} onClick={saveAll}>Lưu tất cả</button>
+      </div>
+
+      <details className="rounded-xl border border-line bg-night/40 p-3 mb-3">
+        <summary className="text-sm font-semibold cursor-pointer text-mist">Nhập nhanh nhiều câu (mỗi dòng: Câu hỏi | A | B | C | D | Đáp án | Chủ đề)</summary>
+        <textarea rows={5} value={bulk} onChange={(e) => setBulk(e.target.value)} className="w-full font-mono text-sm mt-2" placeholder={"Ví dụ:\nĐường lên đỉnh núi gồm mấy khúc cong | 3 | 4 | 5 | 6 | B | châm ngôn"} />
+        <div className="flex items-center gap-2 mt-2">
+          <button type="button" className="btn btn-ghost text-sm!" disabled={!bulk.trim()} onClick={importBulk}>+ Thêm {bulk.split("\n").filter((l) => l.trim()).length} dòng vừa nhập</button>
+          <span className="text-mist text-xs">Câu mới chưa có ID sẽ được nạp khi bấm Lưu</span>
+        </div>
+      </details>
+
+      <table className="table mt-3">
+        <thead><tr><th>#</th><th>Câu hỏi</th><th>Phương án</th><th>Đáp án</th><th>Chủ đề</th><th></th></tr></thead>
+        <tbody>
+          {filtered.map((q, i) => (
+            <tr key={q.id || "new-" + i}>
+              <td className="text-mist">{draft.indexOf(q) + 1}</td>
+              <td><textarea rows={2} className="min-w-[240px]" value={q.question || ""} onChange={(e) => patch(i, (t) => ({ ...t, question: e.target.value }))} /></td>
+              <td>
+                {["A", "B", "C", "D"].map((l, k) => (
+                  <div key={l} className="flex items-center gap-1 text-xs">
+                    <b className="w-4">{l}.</b>
+                    <input className="w-36!" value={(q.options && q.options[k]) || ""} onChange={(e) => patch(i, (t) => { const o = [...(t.options || ["", "", "", ""])]; o[k] = e.target.value; return { ...t, options: o }; })} />
+                  </div>
                 ))}
+              </td>
+              <td>
+                <select value={q.answer || "A"} onChange={(e) => patch(i, (t) => ({ ...t, answer: e.target.value }))}>
+                  {["A", "B", "C", "D"].map((l) => <option key={l}>{l}</option>)}
+                </select>
+              </td>
+              <td><input className="w-24!" value={q.topic || ""} onChange={(e) => patch(i, (t) => ({ ...t, topic: e.target.value }))} /></td>
+              <td>
+                <div className="flex flex-col gap-1">
+                  <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => saveItem(draft[i])}>Lưu</button>
+                  <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => { const c = clone(draft[i]); c.id = ""; setDraft([...draft.slice(0, i + 1), c, ...draft.slice(i + 1)]); }}>Sao chép</button>
+                  <button type="button" className="btn btn-danger text-xs py-1!" onClick={() => (q.id ? del(q) : setDraft(draft.filter((_, k) => k !== i)))}>Xóa</button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {filtered.length === 0 && <p className="text-mist text-sm mt-3">Không có câu hỏi nào.</p>}
+    </div>
+  );
+}
+
+function KhoiDongEditor({ draft, setDraft, teams }) {
+  const m = draft.main;
+  const teamIds = ["a", "b", "c", "d"];
+
+  function setQ(tid, i, p) {
+    const qs = (m.khoiDong?.[tid] || []).map((q, k) => (k === i ? { ...q, ...p } : q));
+    setDraft({ ...draft, main: { ...m, khoiDong: { ...(m.khoiDong || {}), [tid]: qs } } });
+  }
+  function addImg(tid, file) {
+    uploadFile(file).then((r) => {
+      const qs = [...(m.khoiDong?.[tid] || []), { id: uid(), answer: "", points: 10, mediaUrl: r.url, mediaType: r.type }];
+      setDraft({ ...draft, main: { ...m, khoiDong: { ...(m.khoiDong || {}), [tid]: qs } } });
+    });
+  }
+  function delQ(tid, i) {
+    const qs = (m.khoiDong?.[tid] || []).filter((_, k) => k !== i);
+    setDraft({ ...draft, main: { ...m, khoiDong: { ...(m.khoiDong || {}), [tid]: qs } } });
+  }
+  function dupQ(tid, i) {
+    const c = { ...clone(m.khoiDong[tid][i]), id: uid() };
+    const qs = [...(m.khoiDong?.[tid] || []), c];
+    setDraft({ ...draft, main: { ...m, khoiDong: { ...(m.khoiDong || {}), [tid]: qs } } });
+  }
+
+  function setImg(tid, i, file) {
+    uploadFile(file).then((r) => setQ(tid, i, { mediaUrl: r.url, mediaType: r.type }));
+  }
+
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {teamIds.map((tid) => {
+        const team = teams.find((t) => t.id === tid);
+        const qs = m.khoiDong?.[tid] || [];
+        return (
+          <div key={tid} className="rounded-xl border border-line bg-night/40 p-3">
+            <div className="flex items-center gap-2 mb-3">
+              <b style={{ color: team?.color }}>{team?.name}{qs.length > 0 && <span className="text-mist font-normal"> — {qs.length} ảnh</span>}</b>
+              <label className="btn btn-ghost text-xs py-1! cursor-pointer ml-auto">
+                + Thêm ảnh
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addImg(tid, f); }} />
+              </label>
+            </div>
+
+            {qs.map((q, i) => (
+              <div key={q.id} className="rounded-lg border border-line bg-night/60 p-2 mb-3 last:mb-0">
+                <div className="flex items-start gap-3">
+                  <div className="relative shrink-0 w-[130px]">
+                    {q.mediaUrl ? (
+                      <img src={q.mediaUrl} className="w-[130px] h-[90px] object-cover rounded-lg" />
+                    ) : (
+                      <div className="w-[130px] h-[90px] rounded-lg border border-dashed border-line grid place-items-center text-mist text-xs text-center p-2">
+                        Chưa có ảnh
+                      </div>
+                    )}
+                    <label className="btn btn-ok text-xs py-1! cursor-pointer absolute bottom-1 left-1 opacity-90">
+                      📁 Chọn ảnh
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setImg(tid, i, f); }} />
+                    </label>
+                    {q.mediaUrl && (
+                      <button type="button" className="btn btn-danger text-xs py-0.5! px-1.5! absolute top-1 right-1 opacity-90" onClick={() => setQ(tid, i, { mediaUrl: "" })}>✕</button>
+                    )}
+                  </div>
+                  <div className="grid gap-2 flex-1">
+                    <div>
+                      <div className="text-mist text-xs mb-1">Ảnh #{i + 1} — chọn từ thiết bị hoặc dán URL</div>
+                      <input className="w-full!" value={q.mediaUrl || ""} placeholder="Dán URL ảnh…" onChange={(e) => setQ(tid, i, { mediaUrl: e.target.value })} />
+                    </div>
+                    <div>
+                      <div className="text-mist text-xs mb-1">Đáp án đúng</div>
+                      <input value={q.answer || ""} placeholder="Đáp án đúng" onChange={(e) => setQ(tid, i, { answer: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => dupQ(tid, i)}>Sao chép câu</button>
+                  <button type="button" className="btn btn-danger text-xs py-1! ml-auto" onClick={() => delQ(tid, i)}>Xóa câu</button>
+                </div>
+              </div>
+            ))}
+
+            {qs.length === 0 && <p className="text-mist text-sm">Chưa có ảnh. Bấm "+ Thêm ảnh" để chọn từ thiết bị.</p>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function VuotCnvEditor({ draft, setDraft }) {
+  const m = draft.main;
+  const v = m.vuotCnv || { keyword: "", hint: "", letterCount: "", rows: [] };
+  const setV = (p) => setDraft({ ...draft, main: { ...m, vuotCnv: { ...v, ...p } } });
+  function setRow(i, p) {
+    setV({ rows: (v.rows || []).map((r, k) => (k === i ? { ...r, ...p } : r)) });
+  }
+
+  return (
+    <div>
+      <div className="grid gap-3 sm:grid-cols-3 mb-4">
+        <label className="label-grid">
+          Từ khóa chính
+          <input value={v.keyword || ""} placeholder="VD: HỮU NGHỊ" onChange={(e) => setV({ keyword: e.target.value })} />
+        </label>
+        <label className="label-grid">
+          Số chữ cái
+          <input type="number" min={1} value={v.letterCount || ""} placeholder="VD: 12" onChange={(e) => setV({ letterCount: e.target.value })} />
+        </label>
+        <label className="label-grid">
+          Gợi ý (hint)
+          <input value={v.hint || ""} placeholder="Gợi ý ngắn cho khán giả" onChange={(e) => setV({ hint: e.target.value })} />
+        </label>
+      </div>
+
+      <div>
+        {(v.rows || []).map((row, i) => (
+          <div key={row.id} className="rounded-xl border border-line bg-night/40 p-4 mb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <b className="text-gold text-xl">{i + 1}</b>
+              <span className="text-mist text-xs">Câu hỏi sẽ phóng to khi chiếu</span>
+              <div className="ml-auto flex gap-1">
+                <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => setRow(i, { question: "" })}>Xóa nội dung</button>
+                <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => setV({ rows: [...(v.rows || []), { id: uid(), question: "", answer: "", letterCount: v.letterCount || "" }] })}>+ Thêm</button>
+                <button type="button" className="btn btn-danger text-xs py-1!" onClick={() => setV({ rows: (v.rows || []).filter((_, k) => k !== i) })}>Xóa câu</button>
               </div>
             </div>
-            {kdEdit && (
-              <div className="rounded-xl border border-gold bg-night/60 p-4 mb-4">
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-bold text-sm">
-                    Sửa — {state.teams.find((t) => t.id === kdEdit.teamId)?.name} #{kdEdit.index + 1}
-                  </h4>
-                  <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => setKdEdit(null)}>Đóng</button>
-                </div>
-                <div className="flex gap-4 items-start">
-                  <div className="shrink-0">
-                    {kdEdit.mediaUrl ? (
-                      <img src={kdEdit.mediaUrl} className="w-[140px] h-[100px] object-cover rounded-lg" />
-                    ) : (
-                      <div className="w-[140px] h-[100px] rounded-lg border border-dashed border-line grid place-items-center text-mist text-xs">Chưa có ảnh</div>
-                    )}
-                    <label className="btn btn-ghost mt-2 cursor-pointer inline-block text-xs w-full text-center">
-                      {kdEdit.mediaUrl ? "Đổi ảnh" : "Chọn ảnh"}
-                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+            <textarea
+              rows={5}
+              className="w-full text-2xl! font-bold! leading-snug"
+              value={row.question || ""}
+              onChange={(e) => setRow(i, { question: e.target.value })}
+              placeholder="Nhập câu hỏi ở đây…"
+            />
+            <div className="grid gap-3 sm:grid-cols-2 mt-3">
+              <label className="label-grid">
+                Đáp án
+                <input className="text-lg!" value={row.answer || ""} onChange={(e) => setRow(i, { answer: e.target.value })} placeholder="Đáp án cho dòng ngang này" />
+              </label>
+              <label className="label-grid">
+                Số chữ cái
+                <input type="number" min={1} value={row.letterCount || ""} onChange={(e) => setRow(i, { letterCount: e.target.value })} />
+              </label>
+            </div>
+          </div>
+        ))}
+        {(v.rows || []).length === 0 && <p className="text-mist text-sm">Chưa có câu hỏi Vượt CNV.</p>}
+      </div>
+    </div>
+  );
+}
+
+function TangTocEditor({ draft, setDraft }) {
+  const m = draft.main;
+  const qs = m.tangToc || [];
+  const setQs = (next) => setDraft({ ...draft, main: { ...m, tangToc: next } });
+  function setQ(i, p) {
+    setQs(qs.map((q, k) => (k === i ? { ...q, ...p } : q)));
+  }
+
+  return (
+    <div>
+      <p className="text-mist text-sm mb-3">Mỗi câu là <b>1 video</b>. Đổi video ngay tại cột; nếu chưa có, khán giả thấy ô chờ. Đáp án & thời lượng để MC tham khảo.</p>
+      <div className="block sm:hidden text-mist text-xs mb-2">Lưu ý: xem chi tiết & chỉnh trên màn hình rộng.</div>
+      <table className="table">
+        <thead><tr><th>#</th><th>Video</th><th>Thời lượng (s)</th><th>Đáp án (MC)</th><th></th></tr></thead>
+        <tbody>
+          {qs.map((q, i) => (
+            <tr key={q.id}>
+              <td className="text-mist">{i + 1}</td>
+              <td>
+                <div className="flex items-center gap-2">
+                  {q.mediaUrl ? (
+                    <video src={q.mediaUrl} className="w-[150px] h-[90px] object-contain rounded bg-black" controls />
+                  ) : (
+                    <div className="w-[150px] h-[90px] rounded border border-dashed border-line grid place-items-center text-mist text-xs">Chưa có video</div>
+                  )}
+                  <div className="flex flex-col gap-1">
+                    <label className="btn btn-ghost text-xs py-1! cursor-pointer">
+                      {q.mediaUrl ? "Đổi video" : "Chọn video"}
+                      <input type="file" accept="video/*" className="hidden" onChange={async (e) => {
                         const f = e.target.files?.[0];
                         if (!f) return;
                         const r = await uploadFile(f);
-                        setKdEdit({ ...kdEdit, mediaUrl: r.url, mediaType: r.type });
+                        setQ(i, { mediaUrl: r.url });
                       }} />
                     </label>
-                  </div>
-                  <div className="grid gap-3 flex-1">
-                    <label className="label-grid">
-                      Đáp án
-                      <input value={kdEdit.answer || ""} onChange={(e) => setKdEdit({ ...kdEdit, answer: e.target.value })} placeholder="Đáp án đúng" autoFocus />
-                    </label>
-                    <div className="flex gap-2">
-                      <button type="button" className="btn" onClick={saveKdEdit}>Lưu</button>
-                      <button type="button" className="btn btn-ghost" onClick={() => setKdEdit(null)}>Hủy</button>
-                    </div>
+                    {q.mediaUrl && <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => setQ(i, { mediaUrl: "" })}>Gỡ video</button>}
                   </div>
                 </div>
+              </td>
+              <td><input type="number" min={1} className="w-24!" value={q.duration || 60} onChange={(e) => setQ(i, { duration: Number(e.target.value) || 60 })} /></td>
+              <td><input value={q.answer || ""} placeholder="Đáp án chuẩn" onChange={(e) => setQ(i, { answer: e.target.value })} /></td>
+              <td>
+                <div className="flex flex-col gap-1">
+                  <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => setQs([...qs, { id: uid(), answer: "", duration: 60, mediaUrl: "", mediaType: "video" }])}>+ Thêm</button>
+                  <button type="button" className="btn btn-danger text-xs py-1!" onClick={() => setQs(qs.filter((_, k) => k !== i))}>Xóa</button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {qs.length === 0 && <p className="text-mist text-sm mt-2">Chưa có câu hỏi Tăng tốc.</p>}
+    </div>
+  );
+}
+
+function VeDichEditor({ draft, setDraft, teams }) {
+  const m = draft.main;
+  const teamIds = ["a", "b", "c", "d"];
+  function findIdx(tid, id) {
+    return (m.veDich?.[tid] || []).findIndex((q) => q.id === id);
+  }
+  function setQ(tid, id, p) {
+    const qs = (m.veDich?.[tid] || []).map((q, k) => (k === findIdx(tid, id) ? { ...q, ...p } : q));
+    setDraft({ ...draft, main: { ...m, veDich: { ...(m.veDich || {}), [tid]: qs } } });
+  }
+  function delQ(tid, id) {
+    const qs = (m.veDich?.[tid] || []).filter((q) => q.id !== id);
+    setDraft({ ...draft, main: { ...m, veDich: { ...(m.veDich || {}), [tid]: qs } } });
+  }
+  function addQ(tid, points) {
+    const qs = [...(m.veDich?.[tid] || []), { id: uid(), points, question: "", answer: "" }].sort((x, y) => x.points - y.points);
+    setDraft({ ...draft, main: { ...m, veDich: { ...(m.veDich || {}), [tid]: qs } } });
+  }
+
+  return (
+    <div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {teamIds.map((tid) => {
+          const qs = (m.veDich?.[tid] || []).slice().sort((x, y) => x.points - y.points);
+          return (
+            <div key={tid} className="rounded-xl border border-line bg-night/40 p-3">
+              <div className="font-bold text-sm mb-3 flex items-center gap-2" style={{ color: teams.find((t) => t.id === tid)?.color }}>
+                {teams.find((t) => t.id === tid)?.name || tid.toUpperCase()}
+                <span className="ml-auto flex gap-1">
+                  {[20, 30, 40].map((p) => (
+                    <button key={p} type="button" className="btn btn-ghost text-xs py-0.5!" onClick={() => addQ(tid, p)}>+{p}</button>
+                  ))}
+                </span>
               </div>
-            )}
-
-            <div className="flex flex-wrap gap-2 mb-3">
-              {teamIds.map((tid) => (
-                <label key={tid} className="btn btn-ghost text-xs cursor-pointer">
-                  + Ảnh {state.teams.find((t) => t.id === tid)?.name}
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addKdWithImage(tid, f); }} />
-                </label>
-              ))}
-            </div>
-
-            <table className="table">
-              <thead>
-                <tr><th>#</th><th>Ảnh</th><th>Đội</th><th>Đáp án</th><th></th></tr>
-              </thead>
-              <tbody>
-                {teamIds.flatMap((tid) =>
-                  (main.khoiDong?.[tid] || []).map((qd, i) => ({ qd, i, tid }))
-                ).map(({ qd, i, tid }, idx) => {
-                  const team = state.teams.find((t) => t.id === tid);
-                  return (
-                    <tr key={qd.id}>
-                      <td className="text-mist">{idx + 1}</td>
-                      <td>
-                        {qd.mediaUrl ? (
-                          <img src={qd.mediaUrl} className="h-10 rounded object-cover cursor-pointer" onClick={() => setKdEdit({ teamId: tid, index: i, mediaUrl: qd.mediaUrl || "", mediaType: qd.mediaType || "", answer: qd.answer || "" })} />
-                        ) : (
-                          <span className="text-mist">—</span>
-                        )}
-                      </td>
-                      <td style={{ color: team?.color }} className="font-semibold text-sm">{team?.name} #{i + 1}</td>
-                      <td className="text-ok font-semibold">{qd.answer || <span className="text-mist">—</span>}</td>
-                      <td>
-                        <div className="flex gap-2">
-                          <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => setKdEdit({ teamId: tid, index: i, mediaUrl: qd.mediaUrl || "", mediaType: qd.mediaType || "", answer: qd.answer || "" })}>Sửa</button>
-                          <button type="button" className="btn btn-danger text-xs py-1!" onClick={() => deleteKdQuestion(tid, i)}>Xóa</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {teamIds.flatMap((tid) => main.khoiDong?.[tid] || []).length === 0 && (
-              <p className="text-mist text-sm mt-2">Chưa có ảnh. Nhấn nút "+ Ảnh" phía trên để thêm.</p>
-            )}
-          </div>
-        )}
-
-        {/* Vượt CNV: 4 hàng ngang */}
-        {mainTab === "vuot_cnv" && (
-          <div>
-            <div className="rounded-xl border border-line bg-night/40 p-3 mb-3">
-              <div className="font-bold text-sm mb-1">Từ khóa: <span className="text-gold">{main.vuotCnv?.keyword || "—"}</span></div>
-              <div className="text-mist text-sm">Gợi ý: {main.vuotCnv?.hint || "—"} • {main.vuotCnv?.letterCount || "?"} chữ cái</div>
-            </div>
-            <table className="table">
-              <thead><tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th><th>Số chữ cái</th></tr></thead>
-              <tbody>
-                {(main.vuotCnv?.rows || []).map((row, i) => (
-                  <tr key={row.id}>
-                    <td className="text-mist">{i + 1}</td>
-                    <td>{row.question}</td>
-                    <td className="text-ok font-semibold">{row.answer}</td>
-                    <td className="text-mist">{row.letterCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {(main.vuotCnv?.rows || []).length === 0 && <p className="text-mist text-sm mt-2">Chưa có câu hỏi Vượt CNV.</p>}
-          </div>
-        )}
-
-        {/* Tăng tốc: 4 câu (mỗi câu là 1 video — MC cài video) */}
-        {mainTab === "tang_toc" && (
-          <div>
-            <p className="text-mist text-sm mb-3">Vòng Tăng tốc: mỗi câu hỏi là <b>1 video</b>. Cài video cho từng câu; nếu chưa cài, video sẽ trống và khán giả thấy ô chờ. Đáp án chỉ để MC tham khảo khi chấm.</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {(main.tangToc || []).map((qd, i) => (
-                <div key={qd.id} className="rounded-xl border border-line bg-night/40 p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-bold text-sm">Câu {i + 1}</span>
-                    {qd.mediaUrl ? (
-                      <span className="badge badge-ok text-xs!">Đã cài video</span>
-                    ) : (
-                      <span className="badge text-xs!">Chưa có video</span>
-                    )}
-                    <button type="button" className="btn btn-ghost text-xs py-1! ml-auto" onClick={() => setTtEdit({ index: i, answer: qd.answer || "", duration: qd.duration || 60, mediaUrl: qd.mediaUrl || "" })}>Chỉnh sửa</button>
+              {qs.map((qd) => (
+                <div key={qd.id} className="flex items-start gap-2 mb-2">
+                  <b className="text-gold pt-1 w-8 shrink-0">{qd.points}</b>
+                  <div className="grid gap-1 flex-1">
+                    <textarea rows={2} value={qd.question || ""} placeholder={`Câu hỏi ${qd.points} điểm`} onChange={(e) => setQ(tid, qd.id, { question: e.target.value })} />
+                    <input value={qd.answer || ""} placeholder="Đáp án" onChange={(e) => setQ(tid, qd.id, { answer: e.target.value })} />
                   </div>
-                  {ttEdit && ttEdit.index === i ? (
-                    <div className="flex gap-4 items-start">
-                      <div className="shrink-0">
-                        {ttEdit.mediaUrl ? (
-                          <video src={ttEdit.mediaUrl} className="w-[200px] h-[120px] object-contain rounded-lg bg-black" controls />
-                        ) : (
-                          <div className="w-[200px] h-[120px] rounded-lg border border-dashed border-line grid place-items-center text-mist text-xs">Chưa có video</div>
-                        )}
-                        <label className="btn btn-ghost mt-2 cursor-pointer inline-block text-xs w-full text-center">
-                          {ttEdit.mediaUrl ? "Đổi video" : "Chọn video"}
-                          <input type="file" accept="video/*" className="hidden" onChange={async (e) => {
-                            const f = e.target.files?.[0];
-                            if (!f) return;
-                            const r = await uploadFile(f);
-                            setTtEdit({ ...ttEdit, mediaUrl: r.url });
-                          }} />
-                        </label>
-                        {ttEdit.mediaUrl && (
-                          <button type="button" className="btn btn-ghost mt-1 text-xs w-full" onClick={() => setTtEdit({ ...ttEdit, mediaUrl: "" })}>Gỡ video</button>
-                        )}
-                      </div>
-                      <div className="grid gap-3 flex-1">
-                        <label className="label-grid">
-                          Đáp án (tham khảo MC)
-                          <input value={ttEdit.answer || ""} onChange={(e) => setTtEdit({ ...ttEdit, answer: e.target.value })} placeholder="Đáp án chuẩn" />
-                        </label>
-                        <label className="label-grid">
-                          Thời lượng (giây, bằng video)
-                          <input type="number" min={1} value={ttEdit.duration} onChange={(e) => setTtEdit({ ...ttEdit, duration: e.target.value })} />
-                        </label>
-                        <div className="flex gap-2">
-                          <button type="button" className="btn" onClick={saveTtEdit}>Lưu</button>
-                          <button type="button" className="btn btn-ghost" onClick={() => setTtEdit(null)}>Hủy</button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-mist text-sm">
-                      Video: {qd.mediaUrl ? <span className="text-ok">đã cài</span> : <span>trống</span>}
-                      <span className="mx-2">•</span>
-                      Đáp án: <span className="text-ok font-semibold">{qd.answer || "—"}</span>
-                      <span className="mx-2">•</span>
-                      {qd.duration || 60}s
-                    </div>
-                  )}
+                  <button type="button" className="btn btn-danger text-xs py-1! mt-1" onClick={() => delQ(tid, qd.id)}>Xóa</button>
                 </div>
               ))}
+              {qs.length === 0 && <p className="text-mist text-xs">Chưa có câu hỏi.</p>}
             </div>
-          </div>
-        )}
-
-        {/* Về đích: 4 đội × 3 gói điểm */}
-        {mainTab === "ve_dich" && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {teamIds.map((tid) => {
-              const qs = main.veDich?.[tid] || [];
-              return (
-                <div key={tid} className="rounded-xl border border-line bg-night/40 p-3">
-                  <div className="font-bold text-sm mb-2" style={{ color: state.teams.find((t) => t.id === tid)?.color }}>
-                    {state.teams.find((t) => t.id === tid)?.name || tid.toUpperCase()} — {qs.length} gói
-                  </div>
-                  <table className="table">
-                    <thead><tr><th>Điểm</th><th>Câu hỏi</th><th>Đáp án</th></tr></thead>
-                    <tbody>
-                      {qs.map((qd) => (
-                        <tr key={qd.id}>
-                          <td className="text-gold font-bold">{qd.points}</td>
-                          <td className="truncate max-w-[200px]" title={qd.question}>{qd.question}</td>
-                          <td className="text-ok font-semibold">{qd.answer}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {qs.length === 0 && <p className="text-mist text-xs">Chưa có câu hỏi.</p>}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* JSON editor (fallback) */}
-        {mainTab === "json" && (
-          <>
-            <p className="text-mist text-sm mb-2">Chỉnh sửa trực tiếp JSON — useful khi cần bulk update.</p>
-            <textarea rows={18} value={mainText} onChange={(e) => setMainText(e.target.value)} className="w-full font-mono text-sm" />
-            <button
-              type="button"
-              className="btn mt-3"
-              onClick={async () => {
-                await saveMainQuestions(JSON.parse(mainText));
-                setMsg("Đã lưu câu hỏi vòng chính");
-                reload();
-              }}
-            >
-              Lưu vòng chính
-            </button>
-          </>
-        )}
+          );
+        })}
       </div>
+    </div>
+  );
+}
+
+function JsonEditor({ draft, setDraft, setMsg }) {
+  const [text, setText] = useState(JSON.stringify(draft.main, null, 2));
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    setText(JSON.stringify(draft.main, null, 2));
+  }, [draft.main]);
+
+  function apply() {
+    try {
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== "object") throw new Error("Phải là object bọc các vòng");
+      setDraft({ ...draft, main: normalizeMain(parsed) });
+      setErr(null);
+      setMsg("Đã nạp JSON vào bản nháp — bấm Lưu vòng chính");
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+
+  return (
+    <div>
+      <p className="text-mist text-sm mb-2">Sửa JSON rồi bấm <b>Nạp vào bản nháp</b>, sau đó <b>Lưu vòng chính</b>. Cấu trúc thiếu sẽ tự được bổ sung.</p>
+      <textarea rows={18} className="w-full font-mono text-sm" value={text} onChange={(e) => { setText(e.target.value); setErr(null); }} />
+      {err && <p className="text-red-400 text-sm mt-1">Lỗi: {err}</p>}
+      <button type="button" className="btn mt-3" onClick={apply} disabled={err}>Nạp vào bản nháp</button>
     </div>
   );
 }

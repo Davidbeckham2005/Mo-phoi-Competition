@@ -352,3 +352,68 @@
       0 20px 70px rgba(255, 77, 109, 0.75);
   }
 }
+
+/* ---------- Chế độ sáng ---------- */
+[data-theme="light"] {
+  --color-night: #eef2f8;
+  --color-panel: rgba(255, 255, 255, 0.85);
+  --color-panel-solid: #ffffff;
+  --color-line: rgba(30, 50, 100, 0.16);
+  --color-gold: #c99a00;
+  --color-gold-soft: #f5c518;
+  --color-mist: #5f6e8c;
+  --color-ink: #0f1a33;
+  --color-danger: #e63956;
+  --color-ok: #158346;
+}
+
+[data-theme="light"] body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(76, 201, 240, 0.12), transparent 50%),
+    radial-gradient(900px 500px at 100% 0%, rgba(201, 154, 0, 0.1), transparent 46%),
+    radial-gradient(800px 400px at 50% 100%, rgba(230, 57, 86, 0.07), transparent 50%),
+    #eef2f8;
+}
+
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(30, 50, 100, 0.22);
+  color: #0f1a33;
+}
+
+[data-theme="light"] .table th,
+[data-theme="light"] .table td {
+  border-bottom-color: rgba(30, 50, 100, 0.14);
+}
+
+[data-theme="light"] .opt {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(30, 50, 100, 0.2);
+}
+
+[data-theme="light"] .badge-ok {
+  border-color: rgba(21, 131, 70, 0.4);
+}
+
+[data-theme="light"] .badge-no {
+  color: #c23458;
+  border-color: rgba(230, 57, 86, 0.4);
+  background: rgba(230, 57, 86, 0.08);
+}
+
+[data-theme="light"] .badge-warn {
+  color: #8a6d00;
+  border-color: rgba(201, 154, 0, 0.5);
+  background: rgba(201, 154, 0, 0.1);
+}
+
+[data-theme="light"] .round-badge {
+  background: rgba(201, 154, 0, 0.1);
+}
+
+[data-theme="light"] .ltr-locked {
+  color: #d63a5b;
+  border-color: rgba(230, 57, 86, 0.5);
+}

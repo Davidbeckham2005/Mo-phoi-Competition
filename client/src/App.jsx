@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Register from "./pages/Register.jsx";
@@ -10,6 +11,13 @@ import Team from "./pages/Team.jsx";
 import StaffLogin from "./pages/StaffLogin.jsx";
 
 export default function App() {
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
   return (
     <div className="app-shell">
       <Routes>
@@ -26,6 +34,16 @@ export default function App() {
         <Route path="/dang-nhap" element={<StaffLogin />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+
+      <button
+        type="button"
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        title={theme === "dark" ? "Bật chế độ sáng" : "Bật chế độ tối"}
+        aria-label="Đổi giao diện"
+        className="fixed bottom-5 right-5 z-50 grid h-11 w-11 place-items-center rounded-full border bg-panel border-line text-xl shadow-lg transition hover:scale-105"
+      >
+        {theme === "dark" ? "☀️" : "🌙"}
+      </button>
     </div>
   );
 }
