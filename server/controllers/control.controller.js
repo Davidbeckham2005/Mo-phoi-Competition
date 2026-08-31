@@ -71,6 +71,7 @@ const actions = {
   "tangtoc.settle": () => game.settleTangToc(),
   "tangtoc.phase": (p) => game.tangTocSetPhase(p.phase),
   "tangtoc.mark": (p) => game.tangTocMark(p.teamId, !!p.correct),
+  "tangtoc.reveal": (p) => game.tangTocReveal(p.step),
   "contest.finish": () => game.finishContest(),
   "contest.resetGame": () => game.resetGameKeepTeams(),
   "main.resetQuestions": (p) => {

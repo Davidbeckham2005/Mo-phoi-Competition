@@ -243,7 +243,7 @@ export default function RoundTangToc({ ctx }) {
                     )}
                   </td>
                   <td className="py-2 pr-2 text-right text-mist">
-                    {r.submitted ? `${r.elapsed?.toFixed ? r.elapsed.toFixed(1) : r.elapsed}s` : "—"}
+                    {r.submitted ? `${r.elapsed?.toFixed ? r.elapsed.toFixed(2) : r.elapsed}s` : "—"}
                   </td>
                   <td className="py-2 text-center">
                     {r.submitted ? (
@@ -276,7 +276,7 @@ export default function RoundTangToc({ ctx }) {
                 <span className="min-w-0 flex-1 truncate text-xs text-mist" title={r.answer || ""}>
                   {r.submitted ? (
                     <>
-                      nộp {r.elapsed?.toFixed ? r.elapsed.toFixed(1) : r.elapsed}s
+                      nộp {r.elapsed?.toFixed ? r.elapsed.toFixed(2) : r.elapsed}s
                       {r.answer ? ` — “${r.answer}”` : ""}
                     </>
                   ) : (
@@ -307,6 +307,20 @@ export default function RoundTangToc({ ctx }) {
               </div>
             );
           })}
+        </div>
+        {/* Điều khiển màn hình khán giả: mở KẾT QUẢ CHẤM ĐIỂM (kèm đáp án đúng) để tạo
+            kịch tính — không hiện bước "đáp án" trung gian. Chỉ ở giai đoạn liệt kê. */}
+        <div className="flex flex-wrap items-center gap-3 mt-3 border-t border-line/50 pt-3">
+          <div className="text-xs tracking-[0.18em] text-mist uppercase mr-1">Màn hình khán giả</div>
+          <button
+            type="button"
+            className={`btn py-1! px-3! text-xs ${tt.reveal === "scores" ? "btn-ok" : ""}`}
+            disabled={phase !== "answers"}
+            onClick={() => act("tangtoc.reveal", { step: "scores" })}
+          >
+            🏆 Hiện kết quả chấm điểm {tt.reveal === "scores" ? "✓" : ""}
+          </button>
+          <span className="text-mist text-xs">Lộ điểm đúng/sai của từng đội lên màn hình khán giả.</span>
         </div>
         <div className="flex items-center gap-3 mt-3">
           <button

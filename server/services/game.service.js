@@ -17,6 +17,10 @@
       resumeFrom: null,
       elapsedBase: 0,
       startedAt: null,
+      // Trình tự bật mở trên màn hình khán giả trong giai đoạn chấm điểm (tạo hồi hộp):
+      //   ""       → chưa hiện gì (màn chờ "HẾT GIỜ")
+      //   "scores" → LỘ KẾT QUẢ CHẤM ĐIỂM (+40/30/20/10) + đáp án đúng
+      reveal: "",
     };
   }
 
@@ -107,10 +111,12 @@
               setTimer(q?.duration || q?.timeLimit || 120, true);
             }
           } else if (ph === "video") {
-            // Hết video: tự đóng nhận bài, đưa màn hình khán giả sang vùng liệt kê đáp án.
+            // Hết video: tự đóng nhận bài, chuyển sang giai đoạn chấm điểm —
+            // khán giả mặc định ở MÀN CHỜ (reveal="") chờ MC mở kết quả chấm điểm.
             game.tangToc.resumeFrom = null;
             game.tangToc.elapsedBase = 0;
             game.tangToc.startedAt = null;
+            game.tangToc.reveal = "";
             game.tangToc.phase = "answers";
           }
         } else if (
@@ -960,6 +966,20 @@ export function resetKhoiDong(teamId = null) {
     emit();
   }
 
+  // MC điều khiển màn hình khán giả để CHẤM ĐIỂM tạo kịch tính: khi đang ở giai đoạn
+  // liệt kê, bấm "Hiện điểm" → lộ luôn đánh giá đúng/sai + điểm (+40/30/20/10) của
+  // từng đội. KHÔNG hiện bước "đáp án" trung gian trên màn hình khán giả.
+  export function tangTocReveal(step) {
+    const game = g();
+    if (game.round !== "tang_toc") return;
+    if (game.tangToc?.phase !== "answers") return;
+    if (step === "scores") {
+      game.tangToc.reveal = "scores";
+    }
+    saveDb();
+    emit();
+  }
+
   // MC bấm "▶ Chiếu video": chạy đếm ngược TANG_TOC_PREP_SECONDS giây (hiện trên mọi
   // màn hình) rồi mới chuyển sang phase "video" và phát. KHÔNG xóa bài đã nộp, nên nếu
   // MC đã dừng giữa chừng (tangTocStop) thì lần phát này sẽ tiếp tục từ vị trí cũ.
@@ -997,16 +1017,20 @@ export function resetKhoiDong(teamId = null) {
     const game = db.game;
     if (game.round !== "tang_toc") return;
     if (game.tangToc?.phase === "video" && game.timer.running) {
-      // Giữ CHÍNH XÁC vị trí dừng theo thời gian thực (giây thập phân), không dùng
-      // timer.remaining (số nguyên, lệch tới ~1s) — để khi phát lại, thời điểm nhận
-      // đáp án và vị trí video vẫn đúng tuyệt đối.
+      // Giữ CHÍNH XÁC vị trí dừng theo đồng hồ 0s (giây thập phân): startedAt là mốc đoạn
+      // chiếu hiện tại, cộng dồn vào elapsedBase → khi phát lại vẫn nối tiếp đúng từ mốc 0s.
       const now = Date.now();
       const dur = game.timer.duration || 0;
-      const played = game.timer.endsAt
-        ? Math.max(0, Math.min(dur, (game.timer.endsAt - now) / 1000))
-        : Math.max(0, dur - (game.timer.remaining || 0));
+      const base = Number(game.tangToc.elapsedBase) || 0;
+      const startedAt = Number(game.tangToc.startedAt) || 0;
+      const played = startedAt
+        ? Math.max(0, (now - startedAt) / 1000)
+        : game.timer.endsAt
+          ? Math.max(0, Math.min(dur, (game.timer.endsAt - now) / 1000))
+          : Math.max(0, dur - (game.timer.remaining || 0));
       game.tangToc.resumeFrom = Math.max(0, dur - played);
-      game.tangToc.elapsedBase = (Number(game.tangToc.elapsedBase) || 0) + played;
+      game.tangToc.elapsedBase = base + played;
+      game.tangToc.startedAt = null;
       pauseTimer();
     }
   }
@@ -1040,6 +1064,8 @@ export function resetKhoiDong(teamId = null) {
       .filter((r) => r.correct === true && r.points > 0)
       .forEach((r) => addScore(r.teamId, r.points));
     game.tangToc.settled = true;
+    // Chốt điểm = tự động mở giai đoạn HIỂN THỊ ĐIỂM ngay trên màn hình khán giả.
+    game.tangToc.reveal = "scores";
     // Chỉ hiện đáp án khi đã sang giai đoạn liệt kê — nếu mới chốt trong lúc video
     // đang phát thì không giật ngang màn hình (để video chạy nốt trước).
     if (game.tangToc.phase === "answers") {

@@ -39,14 +39,31 @@ export default function Audience() {
   }
 
   const g = state.game || {};
+  const d = g.display || {};
   const remaining = timer?.remaining ?? g.timer?.remaining ?? 0;
   const running = timer?.running ?? g.timer?.running;
+  // Vòng 3: đang chiếu video → ƯU TIÊN giao diện CHỈ CÓ VIDEO, ẩn hết header/bảng điểm
+  // (khi MC đã mở câu hỏi + có video để chiếu). Chuẩn bị/liệt kê đáp án vẫn dùng layout đủ.
+  const ttVideoOnly =
+    g.round === "tang_toc" &&
+    (g.tangToc?.phase || "video") === "video" &&
+    d.mode === "question" &&
+    !!d.mediaUrl;
   // "Chờ giữa các câu hỏi" (vòng 2): vừa xử lý xong một hàng ngang, chưa chọn ô kế tiếp
   const p = g.puzzle || {};
   const waitingCnv = g.round === "vuot_cnv" && !p.keywordSolved && !!p.keywordWindow
     && !p.awaitingSteal && g.questionStatus !== "showing" && !g.buzzer?.winner;
   const roundName = (state.rounds || []).find((r) => r.id === g.round)?.name
     || (g.phase === "finished" ? "Chung cuộc" : "Chờ bắt đầu");
+
+  // Khi đang chiếu video round 3: màn hình chỉ còn MỖI video, chiếm trọn màn hình.
+  if (ttVideoOnly) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center overflow-hidden">
+        <Stage state={state} timer={timer} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-4 gap-3">
@@ -175,7 +192,7 @@ function Stage({ state, timer }) {
           <>
             {d.mediaUrl ? (
               <img src={d.mediaUrl} alt="" className="max-h-[30vh] max-w-[60vw] mx-auto rounded-2xl object-contain" />
-            ) : (
+) : (
               <div className="mx-auto w-[min(380px,60vw)] aspect-[4/3] rounded-2xl bg-panel-solid border border-line grid place-items-center">
                 <div className="text-4xl text-mist/40">?</div>
               </div>
@@ -418,7 +435,7 @@ function Round2Board({ state, g }) {
 //     Khán giả dựa TRÊN CÙNG phase của server như màn hình MC để luôn đồng bộ.
 function _fmtElapsed(sec) {
   if (sec == null) return "—";
-  return sec.toFixed(1) + "s";
+  return sec.toFixed(2) + "s";
 }
 
 function TangTocList({ items, teams, settled, judge }) {
@@ -540,12 +557,46 @@ function TangTocStage({ state, g, timer }) {
         .map(([teamId, s]) => ({ teamId, answer: s.answer, elapsed: s.elapsed, correct: null, points: 0, place: null }))
         .sort((a, b) => a.elapsed - b.elapsed);
 
-  // Kết quả hiển thị khi server chuyển phase "answers" — đồng bộ với màn hình MC.
+  // Giai đoạn chấm điểm — 2 BƯỚC TẠO HỒI HỘP:
+  //   1) reveal=""   → MÀN CHỜ "HẾT GIỜ": dấu "?" đầy bí ẩn, chờ MC mở.
+  //   2) "scores"    → HIỆN KẾT QUẢ CHẤM ĐIỂM: đúng/sai + +40/30/20/10 + đáp án chính xác.
+  const reveal = tt.reveal || "";
   if (showResults) {
+    if (reveal === "scores") {
+      return (
+        <div className="w-full">
+          <TangTocList items={ordered} teams={teams} settled={tt.settled} judge={true} />
+          {tt.settled && d.answer && (
+            <div className="kicker text-center mt-6">
+              ĐÁP ÁN: <span className="text-white text-[clamp(22px,3vw,36px)]">{d.answer}</span>
+            </div>
+          )}
+          {d.question && <div className="stage-note text-center mt-4">{d.question}</div>}
+        </div>
+      );
+    }
+    // reveal === "" → MÀN CHỜ KỊCH TÍNH (MC chưa mở kết quả chấm điểm)
     return (
-      <div className="w-full">
-        <TangTocList items={ordered} teams={teams} settled={tt.settled} judge={true} />
-        {d.question && <div className="stage-note text-center mt-4">{d.question}</div>}
+      <div className="w-full flex flex-col items-center justify-center gap-6 min-h-[55vh]">
+        <div className="kicker text-gold">HẾT GIỜ NỘP BÀI</div>
+        <div className="font-display font-black text-[clamp(60px,11vw,140px)] text-gold drop-shadow-[0_0_30px_rgba(255,214,10,0.3)]">
+          ?!
+        </div>
+        <div className="text-mist text-[clamp(16px,2.2vw,26px)] text-center max-w-[900px]">
+          Các đội đã gửi đáp án — video vừa dừng lại!
+        </div>
+        <div className="flex gap-6 mt-2">
+          {teams.filter((t) => ["a", "b", "c", "d"].includes(t.id)).map((t) => (
+            <div
+              key={t.id}
+              className="rounded-xl bg-panel/60 border border-line w-[160px] aspect-[4/3] grid place-items-center gap-2"
+            >
+              <div className="font-bold" style={{ color: t.color }}>{t.name}</div>
+              <span className="text-5xl animate-pulse" style={{ color: t.color }}>?</span>
+            </div>
+          ))}
+        </div>
+        <div className="kicker text-mist mt-2">Đang chờ MC mở kết quả chấm điểm…</div>
       </div>
     );
   }
@@ -584,25 +635,23 @@ function TangTocStage({ state, g, timer }) {
 
   return (
     <div className="w-full">
-      <div className="mx-auto w-full max-w-[1300px]">
-        {hasVideo ? (
-          <video
-            ref={vidRef}
-            src={d.mediaUrl}
-            muted
-            playsInline
-            preload="auto"
-            className="w-full max-h-[70vh] rounded-2xl border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)] bg-black"
-          />
-        ) : (
-          <div className="w-full aspect-video max-h-[70vh] rounded-2xl bg-panel-solid border border-line grid place-items-center">
-            <div className="text-center">
-              <div className="text-6xl text-mist/40">▶</div>
-              <div className="text-mist mt-2">Chưa có video cho câu này</div>
-            </div>
+      {hasVideo ? (
+        <video
+          ref={vidRef}
+          src={d.mediaUrl}
+          muted
+          playsInline
+          preload="auto"
+          className="w-full h-[100vh] object-contain bg-black"
+        />
+      ) : (
+        <div className="w-full aspect-video rounded-2xl bg-panel-solid border border-line grid place-items-center">
+          <div className="text-center">
+            <div className="text-6xl text-mist/40">▶</div>
+            <div className="text-mist mt-2">Chưa có video cho câu này</div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
