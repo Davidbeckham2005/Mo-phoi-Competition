@@ -5,6 +5,21 @@
   // trên mọi màn hình — MC + khán giả + đội).
   export const TANG_TOC_PREP_SECONDS = 3;
 
+  // Trạng thái mặc định cho mỗi câu hỏi vòng 3 (reset khi đổi câu / vào vòng).
+  // startedAt: thời điểm đoạn chiếu hiện tại bắt đầu — mốc 0s để ghi nhận đáp án.
+  function freshTangToc() {
+    return {
+      submissions: {},
+      ranked: [],
+      phase: "video",
+      corrections: {},
+      settled: false,
+      resumeFrom: null,
+      elapsedBase: 0,
+      startedAt: null,
+    };
+  }
+
   let timerHandle = null;
   let khoiDongTimer = null;
   let broadcast = () => {};
@@ -23,7 +38,6 @@
   // lấy dữ liệu game hiện tại hiển thị ra màng hình
   export function publicGame() {
     const db = getDb();
-    const { timer, ...gameWithoutTimer } = db.game;
     const state = {
       teams: db.teams.map((t) => ({
         id: t.id,
@@ -36,7 +50,11 @@
           return c ? { id: c.id, name: c.name } : null;
         }).filter(Boolean),
       })),
-      game: gameWithoutTimer,
+      // Gộp timer vào CÙNG game:state để phase + trạng thái đồng hồ LUÔN nhất quán trong
+      // một sự kiện socket. Trước đây timer bị lược bỏ ở đây → client phải khớp riêng lẻ
+      // hai luồng "game:state" (phase) và "game:timer" (running) -> dễ bị lệch nhịp 1 nhịp
+      // và hiện sai "Video chưa phát" dù video đang chiếu (vd màn hình đội D).
+      game: db.game,
       questions: db.questions,
       settings: {
         title: db.settings.title,
@@ -79,6 +97,9 @@
             game.tangToc.phase = "video";
             const resumeFrom = game.tangToc.resumeFrom || 0;
             game.tangToc.resumeFrom = null;
+            // Mốc bắt đầu đoạn chiếu này: bài nộp tính elapsed = elapsedBase + (now - startedAt)/1000
+            // → đồng hồ ghi đáp án đếm TỪ 0S cho mỗi lần phát (fresh: 0; resume: nối tiếp chính xác).
+            game.tangToc.startedAt = Date.now();
             if (resumeFrom > 0) {
               setTimer(resumeFrom, true);
             } else {
@@ -89,6 +110,7 @@
             // Hết video: tự đóng nhận bài, đưa màn hình khán giả sang vùng liệt kê đáp án.
             game.tangToc.resumeFrom = null;
             game.tangToc.elapsedBase = 0;
+            game.tangToc.startedAt = null;
             game.tangToc.phase = "answers";
           }
         } else if (
@@ -274,7 +296,7 @@ export function resetKhoiDong(teamId = null) {
       game.display.mode = "puzzle";
     }
     if (roundId === "tang_toc") {
-      game.tangToc = { submissions: {}, ranked: [], phase: "video", corrections: {}, settled: false, resumeFrom: null, elapsedBase: 0 };
+      game.tangToc = freshTangToc();
     }
     if (roundId === "khoi_dong") {
       game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60, answerSeconds: game.khoiDong?.answerSeconds, history: {} };
@@ -354,7 +376,7 @@ export function resetKhoiDong(teamId = null) {
     if (game.round === "tang_toc") {
       // Không tự phát — chỉ "sẵn sàng chiếu": MC bấm "Chiếu video" để chạy đếm ngược
       // 3 giây rồi mới phát (tangTocPlay).
-      game.tangToc = { submissions: {}, ranked: [], phase: "video", corrections: {}, settled: false, resumeFrom: null, elapsedBase: 0 };
+      game.tangToc = freshTangToc();
       const ttDur = q.duration || q.timeLimit || 120;
       game.display.note = `Câu ${game.questionIndex + 1} — bấm “Chiếu video” để phát (đếm ngược ${TANG_TOC_PREP_SECONDS}s rồi chiếu).`;
       setTimer(ttDur, false);
@@ -621,7 +643,7 @@ export function resetKhoiDong(teamId = null) {
       // Hàng ngang do đội chọn trực tiếp (puzzle.select), không tự tăng
     } else if (game.round === "tang_toc") {
       game.questionIndex = Math.min(3, game.questionIndex + 1);
-      game.tangToc = { submissions: {}, ranked: [], phase: "video", corrections: {}, settled: false, resumeFrom: null, elapsedBase: 0 };
+      game.tangToc = freshTangToc();
       setTimer(0, false);
     } else if (game.round === "ve_dich") {
       game.veDich.star = false;
@@ -640,6 +662,11 @@ export function resetKhoiDong(teamId = null) {
       if (game.puzzle.currentRow > 0) game.puzzle.currentRow -= 1;
     } else if (game.round === "tang_toc") {
       game.questionIndex = Math.max(0, game.questionIndex - 1);
+      // Reset trạng thái Tăng tốc khi quay về câu trước — đồng bộ với jump/next:
+      // nếu không, submissions/phase/settled của câu cũ còn sót lại, thí sinh
+      // không trả lời lại được cho câu đang chọn.
+      game.tangToc = freshTangToc();
+      setTimer(0, false);
     }
     saveDb();
     emit();
@@ -684,7 +711,7 @@ export function resetKhoiDong(teamId = null) {
       const q = getDb().questions.main.tangToc[Math.max(0, questionIndex)] || null;
       // Chọn câu KHÔNG tự phát — chỉ đưa về trạng thái "sẵn sàng chiếu"; MC bấm
       // "Chiếu video" để chạy đếm ngược 3 giây rồi mới phát.
-      game.tangToc = { submissions: {}, ranked: [], phase: "video", corrections: {}, settled: false, resumeFrom: null, elapsedBase: 0 };
+      game.tangToc = freshTangToc();
       game.questionStatus = "showing";
       game.display.mode = "question";
       game.display.question = q?.question || "";
@@ -860,14 +887,29 @@ export function resetKhoiDong(teamId = null) {
     if (game.round !== "tang_toc" || game.tangToc?.phase !== "video" || !game.timer.running) {
       return { ok: false, reason: "not-open" };
     }
+    if (game.tangToc?.settled) {
+      return { ok: false, reason: "closed" };
+    }
     if (game.tangToc.submissions[teamId]) {
       return { ok: false, reason: "already" };
     }
+    // Ghi nhận đáp án theo đồng hồ riêng đếm TỪ 0S (giây thập phân, tuyệt đối chính xác):
+    //   elapsed = elapsedBase (đã tích lũy trước những lần MC dừng) + (Date.now() - startedAt)/1000
+    // Không dùng timer.remaining (số nguyên, chỉ cập nhật mỗi 250ms) nên không bao giờ lệch tới ~1s.
+    const now = Date.now();
     const base = Number(game.tangToc.elapsedBase) || 0;
-    const elapsed = (game.timer.duration - game.timer.remaining) + base;
+    const startedAt = Number(game.tangToc.startedAt) || 0;
+    const dur = game.timer.duration || 0;
+    const played = startedAt
+      ? Math.max(0, (now - startedAt) / 1000)
+      : game.timer.endsAt
+        ? Math.max(0, Math.min(dur, (game.timer.endsAt - now) / 1000))
+        : Math.max(0, dur - (game.timer.remaining || 0));
+    const elapsed = base + played;
+
     game.tangToc.submissions[teamId] = {
       answer: String(answer || "").trim(),
-      at: Date.now(),
+      at: now,
       elapsed,
     };
     saveDb();
@@ -926,7 +968,7 @@ export function resetKhoiDong(teamId = null) {
     if (game.round !== "tang_toc") return;
     const ph = game.tangToc?.phase;
     if (ph === "answers" || (ph === "video" && game.timer.running)) return;
-    if (!game.tangToc) game.tangToc = { submissions: {}, ranked: [], corrections: {}, settled: false };
+    if (!game.tangToc) game.tangToc = freshTangToc();
     game.tangToc.phase = "preparing";
     const q = currentQuestion();
     game.questionStatus = "showing";
@@ -955,17 +997,26 @@ export function resetKhoiDong(teamId = null) {
     const game = db.game;
     if (game.round !== "tang_toc") return;
     if (game.tangToc?.phase === "video" && game.timer.running) {
-      game.tangToc.resumeFrom = game.timer.remaining;
-      game.tangToc.elapsedBase = Math.max(0, game.timer.duration - game.timer.remaining);
+      // Giữ CHÍNH XÁC vị trí dừng theo thời gian thực (giây thập phân), không dùng
+      // timer.remaining (số nguyên, lệch tới ~1s) — để khi phát lại, thời điểm nhận
+      // đáp án và vị trí video vẫn đúng tuyệt đối.
+      const now = Date.now();
+      const dur = game.timer.duration || 0;
+      const played = game.timer.endsAt
+        ? Math.max(0, Math.min(dur, (game.timer.endsAt - now) / 1000))
+        : Math.max(0, dur - (game.timer.remaining || 0));
+      game.tangToc.resumeFrom = Math.max(0, dur - played);
+      game.tangToc.elapsedBase = (Number(game.tangToc.elapsedBase) || 0) + played;
       pauseTimer();
     }
   }
 
-  // MC chấm đúng/sai từng đội sau khi video chiếu xong. Đúng → tính điểm theo hạng
-  // (sẽ cộng khi Chốt điểm); sai → 0 điểm, không trừ.
+  // MC chấm đúng/sai "tay" từng đội. KHÔNG phụ thuộc phase: không chờ video chiếu xong
+  // (phase "answers") nữa — cứ có bài nộp là MC chấm được luôn. Đúng → tính điểm theo
+  // hạng độ nhanh (sẽ cộng khi Chốt điểm); sai → 0 điểm, không trừ.
   export function tangTocMark(teamId, correct) {
     const game = g();
-    if (game.round !== "tang_toc" || game.tangToc.phase !== "answers" || game.tangToc.settled) {
+    if (game.round !== "tang_toc" || game.tangToc.settled) {
       return;
     }
     if (!game.tangToc.submissions?.[teamId]) return;
@@ -980,7 +1031,7 @@ export function resetKhoiDong(teamId = null) {
 
   export function settleTangToc() {
     const game = g();
-    if (game.round !== "tang_toc" || game.tangToc.phase !== "answers") return;
+    if (game.round !== "tang_toc") return;
     if (game.tangToc.settled) return; // tránh cộng điểm trùng
     if (!game.tangToc.ranked || game.tangToc.ranked.length === 0) {
       game.tangToc.ranked = computeTangTocRanked();
@@ -989,9 +1040,13 @@ export function resetKhoiDong(teamId = null) {
       .filter((r) => r.correct === true && r.points > 0)
       .forEach((r) => addScore(r.teamId, r.points));
     game.tangToc.settled = true;
-    const q = getDb().questions.main.tangToc[game.questionIndex];
-    game.display.answerRevealed = true;
-    game.display.answer = q ? q.answer : "";
+    // Chỉ hiện đáp án khi đã sang giai đoạn liệt kê — nếu mới chốt trong lúc video
+    // đang phát thì không giật ngang màn hình (để video chạy nốt trước).
+    if (game.tangToc.phase === "answers") {
+      const q = getDb().questions.main.tangToc[game.questionIndex];
+      game.display.answerRevealed = true;
+      game.display.answer = q ? q.answer : "";
+    }
     saveDb();
     emit();
   }
@@ -1049,7 +1104,7 @@ export function resetKhoiDong(teamId = null) {
     game.khoiDong = game.khoiDong || {};
     game.khoiDong.history = {};
     game.khoiDong.submissions = {};
-    game.tangToc = { submissions: {}, ranked: [], phase: "video", corrections: {}, settled: false, resumeFrom: null, elapsedBase: 0 };
+    game.tangToc = freshTangToc();
     game.puzzle = emptyPuzzle();
     game.veDich = { packagePoints: 20, star: false, answeringTeam: "a", stealOpen: false };
     if (game.round === "vuot_cnv") game.display.mode = "puzzle";

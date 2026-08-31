@@ -1,3 +1,46 @@
+## UI DESIGN RULE — AVOID AI-GENERATED LOOK
+
+When implementing UI, DO NOT use generic AI-generated dashboard aesthetics.
+
+Avoid:
+- Excessive rounded cards
+- Excessive gradients
+- Glassmorphism
+- Purple/blue AI-style gradients
+- Excessive shadows
+- Huge typography
+- Excessive icons
+- Floating cards everywhere
+- Decorative blobs or abstract backgrounds
+- Excessive animations
+- Unnecessary badges/pills
+- Making every element a separate card
+- Excessive whitespace
+- "Modern SaaS dashboard" visual style
+- Generic Tailwind component patterns
+
+Prefer:
+- Flat and structured layouts
+- Clear visual hierarchy
+- Strong alignment
+- Consistent spacing
+- Minimal shadows
+- Limited border radius
+- Solid colors
+- Functional controls
+- Dense information when appropriate
+- Typography hierarchy instead of decorative elements
+- Visual language appropriate for a TV quiz/game system
+- Real-world broadcast control-room interfaces as inspiration
+
+The UI should feel designed by a professional product designer,
+not generated from a generic AI dashboard template.
+
+Before implementing:
+1. Analyze the existing visual language.
+2. Reuse existing components and patterns.
+3. Avoid introducing new visual patterns unless necessary.
+4. Prefer simple solutions over decorative solutions.
 # AGENTS.md — QUY TẮC LÀM VIỆC CHO AI AGENT
 
 > Quy tắc bắt buộc áp dụng cho tất cả AI Agent làm việc trong repository.

@@ -438,7 +438,7 @@ function TangTocList({ items, teams, settled, judge }) {
               className="flex items-center gap-4 rounded-xl bg-panel-solid border border-line px-4 py-3"
             >
               <span className="font-display font-black text-[clamp(20px,2.6vw,34px)] w-12 text-center shrink-0"
-                style={{ color: it.place ? "#ffd60a" : "inherit" }}>
+                style={{ color: it.place ? "var(--color-gold)" : "inherit" }}>
                 {it.place ? `${it.place}.` : "•"}
               </span>
               <div className="min-w-0 flex-1">
@@ -463,8 +463,8 @@ function TangTocStage({ state, g, timer }) {
   const d = g.display || {};
   const tt = g.tangToc || {};
   const phase = tt.phase || "video";
-  // Đồng hồ CHÍNH THỨC là game:timer trực tiếp (prop timer) — state.game.timer bị lược
-  // bỏ ở state.service (publicGame bỏ timer ra khỏi game), nên KHÔNG dùng g.timer.
+  // Đồng hồ CHÍNH THỨC là game:timer trực tiếp (prop timer); state.game.timer được publicGame
+  // gửi kèm trong game:state (cập nhật mỗi nửa giây) nên chỉ dùng làm fallback.
   const vidRef = useRef(null);
   // timer có thể null/undefined ngay khi màn hình vừa nạp (game:timer về sau một nhịp).
   // Fallback an toàn tránh crash và tránh chiếu video tự do lệch nhịp.
@@ -472,58 +472,59 @@ function TangTocStage({ state, g, timer }) {
   const timerRunning = !!t.running;
   const timerDuration = t.duration || 0;
   const timerRemaining = t.remaining ?? 0;
-  // ĐỒNG BỘ VIDEO + THỜI GIAN với màn hình MC: mọi màn hình SnAP video theo cùng đồng
-  // hồ server (duration - remaining). Bám chặt (sai số ≤0.15s) để khán giả không thấy
-  // lệch so với MC; bám ngay khi video vừa nạp xong (loadedmetadata/canplay) để không
-  // bị lệch lúc bắt đầu chiếu.
-  // Mở trang muộn (giữa lúc video đang chiếu): QUAN TRỌNG — chưa đúng vị trí thì seek
-  // trước rồi MỚI phát (không autoPlay từ 0s rồi nhảy vọt), nên khi vào sau video sẽ hiện
-  // đúng đoạn đang chiếu thay vì chạy lại từ đầu / nhảy lung tung.
-  useEffect(() => {
-    const v = vidRef.current;
-    if (!v) return;
-    // Video mở ở chế độ muted để trình duyệt cho phép phát; khi video ĐÃ phát được thì
-    // bật âm thanh tự động (không cần nút bấm, vẫn hợp autoplay policy).
-    const unmute = () => {
-      if (v.muted) v.muted = false;
-    };
-    const apply = () => {
-      // Chỉ phát trong phase "video". Phase "preparing" (đếm ngược 3·2·1), "answers"
-      // (liệt kê đáp án) hay trước khi MC chiếu → mọi màn hình giữ video dừng lại.
-      if (phase !== "video" || d.mode !== "question") {
-        v.pause();
-        return;
-      }
-      if (!timerRunning || !timerDuration) {
-        v.pause();
-        return;
-      }
-      const elapsed = Math.max(0, timerDuration - timerRemaining);
-      const finiteDur = v.duration && isFinite(v.duration) && v.duration > 0;
-      const target = Math.min(elapsed, finiteDur ? v.duration : timerDuration);
-      // Chưa khớp vị trí: seek + dừng, chờ seeked/canplay rồi mới phát.
-      if (v.readyState >= 1 && Math.abs(v.currentTime - target) > 0.15) {
-        v.currentTime = target;
-        v.pause();
-        return;
-      }
-      v.play().then(unmute).catch(() => {});
-    };
-    apply();
-    // Nạp xong / đổi duration / seek xong / phát được → căn ngay (không chờ nhịp 250ms kế).
-    v.addEventListener("loadedmetadata", apply);
-    v.addEventListener("durationchange", apply);
-    v.addEventListener("canplay", apply);
-    v.addEventListener("seeked", apply);
-    v.addEventListener("playing", unmute);
-    return () => {
-      v.removeEventListener("loadedmetadata", apply);
-      v.removeEventListener("durationchange", apply);
-      v.removeEventListener("canplay", apply);
-      v.removeEventListener("seeked", apply);
-      v.removeEventListener("playing", unmute);
-    };
-  }, [phase, timerRunning, timerDuration, timerRemaining, d.mediaUrl, d.mode]);
+// ĐỒNG BỘ VIDEO + THỜI GIAN với màn hình MC: mọi màn hình SnAP video theo cùng đồng
+      // hồ server (duration - remaining + elapsedBase). Bám khi lệch lớn (>1.2s) để khán
+      // giả không lệch so với MC; bám ngay khi video vừa nạp xong (loadedmetadata/canplay)
+      // để không bị lệch lúc bắt đầu chiếu. KHÔNG bám sát từng giây (0.15s) vì remaining
+      // là số nguyên cập nhật mỗi giây → seek giật làm video tự dừng rồi phát lại.
+      // Mở trang muộn (giữa lúc video đang chiếu): QUAN TRỌNG — chưa đúng vị trí thì seek
+      // trước rồi MỚI phát (không autoPlay từ 0s rồi nhảy vọt), nên khi vào sau video sẽ hiện
+      // đúng đoạn đang chiếu thay vì chạy lại từ đầu / nhảy lung tung.
+      useEffect(() => {
+        const v = vidRef.current;
+        if (!v) return;
+        // Video mở ở chế độ muted để trình duyệt cho phép phát; khi video ĐÃ phát được thì
+        // bật âm thanh tự động (không cần nút bấm, vẫn hợp autoplay policy).
+        const unmute = () => {
+          if (v.muted) v.muted = false;
+        };
+        const apply = () => {
+          // Chỉ phát trong phase "video". Phase "preparing" (đếm ngược 3·2·1), "answers"
+          // (liệt kê đáp án) hay trước khi MC chiếu → mọi màn hình giữ video dừng lại.
+          if (phase !== "video" || d.mode !== "question") {
+            v.pause();
+            return;
+          }
+          if (!timerRunning || !timerDuration) {
+            v.pause();
+            return;
+          }
+          const elapsed = Math.max(0, timerDuration - timerRemaining) + (tt.elapsedBase || 0);
+          const finiteDur = v.duration && isFinite(v.duration) && v.duration > 0;
+          const target = Math.min(elapsed, finiteDur ? v.duration : timerDuration);
+          // Lệch nhiều (vào giữa lúc đang chiếu / vừa resume): seek + dừng, chờ seeked/canplay.
+          if (v.readyState >= 1 && Math.abs(v.currentTime - target) > 1.2) {
+            v.currentTime = target;
+            v.pause();
+            return;
+          }
+          v.play().then(unmute).catch(() => {});
+        };
+        apply();
+        // Nạp xong / đổi duration / seek xong / phát được → căn ngay (không chờ nhịp 250ms kế).
+        v.addEventListener("loadedmetadata", apply);
+        v.addEventListener("durationchange", apply);
+        v.addEventListener("canplay", apply);
+        v.addEventListener("seeked", apply);
+        v.addEventListener("playing", unmute);
+        return () => {
+          v.removeEventListener("loadedmetadata", apply);
+          v.removeEventListener("durationchange", apply);
+          v.removeEventListener("canplay", apply);
+          v.removeEventListener("seeked", apply);
+          v.removeEventListener("playing", unmute);
+        };
+      }, [phase, timerRunning, timerDuration, timerRemaining, d.mediaUrl, d.mode, tt.elapsedBase]);
   const showResults = phase === "answers";
   const showPrep = phase === "preparing";
   const submissions = tt.submissions || {};

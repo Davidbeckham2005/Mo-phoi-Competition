@@ -417,3 +417,9 @@
   color: #d63a5b;
   border-color: rgba(230, 57, 86, 0.5);
 }
+
+[data-theme="light"] .r2-pill-no {
+  color: #c23458;
+  background: rgba(230, 57, 86, 0.08);
+  border-color: rgba(230, 57, 86, 0.5);
+}

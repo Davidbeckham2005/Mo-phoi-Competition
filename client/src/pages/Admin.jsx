@@ -278,6 +278,26 @@ function eq(a, b) {
 function uid() {
   return "q" + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
 }
+function probeVideoDuration(src) {
+  return new Promise((resolve) => {
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.muted = true;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      const d = v.duration;
+      resolve(d && isFinite(d) && d > 0 ? Math.ceil(d) : undefined);
+      v.removeAttribute("src");
+      v.load();
+    };
+    v.onloadedmetadata = finish;
+    v.onerror = finish;
+    setTimeout(finish, 8000);
+    v.src = src;
+  });
+}
 function normalizeMain(v) {
   const m = {
     khoiDong: v.khoiDong || {},
@@ -667,15 +687,35 @@ function TangTocEditor({ draft, setDraft }) {
                       <input type="file" accept="video/*" className="hidden" onChange={async (e) => {
                         const f = e.target.files?.[0];
                         if (!f) return;
+                        const localUrl = URL.createObjectURL(f);
+                        const dur = await probeVideoDuration(localUrl);
+                        URL.revokeObjectURL(localUrl);
                         const r = await uploadFile(f);
-                        setQ(i, { mediaUrl: r.url });
+                        setQ(i, { mediaUrl: r.url, duration: dur ?? q.duration ?? 60 });
                       }} />
                     </label>
                     {q.mediaUrl && <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => setQ(i, { mediaUrl: "" })}>Gỡ video</button>}
                   </div>
                 </div>
               </td>
-              <td><input type="number" min={1} className="w-24!" value={q.duration || 60} onChange={(e) => setQ(i, { duration: Number(e.target.value) || 60 })} /></td>
+              <td>
+                <div className="flex items-center gap-1">
+                  <input type="number" min={1} className="w-20!" value={q.duration || 60} onChange={(e) => setQ(i, { duration: Number(e.target.value) || 60 })} />
+                  {q.mediaUrl && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost text-xs py-1! px-2!"
+                      title="Tự nhận thời lượng từ video"
+                      onClick={async () => {
+                        const d = await probeVideoDuration(q.mediaUrl);
+                        if (d) setQ(i, { duration: d });
+                      }}
+                    >
+                      ⟳
+                    </button>
+                  )}
+                </div>
+              </td>
               <td><input value={q.answer || ""} placeholder="Đáp án chuẩn" onChange={(e) => setQ(i, { answer: e.target.value })} /></td>
               <td>
                 <div className="flex flex-col gap-1">

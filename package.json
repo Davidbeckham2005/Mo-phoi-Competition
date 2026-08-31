@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "concurrently -n server,client -c cyan,magenta \"npm run server\" \"npm run client\"",
     "server": "node --watch server/index.js",
-    "client": "npm run dev --prefix client",
+    "client": "node scripts/wait-for-server.mjs && npm run dev --prefix client",
     "setup": "npm install && npm install --prefix client"
   },
   "dependencies": {

@@ -46,9 +46,12 @@ export default function Team() {
     });
   }, []);
 
+  // Reset ô đáp án Tăng tốc khi MC đổi câu hỏi: câu vòng 3 là video nên d.question
+  // có thể KHÔNG đổi giữa các câu → đáp án cũ bị giữ nguyên trong ô, dễ nộp nhầm
+  // cho câu mới. Gộp thêm g.questionIndex để luôn reset đúng mỗi lần đổi câu.
   useEffect(() => {
     setAnswer("");
-  }, [d.question]);
+  }, [d.question, g.questionIndex]);
 
   function doLogin(e) {
     e.preventDefault();
@@ -116,7 +119,7 @@ export default function Team() {
               key={t.id}
               type="button"
               onClick={() => setPickId(t.id)}
-              style={{ borderColor: pickId === t.id ? "#ffd60a" : t.color }}
+              style={{ borderColor: pickId === t.id ? "var(--color-gold)" : t.color }}
               className={`panel text-left cursor-pointer transition hover:-translate-y-0.5 ${
                 pickId === t.id ? "shadow-[0_0_0_2px_rgba(255,214,10,0.35)]" : ""
               }`}

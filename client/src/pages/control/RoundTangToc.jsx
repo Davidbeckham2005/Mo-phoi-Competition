@@ -41,8 +41,8 @@ export default function RoundTangToc({ ctx }) {
   const ranked = tt.ranked || [];
   const corrections = tt.corrections || {};
   const teams = state.teams || [];
-  // Đồng hồ CHÍNH THỨC là game:timer trực tiếp (ctx.timer) — state.game.timer bị lược bỏ
-  // ở state.service (publicGame bỏ timer ra khỏi game), nên KHÔNG dùng g.timer.
+  // Đồng hồ CHÍNH THỨC là game:timer trực tiếp (ctx.timer); state.game.timer được publicGame
+  // gửi kèm trong game:state (cập nhật mỗi nửa giây) nên chỉ dùng làm fallback.
   const timer = ctx.timer || {};
   const running = !!timer.running;
   const shown = (g.display?.mode === "question") && (g.display?.mediaType === "video" || phase === "video");
@@ -63,11 +63,14 @@ export default function RoundTangToc({ ctx }) {
         v.pause();
         return;
       }
-      const elapsed = Math.max(0, timer.duration - remaining);
+      // elapsedBase: đoạn đã chiếu trước khi MC dừng (để resume giữa chừng vẫn đúng vị trí)
+      const elapsed = Math.max(0, timer.duration - remaining) + (tt.elapsedBase || 0);
       const finiteDur = v.duration && isFinite(v.duration) && v.duration > 0;
       const target = Math.min(elapsed, finiteDur ? v.duration : timer.duration);
-      // Chưa khớp vị trí: seek + dừng, chờ seeked/canplay rồi mới phát.
-      if (v.readyState >= 1 && Math.abs(v.currentTime - target) > 0.15) {
+      // Chỉ seek khi lệch NHIẾU (>1.2s): đồng hồ server trả remaining là số nguyên làm
+      // mới mỗi giây → bám 0.15s sẽ seek giật liên tục (video tự dừng rồi phát lại).
+      // Trong lúc phát bình thường chỉ cần giữ nguyên rồi play() — không reset vị trí.
+      if (v.readyState >= 1 && Math.abs(v.currentTime - target) > 1.2) {
         v.currentTime = target;
         v.pause();
         return;
@@ -87,7 +90,7 @@ export default function RoundTangToc({ ctx }) {
       v.removeEventListener("seeked", apply);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, running, remaining, timer.duration, shown, g.display?.mediaUrl]);
+  }, [phase, running, remaining, timer.duration, shown, g.display?.mediaUrl, tt.elapsedBase]);
 
   if (g.round !== "tang_toc") return null;
 
@@ -131,7 +134,7 @@ export default function RoundTangToc({ ctx }) {
         <span className={`${status.tone} text-sm px-3 py-1`}>{status.label}</span>
         <span className="text-mist text-sm ml-auto">
           Đã nộp <b className="text-white">{subCount}</b>/4 • Đồng hồ{" "}
-          {running ? <b className="text-gold">{remaining}s</b> : <b className="text-mist">{remaining}s (dừng)</b>} / {duration}s
+          {running ? <b className="text-gold">{remaining}s</b> : <b className="text-mist">{remaining}s (dừng)</b>} / {Math.round(duration)}s
         </span>
       </div>
 
@@ -261,8 +264,7 @@ export default function RoundTangToc({ ctx }) {
 
       {/* 3. Xử lý câu trả lời đúng / sai */}
       <div className="rounded-xl border border-line bg-night/40 p-3">
-        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-1">Chấm đúng / sai</div>
-        <p className="text-mist text-sm mb-2">Đúng +40/30/20/10 theo độ nhanh • Sai 0đ, không trừ.</p>
+        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Chấm đúng / sai</div>
         <div className="space-y-2">
           {rows.map((r) => {
             const ok = r.correct === true;
@@ -281,7 +283,7 @@ export default function RoundTangToc({ ctx }) {
                     "chưa nộp"
                   )}
                 </span>
-                {!settled && phase === "answers" && (
+                {!settled && r.submitted && (
                   <>
                     <button
                       type="button"
@@ -315,9 +317,6 @@ export default function RoundTangToc({ ctx }) {
           >
             {settled ? "Đã chốt điểm ✓" : "Chốt điểm Tăng tốc"}
           </button>
-          <span className="text-mist text-sm">
-            {settled ? "Điểm đã cộng vào bảng tổng." : "Cộng điểm các đội đúng vào bảng tổng."}
-          </span>
         </div>
       </div>
 
