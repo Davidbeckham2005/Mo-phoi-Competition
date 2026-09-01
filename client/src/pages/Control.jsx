@@ -22,8 +22,6 @@ export default function Control() {
   const nav = useNavigate();
   const { state, timer } = useGameState();
   const [current, setCurrent] = useState(null);
-  const [sideOpen, setSideOpen] = useState(true);
-  const [scoreOpen, setScoreOpen] = useState(true);
   const [customScore, setCustomScore] = useState({});
   const [confirmStart, setConfirmStart] = useState(null);
   const [roundPin, setRoundPin] = useState("");
@@ -232,27 +230,8 @@ export default function Control() {
 
   return (
     <>
-    <div className="fixed top-4 right-4 z-30 flex gap-1.5">
-      <button
-        type="button"
-        className="btn btn-ghost text-sm px-2.5! py-1!"
-        title={sideOpen ? "Ẩn cột trái" : "Hiện cột trái"}
-        onClick={() => setSideOpen(!sideOpen)}
-      >
-        {sideOpen ? "◀" : "▶"} Cột trái
-      </button>
-      <button
-        type="button"
-        className="btn btn-ghost text-sm px-2.5! py-1!"
-        title={scoreOpen ? "Ẩn bảng điểm" : "Hiện bảng điểm"}
-        onClick={() => setScoreOpen(!scoreOpen)}
-      >
-        Bảng điểm {scoreOpen ? "▼" : "▲"}
-      </button>
-    </div>
     <div
       className="grid gap-4 px-4 py-5 mx-auto max-w-[1600px] lg:grid-cols-[var(--col-l,240px)_minmax(0,1fr)_var(--col-r,280px)] items-start"
-      style={{ "--col-l": sideOpen ? "240px" : "0px", "--col-r": scoreOpen ? "280px" : "0px" }}
     >
       {/* CỘT TRÁI — Vòng thi / đội */}
       <aside className="aside-col panel">
@@ -262,7 +241,6 @@ export default function Control() {
             <h3 className="font-display font-bold mt-2">{state.settings?.title}</h3>
           </div>
         </div>
-        {sideOpen && (<>
         <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2 mt-4">Vòng thi</div>
         <div className="grid gap-2">
           {[
@@ -318,11 +296,10 @@ export default function Control() {
             );
           })}
         </div>
-        </>)}
-        </>)}
         <p className="mt-5">
           <Link to="/admin" className="text-gold underline">Mở trang quản trị</Link>
         </p>
+        </>)}
       </aside>
 
       {/* CỘT GIỮA */}
@@ -362,7 +339,6 @@ export default function Control() {
       {/* CỘT PHẢI — Bảng điểm */}
       <aside className="aside-col panel">
         <b>Bảng điểm</b>
-        {scoreOpen && (
           <>
             <div className="flex flex-col gap-3 mt-3">
               {state.teams.map((t) => {
@@ -433,7 +409,6 @@ export default function Control() {
               })}
             </div>
           </>
-        )}
       </aside>
 
       {confirmStart && (
