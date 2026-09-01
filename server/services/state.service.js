@@ -18,6 +18,9 @@ export function publicState() {
       prelimOpen: d.settings.prelimOpen,
       // có show bảng xếp hạng trực tiếp hay không  
       showLiveRanking: d.settings.showLiveRanking,
+      // kiểu nền + ảnh nền của màn hình khán giả (vòng khởi động)
+      audienceBg: d.settings.audienceBg || "dark",
+      audienceBgUrl: d.settings.audienceBgUrl || "",
     },
     // danh sách các đội thi
     teams: d.teams.map((t) => ({

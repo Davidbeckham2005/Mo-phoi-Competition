@@ -1,4 +1,4 @@
-  import { getDb, saveDb, resetContest } from "../models/store.js";
+  import { getDb, saveDb, resetContest, normalizeMainKhoiDong } from "../models/store.js";
   import { publicState, adminState } from "../services/state.service.js";
   import * as exam from "../services/exam.service.js";
   import * as game from "../services/game.service.js";
@@ -97,7 +97,7 @@
 
   export function saveMainQuestions(req) {
     const db = getDb();
-    db.questions.main = req.body.main || db.questions.main;
+    db.questions.main = normalizeMainKhoiDong(req.body.main || db.questions.main);
     saveDb();
     return db.questions.main;
   }

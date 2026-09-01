@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Register from "./pages/Register.jsx";
 import Exam from "./pages/Exam.jsx";
@@ -12,6 +12,7 @@ import StaffLogin from "./pages/StaffLogin.jsx";
 
 export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
+  const { pathname } = useLocation();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -40,7 +41,9 @@ export default function App() {
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         title={theme === "dark" ? "Bật chế độ sáng" : "Bật chế độ tối"}
         aria-label="Đổi giao diện"
-        className="fixed bottom-5 right-5 z-50 grid h-11 w-11 place-items-center rounded-full border bg-panel border-line text-xl shadow-lg transition hover:scale-105"
+        className={`fixed bottom-5 right-5 z-50 grid h-11 w-11 place-items-center rounded-full border bg-panel border-line text-xl shadow-lg transition hover:scale-105 ${
+          pathname === "/man-hinh" ? "hidden" : ""
+        }`}
       >
         {theme === "dark" ? "☀️" : "🌙"}
       </button>

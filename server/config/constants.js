@@ -82,5 +82,7 @@ export function defaultSettings() {
     topN: 16,
     prelimOpen: false,
     showLiveRanking: false,
+    audienceBg: "dark",
+    audienceBgUrl: "",
   };
 }

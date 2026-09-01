@@ -40,7 +40,7 @@ const actions = {
         throw err;
       }
     }
-    return game.jumpToQuestion(p.teamId, p.questionIndex);
+    return game.jumpToQuestion(p.teamId, p.questionIndex, p.memberIndex);
   },
   "answer.mark": (p) => game.markAnswer(!!p.correct, p.teamId),
   "score.add": (p) => game.addScore(p.teamId, p.points),

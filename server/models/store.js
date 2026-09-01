@@ -39,6 +39,40 @@ export function defaultDb() {
   };
 }
 
+// Rozsiance danych main: khoiDong zwana płuska (câu/�nh lluık) → zjednoluc új boki (thí sinh × 5 caih).
+// Odporność na stare dane w BD, aby nowa UI (boki thí sinha) i server działały poprawnie.
+function normalizeMainKhoiDong(main) {
+  if (!main) return main;
+  const fixed = { ...main };
+  const normQ = (q) => ({ id: q.id || (q.id ? q.id : ""), answer: q.answer || "", points: q.points || 10, mediaUrl: q.mediaUrl || "", mediaType: q.mediaType || "", ...q });
+  const fixedKd = {};
+  for (const tid of ["a", "b", "c", "d"]) {
+    const raw = fixed.khoiDong?.[tid] || [];
+    if (!Array.isArray(raw) || raw.length === 0) { fixedKd[tid] = []; continue; }
+    const asMod = (x) => Array.isArray(x) ? x.filter((q) => q && typeof q === "object") : [];
+    let clusters;
+    if (Array.isArray(raw[0])) {
+      clusters = raw.map((mod) => {
+        const qs = asMod(mod);
+        return Array.from({ length: 5 }, (_, i) => qs[i] ? normQ(qs[i]) : { id: `kd-${tid}-${i}`, answer: "", points: 10, mediaUrl: "", mediaType: "" });
+      });
+    } else {
+      const flat = asMod(raw);
+      clusters = [];
+      for (let m = 0; m < 4; m++) {
+        const cl = [];
+        for (let i = 0; i < 5; i++) cl.push(flat[m * 5 + i] ? normQ(flat[m * 5 + i]) : { id: `kd-${tid}-${m}-${i}`, answer: "", points: 10, mediaUrl: "", mediaType: "" });
+        clusters.push(cl);
+      }
+    }
+    fixedKd[tid] = clusters;
+  }
+  fixed.khoiDong = fixedKd;
+  return fixed;
+}
+
+export { normalizeMainKhoiDong };
+
 async function persist(data) {
   const conn = await getConnection();
   try {
@@ -78,7 +112,7 @@ async function assemble() {
       contestants,
       questions: {
         soKhao: soKhao.length ? soKhao : fallback.questions.soKhao,
-        main: main || fallback.questions.main,
+        main: normalizeMainKhoiDong(main || fallback.questions.main),
       },
       media,
       game: game || defaultGame(),
@@ -100,6 +134,10 @@ export async function loadDb() {
       ...defaultDb(),
       ...json,
       settings: { ...defaultDb().settings, ...(json.settings || {}) },
+      questions: {
+        soKhao: json.questions?.soKhao || defaultDb().questions.soKhao,
+        main: normalizeMainKhoiDong(json.questions?.main || defaultDb().questions.main),
+      },
     };
     if (!db.game) db.game = defaultGame();
   } else {

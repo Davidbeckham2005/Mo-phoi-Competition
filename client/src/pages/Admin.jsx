@@ -306,7 +306,27 @@ function normalizeMain(v) {
     veDich: v.veDich || {},
   };
   for (const tid of ["a", "b", "c", "d"]) {
-    m.khoiDong[tid] = (m.khoiDong[tid] || []).filter((q) => q && typeof q === "object").map((q) => ({ id: q.id || uid(), answer: q.answer || "", points: q.points || 10, mediaUrl: q.mediaUrl || "", mediaType: q.mediaType || "", ...q }));
+    const raw = m.khoiDong[tid] || [];
+    // Chuẩn hóa dữ liệu Khởi động thành dạng lưng: mảng "bọc thí sinh", mỗi bọc là 5 hình ảnh.
+    // Nếu dữ liệu đang phẳng (câu/ảnh phẳng) → gom thành bọc 5 mỗi lượt; nếu đã lưng thì giữ nguyên.
+    const normQ = (q) => ({ id: q.id || uid(), answer: q.answer || "", points: q.points || 10, mediaUrl: q.mediaUrl || "", mediaType: q.mediaType || "", ...q });
+    const asMod = (x) => Array.isArray(x) ? x.filter((q) => q && typeof q === "object") : [];
+    let clusters;
+    if (raw.length && Array.isArray(raw[0])) {
+      clusters = raw.map((mod) => {
+        const qs = asMod(mod);
+        return Array.from({ length: 5 }, (_, i) => qs[i] || normQ({}));
+      });
+    } else {
+      const flat = asMod(raw);
+      clusters = [];
+      for (let m = 0; m < 4; m++) {
+        const cl = [];
+        for (let i = 0; i < 5; i++) cl.push(normQ(flat[m * 5 + i] || {}));
+        clusters.push(cl);
+      }
+    }
+    m.khoiDong[tid] = clusters;
     m.veDich[tid] = (m.veDich[tid] || []).filter((q) => q && typeof q === "object").map((q) => ({ id: q.id || uid(), points: q.points || 20, question: q.question || "", answer: q.answer || "", ...q }));
   }
   m.vuotCnv.rows = (m.vuotCnv.rows || []).filter((r) => r && typeof r === "object").map((r) => ({ id: r.id || uid(), question: r.question || "", answer: r.answer || "", letterCount: r.letterCount ?? "", ...r }));
@@ -510,83 +530,85 @@ function KhoiDongEditor({ draft, setDraft, teams }) {
   const m = draft.main;
   const teamIds = ["a", "b", "c", "d"];
 
-  function setQ(tid, i, p) {
-    const qs = (m.khoiDong?.[tid] || []).map((q, k) => (k === i ? { ...q, ...p } : q));
-    setDraft({ ...draft, main: { ...m, khoiDong: { ...(m.khoiDong || {}), [tid]: qs } } });
+  const setCluster = (tid, memberIdx, p) => {
+    const clusters = (m.khoiDong?.[tid] || []).map((cl, k) => (k === memberIdx ? p : cl));
+    setDraft({ ...draft, main: { ...m, khoiDong: { ...(m.khoiDong || {}), [tid]: clusters } } });
+  };
+  const setQ = (tid, memberIdx, i, p) => {
+    const cl = [...((m.khoiDong?.[tid] || [])[memberIdx] || [])];
+    while (cl.length < 5) cl.push({ id: uid(), answer: "", points: 10, mediaUrl: "", mediaType: "" });
+    cl[i] = { ...cl[i], ...p };
+    setCluster(tid, memberIdx, cl);
+  };
+  function addMember(tid) {
+    const cl = [];
+    for (let i = 0; i < 5; i++) cl.push({ id: uid(), answer: "", points: 10, mediaUrl: "", mediaType: "" });
+    setCluster(tid, (m.khoiDong?.[tid] || []).length, cl);
   }
-  function addImg(tid, file) {
-    uploadFile(file).then((r) => {
-      const qs = [...(m.khoiDong?.[tid] || []), { id: uid(), answer: "", points: 10, mediaUrl: r.url, mediaType: r.type }];
-      setDraft({ ...draft, main: { ...m, khoiDong: { ...(m.khoiDong || {}), [tid]: qs } } });
-    });
+  function delMember(tid, memberIdx) {
+    const clusters = (m.khoiDong?.[tid] || []).filter((_, k) => k !== memberIdx);
+    setDraft({ ...draft, main: { ...m, khoiDong: { ...(m.khoiDong || {}), [tid]: clusters } } });
   }
-  function delQ(tid, i) {
-    const qs = (m.khoiDong?.[tid] || []).filter((_, k) => k !== i);
-    setDraft({ ...draft, main: { ...m, khoiDong: { ...(m.khoiDong || {}), [tid]: qs } } });
-  }
-  function dupQ(tid, i) {
-    const c = { ...clone(m.khoiDong[tid][i]), id: uid() };
-    const qs = [...(m.khoiDong?.[tid] || []), c];
-    setDraft({ ...draft, main: { ...m, khoiDong: { ...(m.khoiDong || {}), [tid]: qs } } });
-  }
-
-  function setImg(tid, i, file) {
-    uploadFile(file).then((r) => setQ(tid, i, { mediaUrl: r.url, mediaType: r.type }));
+  function setImg(tid, memberIdx, i, file) {
+    uploadFile(file).then((r) => setQ(tid, memberIdx, i, { mediaUrl: r.url, mediaType: r.type }));
   }
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
       {teamIds.map((tid) => {
         const team = teams.find((t) => t.id === tid);
-        const qs = m.khoiDong?.[tid] || [];
+        const clusters = m.khoiDong?.[tid] || [];
         return (
           <div key={tid} className="rounded-xl border border-line bg-night/40 p-3">
             <div className="flex items-center gap-2 mb-3">
-              <b style={{ color: team?.color }}>{team?.name}{qs.length > 0 && <span className="text-mist font-normal"> — {qs.length} ảnh</span>}</b>
-              <label className="btn btn-ghost text-xs py-1! cursor-pointer ml-auto">
-                + Thêm ảnh
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addImg(tid, f); }} />
-              </label>
+              <b style={{ color: team?.color }}>{team?.name}{clusters.length > 0 && <span className="text-mist font-normal"> — {clusters.length} thí sinh × 5 ảnh</span>}</b>
+              <button type="button" className="btn btn-ghost text-xs py-1! ml-auto" onClick={() => addMember(tid)}>+ Thêm thí sinh</button>
             </div>
 
-            {qs.map((q, i) => (
-              <div key={q.id} className="rounded-lg border border-line bg-night/60 p-2 mb-3 last:mb-0">
-                <div className="flex items-start gap-3">
-                  <div className="relative shrink-0 w-[130px]">
-                    {q.mediaUrl ? (
-                      <img src={q.mediaUrl} className="w-[130px] h-[90px] object-cover rounded-lg" />
-                    ) : (
-                      <div className="w-[130px] h-[90px] rounded-lg border border-dashed border-line grid place-items-center text-mist text-xs text-center p-2">
-                        Chưa có ảnh
-                      </div>
-                    )}
-                    <label className="btn btn-ok text-xs py-1! cursor-pointer absolute bottom-1 left-1 opacity-90">
-                      📁 Chọn ảnh
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setImg(tid, i, f); }} />
-                    </label>
-                    {q.mediaUrl && (
-                      <button type="button" className="btn btn-danger text-xs py-0.5! px-1.5! absolute top-1 right-1 opacity-90" onClick={() => setQ(tid, i, { mediaUrl: "" })}>✕</button>
-                    )}
-                  </div>
-                  <div className="grid gap-2 flex-1">
-                    <div>
-                      <div className="text-mist text-xs mb-1">Ảnh #{i + 1} — chọn từ thiết bị hoặc dán URL</div>
-                      <input className="w-full!" value={q.mediaUrl || ""} placeholder="Dán URL ảnh…" onChange={(e) => setQ(tid, i, { mediaUrl: e.target.value })} />
-                    </div>
-                    <div>
-                      <div className="text-mist text-xs mb-1">Đáp án đúng</div>
-                      <input value={q.answer || ""} placeholder="Đáp án đúng" onChange={(e) => setQ(tid, i, { answer: e.target.value })} />
-                    </div>
-                  </div>
+            {clusters.map((cl, mi) => (
+              <div key={String(mi)} className="rounded-lg border border-line bg-night/60 p-2 mb-3 last:mb-0">
+                <div className="flex items-center justify-between mb-2">
+                  <b className="text-xs text-mist uppercase">Thí sinh {mi + 1}</b>
+                  <button type="button" className="btn btn-danger text-xs py-0.5! px-1.5!" onClick={() => delMember(tid, mi)}>✕</button>
                 </div>
-                <div className="flex gap-2 mt-2">
-                  <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => dupQ(tid, i)}>Sao chép câu</button>
-                  <button type="button" className="btn btn-danger text-xs py-1! ml-auto" onClick={() => delQ(tid, i)}>Xóa câu</button>
+                <div className="grid gap-2 sm:grid-cols-1">
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const q = cl[i] || { answer: "", mediaUrl: "" };
+                    return (
+                      <div key={i} className="rounded-lg border border-line bg-night/70 p-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-mist text-xs">Ảnh #{i + 1}</span>
+                          {q.mediaUrl && (
+                            <button type="button" className="btn btn-danger text-xs py-0.5! px-1.5!" onClick={() => setQ(tid, mi, i, { mediaUrl: "" })}>✕</button>
+                          )}
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="relative shrink-0 w-[110px]">
+                            {q.mediaUrl ? (
+                              <img src={q.mediaUrl} className="w-[110px] h-[76px] object-cover rounded-lg" />
+                            ) : (
+                              <div className="w-[110px] h-[76px] rounded-lg border border-dashed border-line grid place-items-center text-mist text-xs text-center p-2">
+                                Chưa có ảnh
+                              </div>
+                            )}
+                            <label className="btn btn-ok text-xs py-1! cursor-pointer absolute bottom-1 left-1 opacity-90">
+                              📁 Chọn
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setImg(tid, mi, i, f); }} />
+                            </label>
+                          </div>
+                          <div className="grid gap-1.5 flex-1">
+                            <input className="w-full!" value={q.mediaUrl || ""} placeholder="Dán URL ảnh…" onChange={(e) => setQ(tid, mi, i, { mediaUrl: e.target.value })} />
+                            <input value={q.answer || ""} placeholder="Đáp án đúng" onChange={(e) => setQ(tid, mi, i, { answer: e.target.value })} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
 
-            {qs.length === 0 && <p className="text-mist text-sm">Chưa có ảnh. Bấm "+ Thêm ảnh" để chọn từ thiết bị.</p>}
+            {clusters.length === 0 && <p className="text-mist text-sm">Chưa có thí sinh nào. Bấm "+ Thêm thí sinh" để tạo bọc 5 ảnh.</p>}
           </div>
         );
       })}
@@ -947,6 +969,33 @@ function SettingsTab({ state, reload, setMsg }) {
         />
         Hiện bảng xếp hạng live
       </label>
+      <div className="rounded-xl border border-line bg-night/40 p-3.5">
+        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Nền màn hình khán giả (khởi động)</div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="label-grid flex-1 min-w-[180px]">
+            Kiểu nền
+            <select value={s.audienceBg || "dark"} onChange={(e) => setS({ ...s, audienceBg: e.target.value })}>
+              <option value="dark">Tối (đặc)</option>
+              <option value="blur">Ảnh mờ phía sau</option>
+            </select>
+          </label>
+          {s.audienceBg === "blur" && (
+            <label className="label-grid flex-1 min-w-[220px]">
+              Ảnh nền (chọn từ Hình ảnh/Video đã tải)
+              <select value={s.audienceBgUrl || ""} onChange={(e) => setS({ ...s, audienceBgUrl: e.target.value })}>
+                <option value="">— Không dùng ảnh nền —</option>
+                {(state.media || []).filter((m) => m.type === "image").map((m) => (
+                  <option key={m.id} value={m.url}>{m.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        {s.audienceBg === "blur" && s.audienceBgUrl && (
+          <img src={s.audienceBgUrl} className="mt-3 h-24 w-full object-cover rounded-lg border border-line" alt="Ảnh nền" />
+        )}
+        {s.audienceBg !== "blur" && <p className="text-mist text-xs mt-2">Màn hình khán giả vòng khởi động sẽ dùng nền tối đặc.</p>}
+      </div>
       <label className="label-grid">
         Thời gian hiện đáp án khởi động (giây — 0 = sang câu kế ngay)
         <input type="number" value={kdAnswerSec} onChange={(e) => setKdAnswerSec(Number(e.target.value))} />

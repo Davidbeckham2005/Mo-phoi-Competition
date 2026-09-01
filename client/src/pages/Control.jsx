@@ -144,11 +144,16 @@ export default function Control() {
 
   const firstValidIndex = (teamId) => {
     const hist = g.khoiDong?.history?.[teamId] || {};
-    const list = state.questions?.main?.khoiDong?.[teamId] || [];
-    for (let i = 0; i < list.length; i++) {
-      if (typeof hist[i] !== "boolean") return i;
+    const clusters = state.questions?.main?.khoiDong?.[teamId];
+    const clustersArr = Array.isArray(clusters) ? clusters : [];
+    for (let m = 0; m < clustersArr.length; m++) {
+      const cl = Array.isArray(clustersArr[m]) ? clustersArr[m] : [clustersArr[m]];
+      const h = hist[m] || {};
+      for (let i = 0; i < cl.length; i++) {
+        if (typeof h[i] !== "boolean") return { memberIndex: m, questionIndex: i };
+      }
     }
-    return 0;
+    return { memberIndex: 0, questionIndex: 0 };
   };
 
   let pts = q?.points || current?.keywordPoints || 10;
@@ -169,8 +174,12 @@ export default function Control() {
   else if (showing) status = { cls: "ok", text: "ĐANG HIỆN CÂU HỎI" };
 
   let progress = "";
-  if (isKd) progress = `Ảnh ${g.questionIndex + 1}/${(state.questions?.main?.khoiDong?.[g.currentTeam] || []).length} • ${cur?.name || ""}`;
-  else if (g.round === "tang_toc") progress = `Câu ${(g.questionIndex || 0) + 1}/4`;
+  if (isKd) {
+    const mi = g.khoiDong?.memberIndex ?? 0;
+    const clusters = state.questions?.main?.khoiDong?.[g.currentTeam] || [];
+    const memberTotal = clusters.length || 1;
+    progress = `Thí sinh ${mi + 1}/${memberTotal} • Ảnh ${g.questionIndex + 1}/5 • ${cur?.name || ""}`;
+  } else if (g.round === "tang_toc") progress = `Câu ${(g.questionIndex || 0) + 1}/4`;
   else if (g.round === "vuot_cnv") {
     const doneCount = solved.filter(Boolean).length;
     progress = cnvKeywordPhase
@@ -286,7 +295,7 @@ export default function Control() {
                 type="button"
                 onClick={() =>
                   isKd
-                    ? act("question.jump", { teamId: t.id, questionIndex: firstValidIndex(t.id) })
+                    ? act("question.jump", { teamId: t.id, questionIndex: firstValidIndex(t.id).questionIndex, memberIndex: firstValidIndex(t.id).memberIndex })
                     : act("team.set", { teamId: t.id })
                 }
                 className={`flex items-center gap-3 rounded-xl border-2 px-3 py-2.5 text-left transition ${

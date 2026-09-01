@@ -65,6 +65,10 @@ export default function Audience() {
     );
   }
 
+  if (g.round === "khoi_dong") {
+    return <KhoiDongAudience state={state} timer={timer} flash={flash} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col px-6 py-4 gap-3">
       <div className="flex justify-between items-start gap-4 flex-wrap">
@@ -187,7 +191,7 @@ function Stage({ state, timer }) {
           )}
           <div className="kicker mt-3">ĐÁP ÁN</div>
           <div className="stage-answer mt-3">{d.answer}</div>
-          <div className="text-mist mt-2 text-sm">{state.teams.find((t) => t.id === g.currentTeam)?.name || ""} • Ảnh {(g.questionIndex || 0) + 1}</div>
+          <div className="text-mist mt-2 text-sm">{state.teams.find((t) => t.id === g.currentTeam)?.name || ""} • Thí sinh {(g.khoiDong?.memberIndex ?? 0) + 1}/{Array.isArray(state.questions?.main?.khoiDong?.[g.currentTeam]) ? state.questions.main.khoiDong[g.currentTeam].length : 1} • Ảnh {(g.questionIndex || 0) + 1}/5</div>
         </div>
       );
     }
@@ -552,6 +556,108 @@ function Round4Stage({ state, g, timer }) {
         </div>
       )}
       {d.answerRevealed && <div className="stage-answer mt-6">Đáp án: {d.answer}</div>}
+    </div>
+  );
+}
+
+function KhoiDongAudience({ state, timer, flash }) {
+  const g = state.game || {};
+  const d = g.display || {};
+  const activeTeam = state.teams.find((t) => t.id === g.currentTeam);
+  const bg = state.settings?.audienceBg || "dark";
+  const bgUrl = state.settings?.audienceBgUrl || "";
+  const useBlur = bg === "blur";
+  const rawClusters = state.questions?.main?.khoiDong?.[g.currentTeam];
+  const memberTotal = (Array.isArray(rawClusters) ? rawClusters.length : 0) || 1;
+  const memberNo = (g.khoiDong?.memberIndex ?? 0) + 1;
+
+  return (
+    <div className={`min-h-screen flex flex-col relative overflow-hidden ${useBlur ? "bg-[#070b16]/95" : "bg-[#070b16]"}`}>
+      {useBlur && bgUrl && (
+        <>
+          <div
+            className="absolute inset-0 -z-0 bg-cover bg-center scale-110"
+            style={{ backgroundImage: `url(${bgUrl})`, filter: "blur(14px) brightness(0.5)" }}
+          />
+          <div className="absolute inset-0 -z-0 bg-[#070b16]/55" />
+        </>
+      )}
+
+      {/* Header — tên đội đang thi */}
+      <div className="relative flex-none pt-5 pb-2 px-6 text-center z-10">
+        <div className="font-display font-bold text-[clamp(28px,4vw,52px)] leading-tight text-white">
+          {activeTeam?.name || "…"}
+        </div>
+      </div>
+
+      {/* Giữa — hình ảnh chiếm to nhất */}
+      <div className="relative flex-1 flex flex-col items-center justify-center px-6 min-h-0 z-10">
+        {d.answerRevealed ? (
+          <div className="text-center">
+            {d.mediaUrl && (
+              <img
+                src={d.mediaUrl}
+                alt=""
+                className="max-h-[50vh] max-w-[80vw] mx-auto rounded-2xl object-contain"
+              />
+            )}
+            <div className="kicker mt-4">ĐÁP ÁN</div>
+            <div className="stage-answer mt-3">{d.answer}</div>
+            <div className="text-mist mt-2 text-sm">
+              {activeTeam?.name || ""} • Thí sinh {memberNo}/{memberTotal} • Ảnh {(g.questionIndex || 0) + 1}/5
+            </div>
+          </div>
+        ) : (
+          <div className="text-center">
+            {d.mediaUrl ? (
+              <img
+                src={d.mediaUrl}
+                alt=""
+                className="max-h-[62vh] max-w-[85vw] mx-auto rounded-2xl object-contain"
+              />
+            ) : (
+              <div className="mx-auto w-[min(500px,70vw)] aspect-[4/3] rounded-2xl bg-[#0e1830] border border-[rgba(255,214,10,0.22)] grid place-items-center">
+                <div className="text-6xl text-[#9aa7c7]/40">?</div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Dưới — khối tách riêng: thanh bar tên đội + câu hỏi */}
+      <div className="relative flex-none z-10 px-4 pb-4">
+        <div className="w-full max-w-[1200px] mx-auto rounded-2xl border border-[rgba(255,214,10,0.18)] bg-[#2a3d63] shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
+          <div className="flex w-full">
+            {(state.teams || []).map((t) => {
+              const active = g.currentTeam === t.id;
+              return (
+                <div
+                  key={t.id}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 px-2 border-r border-[rgba(255,214,10,0.1)] last:border-r-0 transition-colors ${flash === t.id ? "team-buzz" : ""}`}
+                >
+                  <span
+                    className={`font-bold text-[15px] truncate ${
+                      active ? "text-white" : "text-black/80"
+                    }`}
+                  >
+                    {t.name}
+                  </span>
+                  {active && t.score > 0 && (
+                    <span className="font-display font-bold text-sm shrink-0 text-white">
+                      ({t.score})
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="px-4 pb-4 pt-1 text-center border-t border-[rgba(255,214,10,0.1)]">
+            <div className="font-display font-bold text-[clamp(20px,2.6vw,34px)] text-white">
+              Đây là tế bào/cấu trúc/cơ quan gì?
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

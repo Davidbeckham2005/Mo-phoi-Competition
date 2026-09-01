@@ -7,7 +7,9 @@ CREATE TABLE IF NOT EXISTS settings (
   prelim_question_count INT NOT NULL DEFAULT 30,
   top_n INT NOT NULL DEFAULT 16,
   prelim_open TINYINT(1) NOT NULL DEFAULT 0,
-  show_live_ranking TINYINT(1) NOT NULL DEFAULT 0
+  show_live_ranking TINYINT(1) NOT NULL DEFAULT 0,
+  audience_bg VARCHAR(20) NOT NULL DEFAULT 'dark',
+  audience_bg_url VARCHAR(500) NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS teams (

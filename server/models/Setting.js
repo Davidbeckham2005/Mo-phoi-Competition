@@ -11,14 +11,16 @@ export async function load(conn) {
     topN: r.top_n,
     prelimOpen: !!r.prelim_open,
     showLiveRanking: !!r.show_live_ranking,
+    audienceBg: r.audience_bg || "dark",
+    audienceBgUrl: r.audience_bg_url || "",
   };
 }
 
 export async function save(conn, s) {
   await conn.query("DELETE FROM settings WHERE id = 1");
   await conn.query(
-    `INSERT INTO settings (id, title, subtitle, pin, prelim_duration, prelim_question_count, top_n, prelim_open, show_live_ranking)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO settings (id, title, subtitle, pin, prelim_duration, prelim_question_count, top_n, prelim_open, show_live_ranking, audience_bg, audience_bg_url)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       1,
       s.title,
@@ -29,6 +31,8 @@ export async function save(conn, s) {
       s.topN,
       s.prelimOpen ? 1 : 0,
       s.showLiveRanking ? 1 : 0,
+      s.audienceBg || "dark",
+      s.audienceBgUrl || "",
     ]
   );
 }

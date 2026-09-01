@@ -262,11 +262,11 @@ export function setKhoiDongTimerSeconds(seconds) {
 export function resetKhoiDong(teamId = null) {
   const game = g();
   if (game.round !== "khoi_dong") return;
-  game.khoiDong = game.khoiDong || { submissions: {}, timerSeconds: 60, history: {} };
+  game.khoiDong = game.khoiDong || { submissions: {}, timerSeconds: 60, history: {}, memberIndex: 0 };
   game.khoiDong.history = game.khoiDong.history || {};
   game.khoiDong.submissions = game.khoiDong.submissions || {};
   if (teamId) {
-    game.khoiDong.history[teamId] = [];
+    game.khoiDong.history[teamId] = {};
     delete game.khoiDong.submissions[teamId];
   } else {
     game.khoiDong.history = {};
@@ -323,7 +323,7 @@ export function resetKhoiDong(teamId = null) {
       game.tangToc = freshTangToc();
     }
     if (roundId === "khoi_dong") {
-      game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60, answerSeconds: game.khoiDong?.answerSeconds, history: {} };
+      game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60, answerSeconds: game.khoiDong?.answerSeconds, history: {}, memberIndex: 0 };
       setTimer(game.khoiDong.timerSeconds, false);
     }
     if (roundId === "ve_dich") {
@@ -340,8 +340,9 @@ export function resetKhoiDong(teamId = null) {
     const game = db.game;
     const main = db.questions.main;
     if (game.round === "khoi_dong") {
-      const list = main.khoiDong[game.currentTeam] || [];
-      return list[game.questionIndex] || null;
+      const clusters = main.khoiDong[game.currentTeam] || [];
+      const cluster = clusters[game.khoiDong?.memberIndex || 0] || [];
+      return cluster[game.questionIndex] || null;
     }
     if (game.round === "vuot_cnv") {
       if (game.puzzle.centerRevealed) {
@@ -409,8 +410,11 @@ export function resetKhoiDong(teamId = null) {
       const timerSec = game.khoiDong?.timerSeconds || 60;
       game.khoiDong = game.khoiDong || {};
       game.khoiDong.submissions = {};
-      const kdList = getDb().questions.main.khoiDong?.[game.currentTeam] || [];
-      game.display.note = `${team(game.currentTeam)?.name || ""} • Ảnh ${game.questionIndex + 1}/${kdList.length} • 10 điểm`;
+      game.khoiDong.memberIndex = game.khoiDong.memberIndex ?? 0;
+      const clusters = getDb().questions.main.khoiDong?.[game.currentTeam] || [];
+      const memberTotal = clusters.length || 1;
+      const memberName = getDb().teams.find((t) => t.id === game.currentTeam)?.memberIds?.[game.khoiDong.memberIndex];
+      game.display.note = `${team(game.currentTeam)?.name || ""} • Thí sinh ${(game.khoiDong.memberIndex || 0) + 1}/${memberTotal}${memberName ? ` (${memberName})` : ""} • Ảnh ${game.questionIndex + 1}/5 • 10 điểm`;
       setTimer(timerSec, true);
     }
     if (game.round === "ve_dich") {
@@ -622,10 +626,12 @@ export function resetKhoiDong(teamId = null) {
     }
     // Vòng Khởi động: chấm xong hiện đáp án trong answerSeconds rồi mới tự sang câu kế
     if (game.round === "khoi_dong" && game.display.mode === "question") {
-      // Lưu lịch sử đúng/sai
+      // Lưu lịch sử đúng/sai theo thí sinh (member) → chỉ số ảnh
       game.khoiDong.history = game.khoiDong.history || {};
-      game.khoiDong.history[tid] = game.khoiDong.history[tid] || [];
-      game.khoiDong.history[tid][game.questionIndex] = !!correct;
+      game.khoiDong.history[tid] = game.khoiDong.history[tid] || {};
+      const mi = game.khoiDong.memberIndex ?? 0;
+      game.khoiDong.history[tid][mi] = game.khoiDong.history[tid][mi] || {};
+      game.khoiDong.history[tid][mi][game.questionIndex] = !!correct;
       const seconds = Math.max(0, Number(game.khoiDong?.answerSeconds) || 0);
       if (seconds > 0) {
         game.display.answerRevealed = true;
@@ -701,14 +707,21 @@ export function resetKhoiDong(teamId = null) {
     resetDisplayToBoard();
     resetBuzzer();
     if (game.round === "khoi_dong") {
-      const list = getDb().questions.main.khoiDong[game.currentTeam] || [];
-      if (game.questionIndex + 1 < list.length) {
+      const clusters = getDb().questions.main.khoiDong[game.currentTeam] || [];
+      const memberTotal = clusters.length || 1;
+      const mi = game.khoiDong.memberIndex ?? 0;
+      if (game.questionIndex + 1 < 5) {
         game.questionIndex += 1;
+      } else if (mi + 1 < memberTotal) {
+        game.khoiDong.memberIndex = mi + 1;
+        game.questionIndex = 0;
+        setTimer(game.khoiDong?.timerSeconds || 60, false);
       } else {
         const order = ["a", "b", "c", "d"];
         const i = order.indexOf(game.currentTeam);
         if (i < 3) {
           game.currentTeam = order[i + 1];
+          game.khoiDong.memberIndex = 0;
           game.questionIndex = 0;
           setTimer(game.khoiDong?.timerSeconds || 60, false);
         }
@@ -768,7 +781,13 @@ export function resetKhoiDong(teamId = null) {
     const game = g();
     resetDisplayToBoard();
     if (game.round === "khoi_dong") {
-      if (game.questionIndex > 0) game.questionIndex -= 1;
+      const mi = game.khoiDong?.memberIndex ?? 0;
+      if (game.questionIndex > 0) {
+        game.questionIndex -= 1;
+      } else if (mi > 0) {
+        game.khoiDong.memberIndex = mi - 1;
+        game.questionIndex = 4;
+      }
     } else if (game.round === "vuot_cnv") {
       if (game.puzzle.currentRow > 0) game.puzzle.currentRow -= 1;
     } else if (game.round === "tang_toc") {
@@ -792,7 +811,7 @@ export function resetKhoiDong(teamId = null) {
     if (game.round === "khoi_dong") {
       const timerSec = game.khoiDong?.timerSeconds || 60;
       const history = game.khoiDong?.history || {};
-      game.khoiDong = { submissions: {}, timerSeconds: timerSec, answerSeconds: game.khoiDong?.answerSeconds, history };
+      game.khoiDong = { submissions: {}, timerSeconds: timerSec, answerSeconds: game.khoiDong?.answerSeconds, history, memberIndex: 0 };
       setTimer(timerSec, false);
       showQuestion();
       return;
@@ -805,7 +824,7 @@ export function resetKhoiDong(teamId = null) {
     emit();
   }
 
-  export function jumpToQuestion(teamId, questionIndex) {
+  export function jumpToQuestion(teamId, questionIndex, memberIndex = undefined) {
     const game = g();
     const prevTeam = game.currentTeam;
     game.currentTeam = teamId;
@@ -814,7 +833,9 @@ export function resetKhoiDong(teamId = null) {
       const timerSec = game.khoiDong?.timerSeconds || 60;
       if (teamId !== prevTeam) {
         const history = game.khoiDong?.history || {};
-        game.khoiDong = { submissions: {}, timerSeconds: timerSec, answerSeconds: game.khoiDong?.answerSeconds, history };
+        game.khoiDong = { submissions: {}, timerSeconds: timerSec, answerSeconds: game.khoiDong?.answerSeconds, history, memberIndex: memberIndex ?? 0 };
+      } else if (memberIndex !== undefined) {
+        game.khoiDong.memberIndex = memberIndex;
       }
       setTimer(timerSec, false);
       showQuestion();

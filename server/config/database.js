@@ -115,6 +115,19 @@ async function migrate() {
     } catch {
       /* cột đã tồn tại */
     }
+    // v2: nền màn hình khán giả (kiểu nền + ảnh nền mờ)
+    try {
+      await conn.query("ALTER TABLE settings ADD COLUMN audience_bg TEXT NOT NULL DEFAULT 'dark'");
+      console.log("Đã nâng cấp CSDL: thêm cột settings.audience_bg");
+    } catch {
+      /* cột đã tồn tại */
+    }
+    try {
+      await conn.query("ALTER TABLE settings ADD COLUMN audience_bg_url TEXT NOT NULL DEFAULT ''");
+      console.log("Đã nâng cấp CSDL: thêm cột settings.audience_bg_url");
+    } catch {
+      /* cột đã tồn tại */
+    }
     // Đội nào chưa có mật khẩu thì gán mặc định theo TEAM_DEFS
     for (const def of TEAM_DEFS) {
       if (!def.pass) continue;
