@@ -262,9 +262,11 @@ export function setKhoiDongTimerSeconds(seconds) {
 export function resetKhoiDong(teamId = null) {
   const game = g();
   if (game.round !== "khoi_dong") return;
-  game.khoiDong = game.khoiDong || { submissions: {}, timerSeconds: 60, history: {}, memberIndex: 0 };
+  game.khoiDong = game.khoiDong || { submissions: {}, timerSeconds: 60, history: {}, memberIndex: 0, timerStarted: -1 };
   game.khoiDong.history = game.khoiDong.history || {};
   game.khoiDong.submissions = game.khoiDong.submissions || {};
+  game.khoiDong.phase = "play";
+  game.khoiDong.breakInfo = null;
   if (teamId) {
     game.khoiDong.history[teamId] = {};
     delete game.khoiDong.submissions[teamId];
@@ -323,7 +325,7 @@ export function resetKhoiDong(teamId = null) {
       game.tangToc = freshTangToc();
     }
     if (roundId === "khoi_dong") {
-      game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60, answerSeconds: game.khoiDong?.answerSeconds, history: {}, memberIndex: 0 };
+      game.khoiDong = { submissions: {}, timerSeconds: game.khoiDong?.timerSeconds || 60, answerSeconds: game.khoiDong?.answerSeconds, history: {}, memberIndex: 0, timerStarted: -1 };
       setTimer(game.khoiDong.timerSeconds, false);
     }
     if (roundId === "ve_dich") {
@@ -411,11 +413,17 @@ export function resetKhoiDong(teamId = null) {
       game.khoiDong = game.khoiDong || {};
       game.khoiDong.submissions = {};
       game.khoiDong.memberIndex = game.khoiDong.memberIndex ?? 0;
+      // Mỗi thí sinh có TỔNG 1 phút cho cả 5 ảnh: chỉ reset đồng hồ khi bắt đầu
+      // thí sinh mới (timerStarted !== memberIndex), không reset khi đổi ảnh 2–5.
+      const mi = game.khoiDong.memberIndex ?? 0;
+      if (game.khoiDong.timerStarted !== mi) {
+        game.khoiDong.timerStarted = mi;
+        setTimer(timerSec, true);
+      }
       const clusters = getDb().questions.main.khoiDong?.[game.currentTeam] || [];
       const memberTotal = clusters.length || 1;
-      const memberName = getDb().teams.find((t) => t.id === game.currentTeam)?.memberIds?.[game.khoiDong.memberIndex];
-      game.display.note = `${team(game.currentTeam)?.name || ""} • Thí sinh ${(game.khoiDong.memberIndex || 0) + 1}/${memberTotal}${memberName ? ` (${memberName})` : ""} • Ảnh ${game.questionIndex + 1}/5 • 10 điểm`;
-      setTimer(timerSec, true);
+      const memberName = getDb().teams.find((t) => t.id === game.currentTeam)?.memberIds?.[mi];
+      game.display.note = `${team(game.currentTeam)?.name || ""} • Thí sinh ${mi + 1}/${memberTotal}${memberName ? ` (${memberName})` : ""} • Ảnh ${game.questionIndex + 1}/5 • 10 điểm`;
     }
     if (game.round === "ve_dich") {
       game.veDich.phase = "answering";
@@ -624,7 +632,7 @@ export function resetKhoiDong(teamId = null) {
         resolvedInCnv = true;
       }
     }
-    // Vòng Khởi động: chấm xong hiện đáp án trong answerSeconds rồi mới tự sang câu kế
+    // Vòng Khởi động: chấm xong chuyển NGAY sang ảnh kế
     if (game.round === "khoi_dong" && game.display.mode === "question") {
       // Lưu lịch sử đúng/sai theo thí sinh (member) → chỉ số ảnh
       game.khoiDong.history = game.khoiDong.history || {};
@@ -632,21 +640,13 @@ export function resetKhoiDong(teamId = null) {
       const mi = game.khoiDong.memberIndex ?? 0;
       game.khoiDong.history[tid][mi] = game.khoiDong.history[tid][mi] || {};
       game.khoiDong.history[tid][mi][game.questionIndex] = !!correct;
-      const seconds = Math.max(0, Number(game.khoiDong?.answerSeconds) || 0);
-      if (seconds > 0) {
-        game.display.answerRevealed = true;
-        game.questionStatus = "revealed";
-        saveDb();
-        emit();
-        scheduleKhoiDongAdvance();
-      } else {
-        // 0 giây: giữ hành vi cũ — chuyển ngay sang câu kế
-        const before = `${game.currentTeam}:${game.questionIndex}`;
-        nextQuestion();
-        const moved = `${game.currentTeam}:${game.questionIndex}` !== before;
-        if (moved && currentQuestion()) {
-          showQuestion();
-        }
+      // Chấm xong → chuyển NGAY sang ảnh kế. Không hiện/giữ màn hình đáp án
+      // (thí sinh có tổng 1 phút cho cả 5 ảnh, không chờ đáp án).
+      const before = `${game.currentTeam}:${game.questionIndex}`;
+      nextQuestion();
+      const moved = `${game.currentTeam}:${game.questionIndex}` !== before;
+      if (moved && currentQuestion()) {
+        showQuestion();
       }
       return;
     }
@@ -676,32 +676,6 @@ export function resetKhoiDong(teamId = null) {
     emit();
   }
 
-  // Khởi động: sau khi chấm, hiện đáp án answerSeconds rồi tự chuyển sang câu kế
-  function scheduleKhoiDongAdvance() {
-    const game = g();
-    const secs = Math.max(1, Number(game.khoiDong?.answerSeconds) || 4);
-    if (khoiDongTimer) clearTimeout(khoiDongTimer);
-    khoiDongTimer = setTimeout(() => {
-      khoiDongTimer = null;
-      advanceKhoiDongNext();
-    }, secs * 1000);
-  }
-
-  // Chuyển sang câu kế (đã hết thời gian hiện đáp án)
-  function advanceKhoiDongNext() {
-    const game = g();
-    if (game.round !== "khoi_dong") return;
-    const before = `${game.currentTeam}:${game.questionIndex}`;
-    nextQuestion();
-    const moved = `${game.currentTeam}:${game.questionIndex}` !== before;
-    if (moved && currentQuestion()) {
-      showQuestion();
-    } else {
-      saveDb();
-      emit();
-    }
-  }
-
   export function nextQuestion() {
     const game = g();
     resetDisplayToBoard();
@@ -710,20 +684,26 @@ export function resetKhoiDong(teamId = null) {
       const clusters = getDb().questions.main.khoiDong[game.currentTeam] || [];
       const memberTotal = clusters.length || 1;
       const mi = game.khoiDong.memberIndex ?? 0;
+      game.khoiDong.phase = game.khoiDong.phase || "play";
       if (game.questionIndex + 1 < 5) {
+        // Cùng thành viên, sang ảnh kế — không nghỉ
         game.questionIndex += 1;
-      } else if (mi + 1 < memberTotal) {
-        game.khoiDong.memberIndex = mi + 1;
-        game.questionIndex = 0;
-        setTimer(game.khoiDong?.timerSeconds || 60, false);
       } else {
+        // Hết 5 ảnh của thành viên hiện tại → vào khoảng nghỉ
         const order = ["a", "b", "c", "d"];
-        const i = order.indexOf(game.currentTeam);
-        if (i < 3) {
-          game.currentTeam = order[i + 1];
-          game.khoiDong.memberIndex = 0;
-          game.questionIndex = 0;
-          setTimer(game.khoiDong?.timerSeconds || 60, false);
+        const teamIdx = order.indexOf(game.currentTeam);
+        if (mi + 1 < memberTotal) {
+          // Còn thành viên kế trong cùng đội
+          game.khoiDong.phase = "break";
+          game.khoiDong.breakInfo = { kind: "member", teamId: game.currentTeam, nextMember: mi + 1, memberTotal };
+        } else if (teamIdx < order.length - 1) {
+          // Hết thành viên, sang đội kế (team chưa được đổi — chờ MC bấm tiếp tục)
+          game.khoiDong.phase = "break";
+          game.khoiDong.breakInfo = { kind: "team", teamId: game.currentTeam, nextTeamId: order[teamIdx + 1] };
+        } else {
+          // Hết hẳn cả 4 đội → kết thúc
+          game.khoiDong.phase = "done";
+          game.khoiDong.breakInfo = { kind: "done" };
         }
       }
     } else if (game.round === "vuot_cnv") {
@@ -777,6 +757,30 @@ export function resetKhoiDong(teamId = null) {
     emit();
   }
 
+  export function continueKhoiDong() {
+    const game = g();
+    if (game.round !== "khoi_dong" || game.khoiDong?.phase !== "break") return;
+    const b = game.khoiDong.breakInfo;
+    const order = ["a", "b", "c", "d"];
+    if (b?.kind === "member") {
+      game.khoiDong.memberIndex = Math.min(b.nextMember, b.memberTotal - 1);
+      game.questionIndex = 0;
+      game.khoiDong.phase = "play";
+      game.khoiDong.breakInfo = null;
+    } else if (b?.kind === "team" && b.nextTeamId) {
+      game.currentTeam = b.nextTeamId;
+      game.khoiDong.memberIndex = 0;
+      game.questionIndex = 0;
+      game.khoiDong.phase = "play";
+      game.khoiDong.breakInfo = null;
+    }
+    setTimer(game.khoiDong?.timerSeconds || 60, false);
+    saveDb();
+    emit();
+    // Hiện câu hỏi đầu tiên của thành viên/đội mới sau khoảng nghỉ
+    if (currentQuestion()) showQuestion();
+  }
+
   export function prevQuestion() {
     const game = g();
     resetDisplayToBoard();
@@ -811,7 +815,7 @@ export function resetKhoiDong(teamId = null) {
     if (game.round === "khoi_dong") {
       const timerSec = game.khoiDong?.timerSeconds || 60;
       const history = game.khoiDong?.history || {};
-      game.khoiDong = { submissions: {}, timerSeconds: timerSec, answerSeconds: game.khoiDong?.answerSeconds, history, memberIndex: 0 };
+      game.khoiDong = { submissions: {}, timerSeconds: timerSec, answerSeconds: game.khoiDong?.answerSeconds, history, memberIndex: 0, timerStarted: -1 };
       setTimer(timerSec, false);
       showQuestion();
       return;
@@ -831,13 +835,25 @@ export function resetKhoiDong(teamId = null) {
     game.questionIndex = Math.max(0, questionIndex);
     if (game.round === "khoi_dong") {
       const timerSec = game.khoiDong?.timerSeconds || 60;
+      const prevMember = game.khoiDong?.memberIndex ?? 0;
       if (teamId !== prevTeam) {
         const history = game.khoiDong?.history || {};
-        game.khoiDong = { submissions: {}, timerSeconds: timerSec, answerSeconds: game.khoiDong?.answerSeconds, history, memberIndex: memberIndex ?? 0 };
+        game.khoiDong = { submissions: {}, timerSeconds: timerSec, answerSeconds: game.khoiDong?.answerSeconds, history, memberIndex: memberIndex ?? 0, timerStarted: -1 };
       } else if (memberIndex !== undefined) {
         game.khoiDong.memberIndex = memberIndex;
       }
-      setTimer(timerSec, false);
+      // Nhảy trực đến thành viên/đội — thoát khoảng nghỉ, quay sang thi.
+      game.khoiDong.phase = "play";
+      game.khoiDong.breakInfo = null;
+      // Reset đồng hồ chỉ khi ĐỔI thí sinh/đội; giữ đồng hồ khi đổi ảnh trong cùng thí sinh
+      // (mỗi thí sinh tổng 1 phút cho cả 5 ảnh).
+      let memberChanged = false;
+      if (teamId !== prevTeam) memberChanged = true;
+      else if (memberIndex !== undefined) memberChanged = (game.khoiDong.memberIndex !== prevMember);
+      if (memberChanged) {
+        game.khoiDong.timerStarted = game.khoiDong.memberIndex;
+        setTimer(timerSec, false);
+      }
       showQuestion();
       return;
     }

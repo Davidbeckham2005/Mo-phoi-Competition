@@ -48,6 +48,7 @@ const actions = {
   "khoi_dong.timer": (p) => game.setKhoiDongTimer(p.seconds),
   "khoi_dong.answerSeconds": (p) => game.setKhoiDongAnswerSeconds(p.seconds),
   "khoi_dong.reset": (p) => game.resetKhoiDong(p.teamId),
+  "khoi_dong.continue": () => game.continueKhoiDong(),
   "team.set": (p) => game.setCurrentTeam(p.teamId),
   "buzzer.open": () => game.openBuzzer(),
   "buzzer.close": () => game.closeBuzzer(),

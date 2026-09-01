@@ -570,6 +570,65 @@ function KhoiDongAudience({ state, timer, flash }) {
   const rawClusters = state.questions?.main?.khoiDong?.[g.currentTeam];
   const memberTotal = (Array.isArray(rawClusters) ? rawClusters.length : 0) || 1;
   const memberNo = (g.khoiDong?.memberIndex ?? 0) + 1;
+  const phase = g.khoiDong?.phase || "play";
+
+  // Ring 1 kết thúc — tổng điểm toàn đội
+  if (phase === "done") {
+    const ranked = (state.teams || []).slice().sort((a, b) => b.score - a.score);
+    return (
+      <div className={`min-h-screen flex flex-col relative overflow-hidden ${useBlur ? "bg-[#070b16]/95" : "bg-[#070b16]"}`}>
+        {useBlur && bgUrl && (
+          <>
+            <div
+              className="absolute inset-0 -z-0 bg-cover bg-center scale-110"
+              style={{ backgroundImage: `url(${bgUrl})`, filter: "blur(14px) brightness(0.5)" }}
+            />
+            <div className="absolute inset-0 -z-0 bg-[#070b16]/55" />
+          </>
+        )}
+        <div className="relative flex-1 flex flex-col items-center justify-center px-6 z-10">
+          <div className="w-full max-w-[1100px] mx-auto rounded-3xl border border-[rgba(255,214,10,0.3)] bg-[#2a3d63]/95 shadow-[0_10px_50px_rgba(0,0,0,0.5)] px-10 py-12">
+            <div className="kicker text-center">VÒNG 1 · KHỘIDỌNG</div>
+            <div className="font-display font-bold text-[clamp(36px,5vw,64px)] leading-tight text-white text-center mb-8">
+              KẼT THÚC — TÔNG ĐIỂM
+            </div>
+            <div className="flex flex-col gap-4">
+              {ranked.map((t, i) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between gap-4 px-5 py-3.5 rounded-xl border border-[rgba(255,214,10,0.2)] bg-[#1d2c4a]"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="font-display font-bold text-[clamp(22px,2.6vw,34px)] text-white/80">{i + 1}</span>
+                    <span className="w-5 h-5 rounded-full" style={{ backgroundColor: t.color }} />
+                    <span className="font-display font-bold text-[clamp(24px,2.8vw,38px)] text-white truncate">{t.name}</span>
+                  </div>
+                  <span className="font-display font-bold text-[clamp(24px,2.8vw,38px)] text-[#ffd60a]">{t.score}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Khoàng nghỉ — nic nie pokazuj, tylko tło; nowe pytanie pojawia się samo.
+  if (phase === "break") {
+    return (
+      <div className={`min-h-screen flex flex-col relative overflow-hidden ${useBlur ? "bg-[#070b16]/95" : "bg-[#070b16]"}`}>
+        {useBlur && bgUrl && (
+          <>
+            <div
+              className="absolute inset-0 -z-0 bg-cover bg-center scale-110"
+              style={{ backgroundImage: `url(${bgUrl})`, filter: "blur(14px) brightness(0.5)" }}
+            />
+            <div className="absolute inset-0 -z-0 bg-[#070b16]/55" />
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen flex flex-col relative overflow-hidden ${useBlur ? "bg-[#070b16]/95" : "bg-[#070b16]"}`}>
