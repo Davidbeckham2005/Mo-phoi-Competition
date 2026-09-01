@@ -9,7 +9,13 @@ export default function QuestionScorePanel({ ctx }) {
       <div className="panel">
         <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Câu hỏi &amp; đáp án</div>
         {!q && (
-          <div className="text-mist">{isKd ? "Chuyển đội để bắt đầu lượt." : "Chưa có câu hỏi — chọn hàng ngang (Vượt CNV) hoặc bấm Câu sau."}</div>
+          <div className="text-mist">
+            {isKd
+              ? "Chuyển đội để bắt đầu lượt."
+              : g.round === "ve_dich"
+                ? "Chưa có câu nào được chọn — hãy chọn mức 20/30/40 cho đội đang thi ở panel bên dưới."
+                : "Chưa có câu hỏi — chọn hàng ngang (Vượt CNV) hoặc bấm Câu sau."}
+          </div>
         )}
         {q && (
           <>
@@ -42,7 +48,7 @@ export default function QuestionScorePanel({ ctx }) {
             )}
           </>
         )}
-        {!isKd && (
+        {!isKd && !(g.round === "ve_dich" && !q) && (
           <>
             <div className="flex flex-wrap gap-2 mt-4">
               <button type="button" className="btn" disabled={showing && !revealed} onClick={() => act("question.show")}>
@@ -68,7 +74,7 @@ export default function QuestionScorePanel({ ctx }) {
       </div>
 
       {/* CHẤM ĐIỂM */}
-      {!ttscoring && (
+      {!ttscoring && !(g.round === "ve_dich" && !q) && (
       <div className="panel">
         <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Chấm điểm</div>
         <div className="flex flex-wrap gap-2">

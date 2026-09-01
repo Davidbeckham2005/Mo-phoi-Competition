@@ -172,6 +172,11 @@ function Stage({ state, timer }) {
     );
   }
 
+  // Vòng 4 (Về đích): màn hình chuyên dụng — chờ chuẩn bị / đếm ngược 3-2-1 / câu hỏi + đáp án.
+  if (g.round === "ve_dich") {
+    return <Round4Stage state={state} g={g} timer={timer} />;
+  }
+
   if (d.mode === "question") {
     const isKd = g.round === "khoi_dong";
     if (isKd && d.answerRevealed) {
@@ -472,6 +477,81 @@ function TangTocList({ items, teams, settled, judge }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// MÀN HÌNH CHUYÊN DỤNG — Vòng 4 (Về đích): chờ chuẩn bị / đếm ngược / câu hỏi + đáp án.
+function Round4Stage({ state, g, timer }) {
+  const d = g.display || {};
+  const ved = g.veDich || {};
+  const phase = ved.phase || "soan";
+  const activeTeam = state.teams.find((t) => t.id === g.currentTeam);
+  const remaining = timer?.remaining ?? g.timer?.remaining ?? 0;
+  const running = timer?.running ?? g.timer?.running;
+  const inQuestion = d.mode === "question";
+  const teamName = activeTeam?.name || g.currentTeam?.toUpperCase();
+  const isStar = ved.starQuestion === (ved.pickIndex ?? 0);
+
+  // ĐẾM NGƯỢC 3 • 2 • 1: chỉ giữ con số đếm lớn + tên đội.
+  if (phase === "countdown") {
+    return (
+      <div className="text-center">
+        <div className="font-display font-bold text-[clamp(26px,4vw,52px)]" style={{ color: activeTeam?.color }}>
+          {teamName}
+        </div>
+        <div className={`font-display font-black text-[clamp(80px,20vw,220px)] leading-none mt-2 ${running && remaining <= 3 ? "text-gold" : "text-mist"}`}>
+          {remaining > 0 ? remaining : 3}
+        </div>
+      </div>
+    );
+  }
+
+  // CHỜ CHUẨN BỊ (soan / ready): chỉ tên đội + trạng thái ngắn gọn.
+  if (!inQuestion || !d.question) {
+    return (
+      <div className="text-center">
+        <div className="font-display font-bold text-[clamp(34px,5vw,64px)]" style={{ color: activeTeam?.color }}>
+          {teamName}
+        </div>
+        <div className="text-mist mt-4 text-[clamp(18px,2.6vw,30px)]">
+          {phase === "ready" ? "Sẵn sàng thi" : phase === "prep" ? "Chuẩn bị câu kế tiếp" : "Đang chuẩn bị"}
+        </div>
+      </div>
+    );
+  }
+
+  // ĐANG TRẢ LỜI: chỉ giữ tên đội + ngôi sao + câu hỏi + options + đáp án.
+  return (
+    <div className="text-center max-w-[1000px] mx-auto">
+      {d.mediaUrl && d.mediaType === "image" && (
+        <img src={d.mediaUrl} alt="" className="max-h-[26vh] mx-auto rounded-2xl object-contain border border-line" />
+      )}
+      {d.mediaUrl && d.mediaType === "video" && (
+        <video src={d.mediaUrl} autoPlay controls className="max-h-[26vh] mx-auto rounded-2xl" />
+      )}
+      <div className="flex items-center justify-center gap-3 mt-3">
+        <div className="font-display font-bold text-[clamp(24px,3.6vw,46px)]" style={{ color: activeTeam?.color }}>
+          {teamName}
+        </div>
+        {isStar && (
+          <span className="font-display font-black text-[clamp(20px,3vw,38px)] text-ok">★ ×2</span>
+        )}
+      </div>
+      {d.question && <div className="stage-q mt-3">{d.question}</div>}
+      {d.options?.length > 0 && (
+        <div className="grid gap-2.5 mt-5 text-left w-[min(720px,90%)] mx-auto">
+          {d.options.map((o) => (
+            <div key={o} className="opt cursor-default">{o}</div>
+          ))}
+        </div>
+      )}
+      {ved.stealOpen && (
+        <div className="font-display font-bold text-[clamp(18px,2.6vw,32px)] text-danger mt-6 animate-pulse">
+          Mở chuông giành quyền trả lời!
+        </div>
+      )}
+      {d.answerRevealed && <div className="stage-answer mt-6">Đáp án: {d.answer}</div>}
     </div>
   );
 }

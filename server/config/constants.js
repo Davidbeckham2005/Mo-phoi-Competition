@@ -63,7 +63,7 @@ export function defaultGame() {
     timer: { remaining: 0, running: false, endsAt: null, duration: 0 },
     buzzer: { open: false, locked: false, winner: null, order: [], blocked: [] },
     puzzle: emptyPuzzle(),
-    veDich: { packagePoints: 20, star: false, answeringTeam: null, stealOpen: false },
+    veDich: { packagePoints: 20, star: false, answeringTeam: null, stealOpen: false, picked: { a: [], b: [], c: [], d: [] }, pickIndex: 0 },
     tangToc: { submissions: {}, ranked: [] },
     khoiDong: { submissions: {}, history: {}, timerSeconds: 60, answerSeconds: 4 },
     roundStarted: false,

@@ -230,15 +230,17 @@ export default function Team() {
       </div>
     );
   } else if (g.round === "ve_dich") {
-    const cur = state.teams.find((t) => t.id === g.currentTeam);
     body = (
-      <>
-        <div className="round-badge">Về đích — lượt {cur?.name || "?"}</div>
-        <p className="text-mist mt-3 max-w-md mx-auto">
-          Gói {g.veDich?.packagePoints} điểm{g.veDich?.star ? " • NGÔI SAO HY VỌNG ×2" : ""}. Theo dõi câu hỏi trên màn hình lớn.
-        </p>
-        <ScoreList teams={state.teams} me={team.id} />
-      </>
+      <VeDichBody
+        g={g}
+        d={d}
+        teams={state.teams}
+        me={team.id}
+        remaining={remaining}
+        running={running}
+        onBuzz={buzz}
+        winnerId={g.buzzer?.winner}
+      />
     );
   } else {
     body = (
@@ -581,6 +583,89 @@ function Round2Status({ g, teams, me, remaining, running, onBuzz }) {
         {waitingBetween && !last ? "CHỜ" : formatTime(remaining)}
       </div>
       {status}
+    </div>
+  );
+}
+
+// Màn hình ĐỘI — Vòng 4 (Về đích): đồng bộ với MC và khán giả từ cùng g.display + g.veDich.
+// Hiện câu hỏi, thông tin ngôi sao, lật đáp án, và nút giành quyền trả lời khi đối thủ trả lời sai.
+function VeDichBody({ g, d, teams, me, remaining, running, onBuzz, winnerId }) {
+  const ved = g.veDich || {};
+  const phase = ved.phase || "soan";
+  const cur = teams.find((t) => t.id === g.currentTeam);
+  const star = ved.starQuestion === (ved.pickIndex ?? 0);
+  const inQuestion = d.mode === "question" && !!d.question;
+  const blocked = (g.buzzer?.blocked || []).includes(me);
+  const open = !!g.buzzer?.open;
+  const won = winnerId === me;
+
+  // Có thể bấm chuông giành quyền: đang mở chuông (stealOpen), mình chưa bị chặn, chưa có người thắng.
+  const canSteal = open && !!ved.stealOpen && !blocked && !winnerId;
+
+  let inner;
+  if (phase === "countdown") {
+    const n = remaining > 0 ? remaining : 3;
+    inner = (
+      <div className="text-center">
+        <div className="round-badge">Về đích — {cur?.name || g.currentTeam?.toUpperCase()}</div>
+        <div className={`font-display font-black text-[clamp(72px,16vw,160px)] leading-none mt-4 ${running ? "text-gold" : "text-mist"}`}>{n}</div>
+        <p className="text-mist mt-2">Chuẩn bị thi…</p>
+      </div>
+    );
+  } else if (!inQuestion) {
+    inner = (
+      <div className="text-center">
+        <div className="round-badge">Về đích — {cur?.name || g.currentTeam?.toUpperCase()}</div>
+        <p className="text-mist mt-4 text-[clamp(16px,2.4vw,24px)]">
+          {phase === "ready"
+            ? "Bộ câu đã xác nhận — sẵn sàng thi"
+            : phase === "prep"
+              ? "Chuẩn bị câu hỏi kế tiếp …"
+              : "MC đang soạn bộ câu. Quan sát màn hình lớn."}
+        </p>
+      </div>
+    );
+  } else {
+    inner = (
+      <div className="text-center w-full max-w-xl">
+        <div
+          className={`timer-xl ${running && remaining <= 5 ? "timer-danger" : ""}`}
+          style={{ fontSize: "clamp(56px,9vw,90px)" }}
+        >
+          {formatTime(remaining)}
+        </div>
+        <div className="round-badge">Về đích — {cur?.name || g.currentTeam?.toUpperCase()}</div>
+        {star && (
+          <div className="badge badge-ok text-base! px-4 py-2 mt-3">Ngôi sao hy vọng — điểm ×2</div>
+        )}
+        {d.mediaUrl && d.mediaType === "image" && (
+          <img src={d.mediaUrl} alt="" className="max-h-[24vh] mx-auto rounded-2xl mt-3 object-contain border border-line" />
+        )}
+        {d.question && <div className="stage-q mt-3">{d.question}</div>}
+        {ved.stealOpen && (
+          <div className="badge badge-warn text-base! px-4 py-2 mt-5 animate-pulse">
+            {won ? "BẠN GIÀNH ĐƯỢC QUYỀN — hãy trả lời!" : "Mở chuông giành quyền trả lời"}
+          </div>
+        )}
+        {d.answerRevealed && <div className="stage-answer mt-5">Đáp án: {d.answer}</div>}
+        {d.note && <div className="stage-note mt-4">{d.note}</div>}
+        {canSteal && (
+          <button
+            type="button"
+            className="mt-7 px-8 py-4 rounded-2xl font-display font-black text-2xl text-[#140d00] bg-gold shadow-[0_0_30px_rgba(255,214,10,0.4)] active:scale-95 transition"
+            onClick={() => onBuzz("row")}
+          >
+            BẤM GIÀNH QUYỀN TRẢ LỜI
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-6 w-full min-w-0">
+      {inner}
+      <ScoreList teams={teams} me={me} />
     </div>
   );
 }

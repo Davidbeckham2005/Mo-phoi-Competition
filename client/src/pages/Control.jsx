@@ -152,8 +152,9 @@ export default function Control() {
   };
 
   let pts = q?.points || current?.keywordPoints || 10;
+  const veStar = g.round === "ve_dich" && g.veDich?.starQuestion === (g.veDich?.pickIndex ?? 0);
   if (g.round === "ve_dich") {
-    pts = (g.veDich?.packagePoints || 20) * (g.veDich?.star ? 2 : 1);
+    pts = (q?.points || g.veDich?.packagePoints || 20) * (veStar ? 2 : 1);
   }
 
   let status = { cls: "", text: "BẢNG CHÍNH" };
@@ -176,13 +177,14 @@ export default function Control() {
       ? `Đoán từ khóa • ${doneCount}/4 góc mở`
       : `Hàng ngang ${(p.currentRow ?? 0) + 1} • ${cornersDone ? 4 : doneCount}/4 góc xong`;
   } else if (g.round === "ve_dich") {
-    progress = `Gói ${g.veDich?.packagePoints}${g.veDich?.star ? " • Sao ×2" : ""} • ${cur?.name || ""}`;
+    const picked = ((g.veDich?.picked || {})[cur?.id] || []);
+    progress = `Câu ${(g.veDich?.pickIndex || 0) + 1}/${picked.length || 3} • ${q?.points || g.veDich?.packagePoints || 20}đ${veStar ? " • Sao ×2" : ""} • ${cur?.name || ""}`;
   }
 
   const saiText = cnvRowPhase
     ? p.awaitingSteal ? "−20 & KHÓA mảnh" : "mở chuông cướp quyền"
-    : g.round === "ve_dich" && g.veDich?.star
-      ? `−${(g.veDich?.packagePoints || 20) * 2}`
+    : g.round === "ve_dich" && veStar
+      ? `−${(q?.points || g.veDich?.packagePoints || 20) * 2}`
       : "không trừ";
 
   const ctx = {
@@ -308,30 +310,6 @@ export default function Control() {
           })}
         </div>
         </>)}
-        {g.round === "ve_dich" && (
-          <>
-            <div className="text-xs tracking-[0.18em] text-mist uppercase mt-5 mb-2">Gói Về đích</div>
-            <div className="flex flex-wrap gap-2">
-              {[10, 20, 30].map((pt) => (
-                <button
-                  key={pt}
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => act("vedich.package", { points: pt, star: g.veDich?.star })}
-                >
-                  {pt}
-                </button>
-              ))}
-              <button
-                type="button"
-                className="btn"
-                onClick={() => act("vedich.package", { points: g.veDich?.packagePoints || 20, star: !g.veDich?.star })}
-              >
-                Ngôi sao {g.veDich?.star ? "ON" : "OFF"}
-              </button>
-            </div>
-          </>
-        )}
         </>)}
         <p className="mt-5">
           <Link to="/admin" className="text-gold underline">Mở trang quản trị</Link>
@@ -361,7 +339,7 @@ export default function Control() {
         </div>
 
         {/* 2+3 · CÂU HỎI & CHẤM ĐIỂM — dùng chung cho các vòng không phải Vượt CNV/Tăng tốc */}
-        {g.round !== "vuot_cnv" && g.round !== "tang_toc" && <QuestionScorePanel ctx={ctx} />}
+        {g.round === "khoi_dong" && <QuestionScorePanel ctx={ctx} />}
 
         {/* 4 · THEO VÒNG — Vượt chướng ngại vật */}
         <RoundVuotCnv ctx={ctx} />

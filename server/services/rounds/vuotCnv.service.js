@@ -86,13 +86,13 @@ function openKeywordWindow() {
 }
 
 // Sang đội kế tiếp trong hàng đợi (sau khi ô đã được giải quyết xong)
-function advancePicker() {
+export function advancePicker() {
   const p = g().puzzle;
   p.turnIndex = (p.turnIndex ?? 0) + 1;
 }
 
 // Trả lời sai lần 2: khóa mảnh vĩnh viễn
-function lockRow(rowIndex) {
+export function lockRow(rowIndex) {
   const game = g();
   const i = Number(rowIndex);
   if (!(i >= 0 && i <= 3)) return;
@@ -140,7 +140,20 @@ export function selectRow(rowIndex) {
   if (eligible.length === 0) {
     throw new Error("Đã hết đội còn được trả lời hàng ngang — chuyển sang đoán từ khóa.");
   }
-  const teamId = eligible[(p.turnIndex ?? 0) % eligible.length];
+  // Duyệt theo thứ tự quay vòng GỐC (p.order) và BỎ QUA các đội bị CẤM trả lời hàng
+  // ngang (đoán từ khóa sai). Không dùng chỉ số trên mảng eligible đã bị lọc — vì khi
+  // một đội bị khóa, eligible.length thu nhỏ còn turnIndex vẫn đếm trên thứ tự gốc làm
+  // đội kế tiếp bị nhảy cóc sai. Ví dụ order=[A,B,C,D], B bị cấm, turnIndex=2 → đội kế
+  // tiếp phải là C (theo lượt) chứ không phải D.
+  const start = p.turnIndex ?? 0;
+  let teamId = null;
+  for (let k = 0; k < order.length; k++) {
+    const id = order[(start + k) % order.length];
+    if (!banned.includes(id)) {
+      teamId = id;
+      break;
+    }
+  }
   p.teamForRow = p.teamForRow || [null, null, null, null];
   const owner = p.teamForRow[i];
   if (owner && owner !== teamId) {

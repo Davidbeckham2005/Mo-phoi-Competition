@@ -1,9 +1,12 @@
   import { getDb, saveDb, defaultGame, emptyPuzzle, ROUNDS } from "../models/store.js";
   import * as cnv from "./rounds/vuotCnv.service.js";
+  import * as vedich from "./rounds/veDich.service.js";
 
   // Số giây đếm ngược "chuẩn bị chiếu" trước khi video tăng tốc được phát (đồng bộ
   // trên mọi màn hình — MC + khán giả + đội).
   export const TANG_TOC_PREP_SECONDS = 3;
+  // Số giây đếm ngược "3-2-1" trước khi tự hiện câu đầu tiên của đội (Vòng Về đích).
+  export const VEDICH_COUNTDOWN_SECONDS = 3;
 
   // Trạng thái mặc định cho mỗi câu hỏi vòng 3 (reset khi đổi câu / vào vòng).
   // startedAt: thời điểm đoạn chiếu hiện tại bắt đầu — mốc 0s để ghi nhận đáp án.
@@ -118,6 +121,21 @@
             game.tangToc.startedAt = null;
             game.tangToc.reveal = "";
             game.tangToc.phase = "answers";
+          }
+        } else if (game.round === "ve_dich") {
+          const ved = game.veDich;
+          if (ved.phase === "countdown") {
+            // Hết đếm ngược 3-2-1 → tự hiện câu hỏi đầu tiên và bắt đếm giờ trả lời.
+            ved.phase = "answering";
+            showQuestion();
+          } else if (ved.phase === "answering" && !ved.stealOpen) {
+            // Hết thời gian trả lời của đội đang thi → mở chuông cho các đội khác
+            // giành quyền trả lời. Đội vừa hết giờ bị CHẶN (cướp lại chính mình).
+            ved.stealOpen = true;
+            game.buzzer = game.buzzer || {};
+            game.buzzer.blocked = game.buzzer.blocked || [];
+            if (!game.buzzer.blocked.includes(game.currentTeam)) game.buzzer.blocked.push(game.currentTeam);
+            resetBuzzer(true);
           }
         } else if (
           game.round === "vuot_cnv" &&
@@ -309,7 +327,9 @@ export function resetKhoiDong(teamId = null) {
       setTimer(game.khoiDong.timerSeconds, false);
     }
     if (roundId === "ve_dich") {
-      game.veDich = { packagePoints: 20, star: false, answeringTeam: "a", stealOpen: false };
+      // Đảm bảo mỗi đội có đủ ngân hàng câu (3×20, 3×30, 3×40); tự tạo bản nháp nếu thiếu.
+      vedich.ensureBank();
+      game.veDich = vedich.defaultState();
     }
     saveDb();
     emit();
@@ -338,9 +358,7 @@ export function resetKhoiDong(teamId = null) {
       return main.tangToc[game.questionIndex] || null;
     }
     if (game.round === "ve_dich") {
-      const pts = game.veDich.packagePoints;
-      const list = main.veDich[game.currentTeam] || [];
-      return list.find((q) => q.points === pts) || list[0] || null;
+      return vedich.findQuestion(game);
     }
     return null;
   }
@@ -396,9 +414,13 @@ export function resetKhoiDong(teamId = null) {
       setTimer(timerSec, true);
     }
     if (game.round === "ve_dich") {
-      const star = game.veDich.star ? " • Ngôi sao hy vọng" : "";
-      game.display.note = `${team(game.currentTeam)?.name || ""} • Gói ${game.veDich.packagePoints} điểm${star}`;
-      setTimer(15, false);
+      game.veDich.phase = "answering";
+      const star =
+        game.veDich.starQuestion === (game.veDich.pickIndex ?? 0)
+          ? " • Ngôi sao hy vọng"
+          : "";
+      game.display.note = `${team(game.currentTeam)?.name || ""} • ${q?.points || game.veDich.packagePoints || 20} điểm${star}`;
+      setTimer(vedich.getAnswerSeconds(game), true);
     }
     saveDb();
     emit();
@@ -462,8 +484,56 @@ export function resetKhoiDong(teamId = null) {
     }
     let points = q.points || 10;
     if (game.round === "ve_dich") {
-      points = game.veDich.packagePoints;
-      if (game.veDich.star) points *= 2;
+      points = vedich.getPoints(game);
+      // === VÒNG VỀ ĐÍCH: chấm Đúng/Sai riêng cho vòng này rồi return. ===
+      const ved = game.veDich;
+      if (ved.stealOpen) {
+        // Đang ở "cửa sổ cướp quyền": đội giành được chuông (buzzer.winner) trả lời.
+        // Điểm cho đội cướp là ĐIỂM GỐC (không kế thừa ngôi sao hy vọng của đội chủ câu).
+        const winner = game.buzzer?.winner;
+        if (!winner) {
+          saveDb();
+          emit();
+          return;
+        }
+        const base = vedich.getBasePoints(game);
+        closeBuzzer();
+        ved.stealOpen = false;
+        if (correct) {
+          addScore(winner, base);
+        } else {
+          addScore(winner, -base);
+        }
+        game.display.answerRevealed = true;
+        game.questionStatus = "revealed";
+        pauseTimer();
+        saveDb();
+        emit();
+        return;
+      }
+      if (correct) {
+        // Đội đang thi trả lời ĐÚNG → cộng điểm, hiện đáp án.
+        addScore(tid, points);
+        game.display.answerRevealed = true;
+        game.questionStatus = "revealed";
+        pauseTimer();
+        saveDb();
+        emit();
+        return;
+      }
+      // Đội đang thi trả lời SAI:
+      //  - Có ngôi sao hy vọng ở câu này → trừ gấp đôi điểm của đội đó.
+      //  - Mở chuông cho 3 đội còn lại giành quyền trả lời ngay.
+      if (ved.starQuestion === (ved.pickIndex ?? 0)) addScore(tid, -points);
+      ved.stealOpen = true;
+      game.buzzer = game.buzzer || {};
+      game.buzzer.blocked = game.buzzer.blocked || [];
+      if (!game.buzzer.blocked.includes(tid)) game.buzzer.blocked.push(tid);
+      resetBuzzer(true);
+      pauseTimer();
+      saveDb();
+      emit();
+      return;
     }
     // Vòng 2: ô hiện tại đã được xử lý xong (mở/khóa) → KHÔNG chấm lại.
     // Tránh nhấn đúp "Đúng"/"Sai": +điểm 2 lần, −20 2 lần, hoặc advancePicker
@@ -549,8 +619,6 @@ export function resetKhoiDong(teamId = null) {
         cnv.advancePicker();
         resolvedInCnv = true;
       }
-    } else if (game.round === "ve_dich" && game.veDich.star && tid === game.currentTeam) {
-      addScore(tid, -game.veDich.packagePoints * 2);
     }
     // Vòng Khởi động: chấm xong hiện đáp án trong answerSeconds rồi mới tự sang câu kế
     if (game.round === "khoi_dong" && game.display.mode === "question") {
@@ -652,8 +720,45 @@ export function resetKhoiDong(teamId = null) {
       game.tangToc = freshTangToc();
       setTimer(0, false);
     } else if (game.round === "ve_dich") {
-      game.veDich.star = false;
       game.veDich.stealOpen = false;
+      // Điều hướng giữa các câu ĐÃ CHỐT của đội đang thi.
+      const picked = game.veDich.picked?.[game.currentTeam] || [];
+      if (game.veDich.pickIndex < picked.length - 1) {
+        game.veDich.pickIndex += 1;
+        game.veDich.phase = "prep";
+        // Ẩn câu cũ — màn hình quay về chờ trung gian trước khi trình câu mới.
+        game.display.mode = game.display.mode === "question" ? "" : game.display.mode;
+        game.display.question = "";
+        game.display.options = [];
+        game.display.answer = "";
+        game.display.answerRevealed = false;
+        game.display.note = "";
+        game.questionStatus = "idle";
+        setTimer(0, false);
+      } else if (picked.length >= 3) {
+        // Đã trả lời hết 3 câu → chuyển sang đội kế tiếp; đội mới tự soạn bộ câu của mình.
+        const order = ["a", "b", "c", "d"];
+        const i = order.indexOf(game.currentTeam);
+        if (i < 3) {
+          const next = order[i + 1];
+          game.currentTeam = next;
+          game.veDich.pickIndex = 0;
+          game.veDich.answeringTeam = next;
+          game.veDich.picked = { ...(game.veDich.picked || {}), [next]: game.veDich.picked?.[next] || [] };
+          game.veDich.locked = false;
+          game.veDich.starQuestion = null;
+          game.veDich.phase = "soan";
+          // Ẩn câu cũ khi chuyển đội.
+          game.display.mode = game.display.mode === "question" ? "" : game.display.mode;
+          game.display.question = "";
+          game.display.options = [];
+          game.display.answer = "";
+          game.display.answerRevealed = false;
+          game.display.note = "";
+          game.questionStatus = "idle";
+          setTimer(0, false);
+        }
+      }
     }
     saveDb();
     emit();
@@ -673,6 +778,8 @@ export function resetKhoiDong(teamId = null) {
       // không trả lời lại được cho câu đang chọn.
       game.tangToc = freshTangToc();
       setTimer(0, false);
+    } else if (game.round === "ve_dich") {
+      if ((game.veDich.pickIndex || 0) > 0) game.veDich.pickIndex -= 1;
     }
     saveDb();
     emit();
@@ -691,8 +798,8 @@ export function resetKhoiDong(teamId = null) {
       return;
     }
     if (game.round === "ve_dich") {
-      game.veDich.answeringTeam = teamId;
-      game.veDich.star = false;
+      vedich.setAnsweringTeam(teamId);
+      return;
     }
     saveDb();
     emit();
@@ -737,13 +844,16 @@ export function resetKhoiDong(teamId = null) {
     emit();
   }
 
-  export function setPackage(points, star = false) {
-    const game = g();
-    game.veDich.packagePoints = Number(points);
-    game.veDich.star = !!star;
-    saveDb();
-    emit();
-  }
+  export const vedichPick = (points, slot) => vedich.pick(points, slot);
+  export const vedichSetStar = (star) => vedich.setStar(!!star);
+  export const vedichClearPicked = (teamId) => vedich.clearPicked(teamId);
+  export const vedichRemovePicked = (slot) => vedich.removePicked(slot);
+  export const vedichLockPackage = () => vedich.lockPackage();
+  export const vedichUnlockPackage = () => vedich.unlockPackage();
+  export const vedichStartGame = () => {
+    vedich.startGame();
+    setTimer(VEDICH_COUNTDOWN_SECONDS, true);
+  };
 
   export function resetBuzzer(open = false) {
     const game = g();
@@ -811,6 +921,8 @@ export function resetKhoiDong(teamId = null) {
       // (mặc định 30s) cho đội mới giành quyền trả lời.
       if (game.round === "vuot_cnv" && game.puzzle?.awaitingSteal) {
         setTimer(game.vuotCnv?.answerSeconds || 30, true);
+      } else if (game.round === "ve_dich" && game.veDich?.stealOpen) {
+        setTimer(vedich.getAnswerSeconds(game), true);
       }
     }
     saveDb();
@@ -1132,7 +1244,7 @@ export function resetKhoiDong(teamId = null) {
     game.khoiDong.submissions = {};
     game.tangToc = freshTangToc();
     game.puzzle = emptyPuzzle();
-    game.veDich = { packagePoints: 20, star: false, answeringTeam: "a", stealOpen: false };
+    game.veDich = vedich.defaultState();
     if (game.round === "vuot_cnv") game.display.mode = "puzzle";
     saveDb();
     emit();
@@ -1142,3 +1254,4 @@ export function resetKhoiDong(teamId = null) {
   export { currentQuestion, keywordPoints };
 
   cnv.init({ emit, addScore, pauseTimer, resetDisplayToBoard, showQuestion, resetBuzzer });
+  vedich.init({ emit });

@@ -110,24 +110,48 @@
   ],
   "veDich": {
     "a": [
-      { "id": "vd-a-10", "points": 10, "question": "Thủ đô của Pháp là thành phố nào?", "answer": "Paris" },
-      { "id": "vd-a-20", "points": 20, "question": "Ai là tác giả bản Tuyên ngôn Độc lập năm 1945 của Việt Nam?", "answer": "Hồ Chí Minh" },
-      { "id": "vd-a-30", "points": 30, "question": "Nêu tên cuộc cải cách giáo dục thi cử nổi tiếng thời Lý, mở khoa thi đầu tiên năm 1075.", "answer": "Khoa thi Minh Kinh bác học" }
+      { "id": "vd-a-20-1", "points": 20, "question": "Thủ đô của Pháp là thành phố nào?", "answer": "Paris" },
+      { "id": "vd-a-20-2", "points": 20, "question": "Sông nào dài nhất Việt Nam?", "answer": "Sông Hồng" },
+      { "id": "vd-a-20-3", "points": 20, "question": "Đơn vị tiền tệ chính thức của Hoa Kỳ là gì?", "answer": "Đô la Mỹ" },
+      { "id": "vd-a-30-1", "points": 30, "question": "Ai là tác giả bản Tuyên ngôn Độc lập năm 1945 của Việt Nam?", "answer": "Hồ Chí Minh" },
+      { "id": "vd-a-30-2", "points": 30, "question": "Công thức hóa học của nước là gì?", "answer": "H2O" },
+      { "id": "vd-a-30-3", "points": 30, "question": "Hành tinh đứng thứ ba tính từ Mặt Trời là?", "answer": "Trái Đất" },
+      { "id": "vd-a-40-1", "points": 40, "question": "Nêu tên cuộc cải cách giáo dục thi cử nổi tiếng thời Lý, mở khoa thi đầu tiên năm 1075.", "answer": "Khoa thi Minh Kinh bác học" },
+      { "id": "vd-a-40-2", "points": 40, "question": "Ai là người Việt Nam đầu tiên bay vào vũ trụ?", "answer": "Phạm Tuân" },
+      { "id": "vd-a-40-3", "points": 40, "question": "Tổ chức nào được thành lập năm 1945, có Tuyên ngôn nổi tiếng về quyền con người?", "answer": "Liên Hợp Quốc" }
     ],
     "b": [
-      { "id": "vd-b-10", "points": 10, "question": "Hành tinh lớn nhất hệ Mặt Trời là gì?", "answer": "Sao Mộc" },
-      { "id": "vd-b-20", "points": 20, "question": "Nhà Trần ba lần đánh thắng quân xâm lược nào?", "answer": "Nguyên Mông" },
-      { "id": "vd-b-30", "points": 30, "question": "Công thức hóa học của axit sunfuric là gì?", "answer": "H2SO4" }
+      { "id": "vd-b-20-1", "points": 20, "question": "Hành tinh lớn nhất hệ Mặt Trời là gì?", "answer": "Sao Mộc" },
+      { "id": "vd-b-20-2", "points": 20, "question": "Con vật nào được mệnh danh là 'vua của rừng xanh'?", "answer": "Sư tử" },
+      { "id": "vd-b-20-3", "points": 20, "question": "Biển nào lớn nhất thế giới?", "answer": "Thái Bình Dương" },
+      { "id": "vd-b-30-1", "points": 30, "question": "Nhà Trần ba lần đánh thắng quân xâm lược nào?", "answer": "Nguyên Mông" },
+      { "id": "vd-b-30-2", "points": 30, "question": "Đơn vị đo cường độ dòng điện là gì?", "answer": "Ampe" },
+      { "id": "vd-b-30-3", "points": 30, "question": "Ai đã phát minh ra bóng đèn điện?", "answer": "Thomas Edison" },
+      { "id": "vd-b-40-1", "points": 40, "question": "Công thức hóa học của axit sunfuric là gì?", "answer": "H2SO4" },
+      { "id": "vd-b-40-2", "points": 40, "question": "Chiến dịch Điện Biên Phủ kết thúc thắng lợi vào năm nào?", "answer": "1954" },
+      { "id": "vd-b-40-3", "points": 40, "question": "Ai là cha đẻ của thuyết tương đối?", "answer": "Albert Einstein" }
     ],
     "c": [
-      { "id": "vd-c-10", "points": 10, "question": "Đơn vị đo điện trở là gì?", "answer": "Ohm" },
-      { "id": "vd-c-20", "points": 20, "question": "Tác giả \"Chí Phèo\" còn viết truyện ngắn nào kể về một ông lão và con chó Vàng?", "answer": "Lão Hạc" },
-      { "id": "vd-c-30", "points": 30, "question": "Năm nào Việt Nam gia nhập Liên Hợp Quốc?", "answer": "1977" }
+      { "id": "vd-c-20-1", "points": 20, "question": "Đơn vị đo điện trở là gì?", "answer": "Ohm" },
+      { "id": "vd-c-20-2", "points": 20, "question": "Quốc gia nào có diện tích lớn nhất thế giới?", "answer": "Nga" },
+      { "id": "vd-c-20-3", "points": 20, "question": "Nguyên tố hóa học nhẹ nhất là gì?", "answer": "Hydro" },
+      { "id": "vd-c-30-1", "points": 30, "question": "Tác giả \"Chí Phèo\" còn viết truyện ngắn nào kể về một ông lão và con chó Vàng?", "answer": "Lão Hạc" },
+      { "id": "vd-c-30-2", "points": 30, "question": "Thành phố nào được gọi là 'thủ đô công nghiệp' của Việt Nam?", "answer": "Hải Phòng" },
+      { "id": "vd-c-30-3", "points": 30, "question": "Đơn vị đo tần số là gì?", "answer": "Hertz" },
+      { "id": "vd-c-40-1", "points": 40, "question": "Năm nào Việt Nam gia nhập Liên Hợp Quốc?", "answer": "1977" },
+      { "id": "vd-c-40-2", "points": 40, "question": "Ai viết bộ tiểu thuyết 'Tây Du Ký'?", "answer": "Ngô Thừa Ân" },
+      { "id": "vd-c-40-3", "points": 40, "question": "Định luật vạn vật hấp dẫn do ai phát hiện?", "answer": "Isaac Newton" }
     ],
     "d": [
-      { "id": "vd-d-10", "points": 10, "question": "Biển lớn nhất thế giới là gì?", "answer": "Thái Bình Dương" },
-      { "id": "vd-d-20", "points": 20, "question": "Ai lãnh đạo khởi nghĩa Lam Sơn?", "answer": "Lê Lợi" },
-      { "id": "vd-d-30", "points": 30, "question": "Trong tin học, DNS dùng để làm gì (nêu ngắn gọn)?", "answer": "Phân giải tên miền thành địa chỉ IP" }
+      { "id": "vd-d-20-1", "points": 20, "question": "Biển lớn nhất thế giới là gì?", "answer": "Thái Bình Dương" },
+      { "id": "vd-d-20-2", "points": 20, "question": "Loài chim nào không biết bay?", "answer": "Đà điểu" },
+      { "id": "vd-d-20-3", "points": 20, "question": "Đơn vị đo áp suất trong hệ SI là gì?", "answer": "Pascal" },
+      { "id": "vd-d-30-1", "points": 30, "question": "Ai lãnh đạo khởi nghĩa Lam Sơn?", "answer": "Lê Lợi" },
+      { "id": "vd-d-30-2", "points": 30, "question": "Thủ đô của Úc là thành phố nào?", "answer": "Canberra" },
+      { "id": "vd-d-30-3", "points": 30, "question": "Ai được mệnh danh là 'Ông tổ ngành vi trùng học'?", "answer": "Louis Pasteur" },
+      { "id": "vd-d-40-1", "points": 40, "question": "Trong tin học, DNS dùng để làm gì (nêu ngắn gọn)?", "answer": "Phân giải tên miền thành địa chỉ IP" },
+      { "id": "vd-d-40-2", "points": 40, "question": "Nước nào được mệnh danh là 'xứ sở hoa anh đào'?", "answer": "Nhật Bản" },
+      { "id": "vd-d-40-3", "points": 40, "question": "Ai là tác giả bản 'Quốc dân bầu cử'?", "answer": "Phan Bội Châu" }
     ]
   }
 }
