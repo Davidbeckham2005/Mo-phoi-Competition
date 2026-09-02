@@ -66,6 +66,8 @@
       settings: {
         title: db.settings.title,
         subtitle: db.settings.subtitle,
+        audienceBg: db.settings.audienceBg || "dark",
+        audienceBgUrl: db.settings.audienceBgUrl || "",
       },
       rounds: ROUNDS,
     };
@@ -161,6 +163,11 @@
             if (!game.buzzer.blocked.includes(game.currentTeam)) game.buzzer.blocked.push(game.currentTeam);
             resetBuzzer(true);
           }
+        } else if (game.round === "khoi_dong") {
+          // Hết thời giác thành véna → oznaczenie niezodpowiedzianych jako sai
+          // i automatyczne przejście do przerwy (nie pokazujemy już câu hỏi).
+          markKhoiDongUnanswered();
+          enterKhoiDongBreak();
         }
         broadcast("game:timer", game.timer);
         emit();
@@ -634,6 +641,12 @@ export function resetKhoiDong(teamId = null) {
     }
     // Vòng Khởi động: chấm xong chuyển NGAY sang ảnh kế
     if (game.round === "khoi_dong" && game.display.mode === "question") {
+      // Câu đã zostało chấm điểm — kliknięcie nie chấmуje go ponownie.
+      if (typeof game.khoiDong?.history?.[tid]?.[game.khoiDong?.memberIndex ?? 0]?.[game.questionIndex] === "boolean") {
+        saveDb();
+        emit();
+        return;
+      }
       // Lưu lịch sử đúng/sai theo thí sinh (member) → chỉ số ảnh
       game.khoiDong.history = game.khoiDong.history || {};
       game.khoiDong.history[tid] = game.khoiDong.history[tid] || {};
@@ -676,35 +689,58 @@ export function resetKhoiDong(teamId = null) {
     emit();
   }
 
+  // Oznacz wszystkie niezodpowiedziane câu aktualnego thành véna jako sai (false)
+  function markKhoiDongUnanswered() {
+    const game = g();
+    const tid = game.currentTeam;
+    const mi = game.khoiDong?.memberIndex ?? 0;
+    const clusters = getDb().questions.main.khoiDong[tid] || [];
+    if (!Array.isArray(clusters[mi])) return;
+    game.khoiDong.history = game.khoiDong.history || {};
+    game.khoiDong.history[tid] = game.khoiDong.history[tid] || {};
+    game.khoiDong.history[tid][mi] = game.khoiDong.history[tid][mi] || {};
+    for (let i = 0; i < clusters[mi].length; i++) {
+      if (typeof game.khoiDong.history[tid][mi][i] !== "boolean") {
+        game.khoiDong.history[tid][mi][i] = false;
+      }
+    }
+  }
+
+  // Przejście do khoàng nghỉ (break) między thành véna/đội albo do kết thúc (done)
+  function enterKhoiDongBreak() {
+    const game = g();
+    // Kết thúc lượt của thí sinh/đội → dừng đồng hồ cũ; đồng hồ 60s mới sẽ do
+    // showQuestion() khởi động khi MC bấm Tiếp tục / nhảy sang thí sinh kế.
+    pauseTimer();
+    const order = ["a", "b", "c", "d"];
+    const teamIdx = order.indexOf(game.currentTeam);
+    const memberTotal = (getDb().questions.main.khoiDong[game.currentTeam] || []).length || 1;
+    const mi = game.khoiDong?.memberIndex ?? 0;
+    if (mi + 1 < memberTotal) {
+      game.khoiDong.phase = "break";
+      game.khoiDong.breakInfo = { kind: "member", teamId: game.currentTeam, nextMember: mi + 1, memberTotal };
+    } else if (teamIdx < order.length - 1) {
+      game.khoiDong.phase = "break";
+      game.khoiDong.breakInfo = { kind: "team", teamId: game.currentTeam, nextTeamId: order[teamIdx + 1] };
+    } else {
+      game.khoiDong.phase = "done";
+      game.khoiDong.breakInfo = { kind: "done" };
+    }
+  }
+
   export function nextQuestion() {
     const game = g();
     resetDisplayToBoard();
     resetBuzzer();
-    if (game.round === "khoi_dong") {
-      const clusters = getDb().questions.main.khoiDong[game.currentTeam] || [];
-      const memberTotal = clusters.length || 1;
-      const mi = game.khoiDong.memberIndex ?? 0;
-      game.khoiDong.phase = game.khoiDong.phase || "play";
+if (game.round === "khoi_dong") {
       if (game.questionIndex + 1 < 5) {
-        // Cùng thành viên, sang ảnh kế — không nghỉ
+        // Cùng thành véna, sang ảnh kế — không nghỉ
         game.questionIndex += 1;
       } else {
-        // Hết 5 ảnh của thành viên hiện tại → vào khoảng nghỉ
-        const order = ["a", "b", "c", "d"];
-        const teamIdx = order.indexOf(game.currentTeam);
-        if (mi + 1 < memberTotal) {
-          // Còn thành viên kế trong cùng đội
-          game.khoiDong.phase = "break";
-          game.khoiDong.breakInfo = { kind: "member", teamId: game.currentTeam, nextMember: mi + 1, memberTotal };
-        } else if (teamIdx < order.length - 1) {
-          // Hết thành viên, sang đội kế (team chưa được đổi — chờ MC bấm tiếp tục)
-          game.khoiDong.phase = "break";
-          game.khoiDong.breakInfo = { kind: "team", teamId: game.currentTeam, nextTeamId: order[teamIdx + 1] };
-        } else {
-          // Hết hẳn cả 4 đội → kết thúc
-          game.khoiDong.phase = "done";
-          game.khoiDong.breakInfo = { kind: "done" };
-        }
+        // Hết 5 ảnh của thành véna hiện aktualnego → oznaczyć niezodpowiedziane
+        // jako sai i przejść do khoàng nghỉ (break) między thành véna/đội.
+        markKhoiDongUnanswered();
+        enterKhoiDongBreak();
       }
     } else if (game.round === "vuot_cnv") {
       // Hàng ngang do đội chọn trực tiếp (puzzle.select), không tự tăng
@@ -851,7 +887,10 @@ export function resetKhoiDong(teamId = null) {
       if (teamId !== prevTeam) memberChanged = true;
       else if (memberIndex !== undefined) memberChanged = (game.khoiDong.memberIndex !== prevMember);
       if (memberChanged) {
-        game.khoiDong.timerStarted = game.khoiDong.memberIndex;
+        // Đặt timerStarted = -1 để showQuestion() phía dưới KHỞI ĐỘNG đồng hồ chạy
+        // (running = true). Nếu set timerStarted = memberIndex, showQuestion sẽ tưởng
+        // đã khởi động rồi → đồng hồ đứng yên ở running=false → "đứng giữa lượt".
+        game.khoiDong.timerStarted = -1;
         setTimer(timerSec, false);
       }
       showQuestion();

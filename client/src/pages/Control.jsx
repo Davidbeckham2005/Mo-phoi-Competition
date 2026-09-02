@@ -314,8 +314,8 @@ export default function Control() {
 
       {/* CỘT GIỮA */}
       <main className="flex flex-col gap-3.5 min-w-0">
-        {/* 1 · TRẠNG THÁI */}
-        <div className="panel flex flex-wrap items-center gap-3 py-3">
+        {/* 1 · TRẠNG THÁI (không phải Round 1 — Round 1 gộp đồng hồ vào ô Câu hỏi & đáp án) */}
+        {g.round !== "khoi_dong" && <div className="panel flex flex-wrap items-center gap-3 py-3">
           <span className="round-badge">{g.round || "setup"}</span>
           <span className={`badge ${status.cls === "ok" ? "badge-ok" : status.cls === "warn" ? "badge-warn" : ""}`}>
             {status.text}
@@ -329,10 +329,10 @@ export default function Control() {
               Trả lời: {winner ? `${winner.name} (chuông)` : cur?.name}
             </span>
           )}
-          <span className={`timer-xl ml-auto text-3xl ${remaining <= 5 && running ? "timer-danger" : ""}`}>
+          <span className={`ml-auto inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1.5 timer-xl text-3xl ${remaining <= 5 && running ? "timer-danger" : "text-gold"}`}>
             {formatTime(remaining)}
           </span>
-        </div>
+        </div>}
 
         {/* 2+3 · CÂU HỎI & CHẤM ĐIỂM — dùng chung cho các vòng không phải Vượt CNV/Tăng tốc */}
         {g.round === "khoi_dong" && <QuestionScorePanel ctx={ctx} />}

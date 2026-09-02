@@ -571,22 +571,36 @@ function KhoiDongAudience({ state, timer, flash }) {
   const memberTotal = (Array.isArray(rawClusters) ? rawClusters.length : 0) || 1;
   const memberNo = (g.khoiDong?.memberIndex ?? 0) + 1;
   const phase = g.khoiDong?.phase || "play";
+  const fallbackImg = `https://picsum.photos/seed/${g.currentTeam}-${memberNo}-${(g.questionIndex || 0) + 1}/800/600`;
+  const t = timer || {};
+  const kdDur = t.duration || game.khoiDong?.timerSeconds || 60;
+  const kdRem = t.remaining ?? kdDur;
+  const timeProgress = phase === "play" ? Math.max(0, Math.min(1, (kdDur - kdRem) / kdDur)) : 0;
+
+  // Lớp nền dùng CHUNG cho mọi phase — fixed phủ toàn viewport, nằm dưới mọi nội dung
+  // (container dùng isolate để tạo stacking context riêng) nên không bao giờ bị mất.
+  const bgLayer = (
+    <>
+      <div className="fixed inset-0 z-0 bg-[#070b16]" />
+      {useBlur && bgUrl && (
+        <>
+          <div
+            className="fixed inset-0 z-0 bg-cover bg-center scale-110"
+            style={{ backgroundImage: `url(${bgUrl})`, filter: "blur(14px) brightness(0.5)" }}
+          />
+          <div className="fixed inset-0 z-0 bg-[#070b16]/45" />
+        </>
+      )}
+    </>
+  );
 
   // Ring 1 kết thúc — tổng điểm toàn đội
   if (phase === "done") {
     const ranked = (state.teams || []).slice().sort((a, b) => b.score - a.score);
     return (
-      <div className={`min-h-screen flex flex-col relative overflow-hidden ${useBlur ? "bg-[#070b16]/95" : "bg-[#070b16]"}`}>
-        {useBlur && bgUrl && (
-          <>
-            <div
-              className="absolute inset-0 -z-0 bg-cover bg-center scale-110"
-              style={{ backgroundImage: `url(${bgUrl})`, filter: "blur(14px) brightness(0.5)" }}
-            />
-            <div className="absolute inset-0 -z-0 bg-[#070b16]/55" />
-          </>
-        )}
-        <div className="relative flex-1 flex flex-col items-center justify-center px-6 z-10">
+      <div className="relative isolate min-h-screen overflow-hidden">
+        {bgLayer}
+        <div className="relative flex flex-col items-center justify-center min-h-screen px-6 z-10">
           <div className="w-full max-w-[1100px] mx-auto rounded-3xl border border-[rgba(255,214,10,0.3)] bg-[#2a3d63]/95 shadow-[0_10px_50px_rgba(0,0,0,0.5)] px-10 py-12">
             <div className="kicker text-center">VÒNG 1 · KHỘIDỌNG</div>
             <div className="font-display font-bold text-[clamp(36px,5vw,64px)] leading-tight text-white text-center mb-8">
@@ -613,34 +627,14 @@ function KhoiDongAudience({ state, timer, flash }) {
     );
   }
 
-  // Khoàng nghỉ — nic nie pokazuj, tylko tło; nowe pytanie pojawia się samo.
+  // Khoàng nghỉ — không trình bày gì, chỉ giữ lớp nền; câu hỏi mới hiện khi MC bấm Tiếp tục.
   if (phase === "break") {
-    return (
-      <div className={`min-h-screen flex flex-col relative overflow-hidden ${useBlur ? "bg-[#070b16]/95" : "bg-[#070b16]"}`}>
-        {useBlur && bgUrl && (
-          <>
-            <div
-              className="absolute inset-0 -z-0 bg-cover bg-center scale-110"
-              style={{ backgroundImage: `url(${bgUrl})`, filter: "blur(14px) brightness(0.5)" }}
-            />
-            <div className="absolute inset-0 -z-0 bg-[#070b16]/55" />
-          </>
-        )}
-      </div>
-    );
+    return <div className="relative isolate min-h-screen overflow-hidden">{bgLayer}</div>;
   }
 
   return (
-    <div className={`min-h-screen flex flex-col relative overflow-hidden ${useBlur ? "bg-[#070b16]/95" : "bg-[#070b16]"}`}>
-      {useBlur && bgUrl && (
-        <>
-          <div
-            className="absolute inset-0 -z-0 bg-cover bg-center scale-110"
-            style={{ backgroundImage: `url(${bgUrl})`, filter: "blur(14px) brightness(0.5)" }}
-          />
-          <div className="absolute inset-0 -z-0 bg-[#070b16]/55" />
-        </>
-      )}
+    <div className="relative isolate h-screen flex flex-col overflow-hidden">
+      {bgLayer}
 
       {/* Header — tên đội đang thi */}
       <div className="relative flex-none pt-5 pb-2 px-6 text-center z-10">
@@ -649,15 +643,15 @@ function KhoiDongAudience({ state, timer, flash }) {
         </div>
       </div>
 
-      {/* Giữa — hình ảnh chiếm to nhất */}
-      <div className="relative flex-1 flex flex-col items-center justify-center px-6 min-h-0 z-10">
+      {/* Giữa — hình ảnh chiếm to nhất (zachowany margines od viển) */}
+      <div className="relative flex flex-col items-center justify-center px-8 min-h-0 flex-1 z-10">
         {d.answerRevealed ? (
           <div className="text-center">
-            {d.mediaUrl && (
+            {(d.mediaUrl || fallbackImg) && (
               <img
-                src={d.mediaUrl}
+                src={d.mediaUrl || fallbackImg}
                 alt=""
-                className="max-h-[50vh] max-w-[80vw] mx-auto rounded-2xl object-contain"
+                className="max-h-full max-w-[80vw] mx-auto rounded-2xl object-contain"
               />
             )}
             <div className="kicker mt-4">ĐÁP ÁN</div>
@@ -672,20 +666,32 @@ function KhoiDongAudience({ state, timer, flash }) {
               <img
                 src={d.mediaUrl}
                 alt=""
-                className="max-h-[62vh] max-w-[85vw] mx-auto rounded-2xl object-contain"
+                className="max-h-full max-w-[85vw] mx-auto rounded-2xl object-contain"
               />
             ) : (
-              <div className="mx-auto w-[min(500px,70vw)] aspect-[4/3] rounded-2xl bg-[#0e1830] border border-[rgba(255,214,10,0.22)] grid place-items-center">
-                <div className="text-6xl text-[#9aa7c7]/40">?</div>
-              </div>
+              <img
+                src={fallbackImg}
+                alt=""
+                className="max-h-full max-w-[85vw] mx-auto rounded-2xl object-contain"
+              />
             )}
           </div>
         )}
       </div>
 
-      {/* Dưới — khối tách riêng: thanh bar tên đội + câu hỏi */}
-      <div className="relative flex-none z-10 px-4 pb-4">
-        <div className="w-full max-w-[1200px] mx-auto rounded-2xl border border-[rgba(255,214,10,0.18)] bg-[#2a3d63] shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
+      {/* Dưới — khối tách riêng: thanh bar tên đội + câu hỏi (tách rõ so với ảnh phía trên, margines od viển).
+          Chạy thành viền obwódki: conic-gradient złota od góry zgodnie z przez biegiem czasu khi thí sinh trả lời. */}
+      <div className="relative flex-none z-10 px-8 pb-5 pt-20">
+        <div
+          className="rounded-2xl w-full max-w-[1200px] mx-auto"
+          style={{
+            padding: 4,
+            background: phase === "play"
+              ? `conic-gradient(from 0deg, #ffd60a calc(${timeProgress * 360}deg), transparent calc(${timeProgress * 360}deg))`
+              : "transparent",
+          }}
+        >
+          <div className="w-full rounded-2xl border border-[rgba(255,214,10,0.18)] bg-[#2a3d63] shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
           <div className="flex w-full">
             {(state.teams || []).map((t) => {
               const active = g.currentTeam === t.id;
@@ -714,6 +720,7 @@ function KhoiDongAudience({ state, timer, flash }) {
             <div className="font-display font-bold text-[clamp(20px,2.6vw,34px)] text-white">
               Đây là tế bào/cấu trúc/cơ quan gì?
             </div>
+          </div>
           </div>
         </div>
       </div>
