@@ -1,4 +1,5 @@
   import { getDb, saveDb, resetContest, normalizeMainKhoiDong } from "../models/store.js";
+  import { SOUND_SLOTS, emptySounds } from "../models/Sound.js";
   import { publicState, adminState } from "../services/state.service.js";
   import * as exam from "../services/exam.service.js";
   import * as game from "../services/game.service.js";
@@ -136,6 +137,43 @@
     db.media = db.media.filter((m) => m.id !== req.params.id);
     saveDb();
     return db.media;
+  }
+
+  export function uploadSound(req) {
+    const slot = req.params.slot;
+    if (!SOUND_SLOTS.includes(slot)) {
+      const err = new Error("Slot âm thanh không hợp lệ.");
+      err.status = 400;
+      throw err;
+    }
+    if (!req.file) {
+      const err = new Error("Không có tệp.");
+      err.status = 400;
+      throw err;
+    }
+    const db = getDb();
+    db.sounds = { ...emptySounds(), ...(db.sounds || {}) };
+    db.sounds[slot] = { name: req.file.originalname, url: `/uploads/${req.file.filename}` };
+    saveDb();
+    game.emit();
+    emitEvent("prelim:update", publicState());
+    return db.sounds;
+  }
+
+  export function deleteSound(req) {
+    const slot = req.params.slot;
+    if (!SOUND_SLOTS.includes(slot)) {
+      const err = new Error("Slot âm thanh không hợp lệ.");
+      err.status = 400;
+      throw err;
+    }
+    const db = getDb();
+    db.sounds = { ...emptySounds(), ...(db.sounds || {}) };
+    db.sounds[slot] = { url: "", name: "" };
+    saveDb();
+    game.emit();
+    emitEvent("prelim:update", publicState());
+    return db.sounds;
   }
 
   export function setKhoiDongAnswerSeconds(req) {

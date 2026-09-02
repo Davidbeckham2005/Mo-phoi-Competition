@@ -11,6 +11,8 @@ import {
   saveTeams,
   saveMainQuestions,
   uploadFile,
+  uploadSound,
+  deleteSound,
   saveSettings,
   setKhoiDongAnswerSeconds,
   setKhoiDongTimerSeconds,
@@ -74,6 +76,7 @@ export default function Admin() {
           ["thi-sinh", "Thí sinh"],
           ["doi", "4 đội"],
           ["cau-hoi", "Câu hỏi"],
+          ["am-thanh", "Âm thanh"],
           ["media", "Hình ảnh / Video"],
           ["dieu-khien", "Hẹn giờ & chuông"],
           ["cai-dat", "Cài đặt"],
@@ -95,6 +98,7 @@ export default function Admin() {
       {tab === "thi-sinh" && <ContestantsTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "doi" && <TeamsTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "cau-hoi" && <QuestionsTab state={state} reload={load} setMsg={setMsg} />}
+      {tab === "am-thanh" && <SoundsTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "media" && <MediaTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "dieu-khien" && <TimerBuzzerTab state={state} timer={timer} setMsg={setMsg} />}
       {tab === "cai-dat" && <SettingsTab state={state} reload={load} setMsg={setMsg} />}
@@ -810,6 +814,63 @@ function JsonEditor({ draft, setDraft, setMsg }) {
   );
 }
 
+function SoundsTab({ state, reload, setMsg }) {
+  const slots = [
+    ["correct", "Đúng", "Phát khi MC chấm đúng"],
+    ["wrong", "Sai", "Phát khi MC chấm sai"],
+    ["bg", "Nhạc nền", "Lặp khi đang thi"],
+    ["wait", "Nhạc chờ", "Lặp khi màn hình chờ"],
+  ];
+  const sounds = state.sounds || {};
+
+  async function onFile(slot, e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    await uploadSound(slot, file);
+    setMsg(`Đã lưu âm thanh ${slot}`);
+    reload();
+  }
+
+  async function clear(slot) {
+    await deleteSound(slot);
+    setMsg("Đã gỡ âm thanh");
+    reload();
+  }
+
+  return (
+    <div className="panel">
+      <p className="text-mist text-sm mb-4">Bốn file âm thanh riêng — không trộn với ảnh/video. Màn hình khán giả tự phát.</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {slots.map(([id, label, hint]) => {
+          const s = sounds[id] || {};
+          return (
+            <div key={id} className="rounded-xl border border-line bg-night/40 p-4">
+              <div className="font-bold">{label}</div>
+              <div className="text-mist text-xs mt-0.5">{hint}</div>
+              {s.url ? (
+                <audio className="w-full mt-3" src={s.url} controls />
+              ) : (
+                <div className="text-mist text-sm mt-3">Chưa có file</div>
+              )}
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <label className="btn btn-ghost text-sm py-1.5! cursor-pointer">
+                  {s.url ? "Đổi file" : "Chọn file"}
+                  <input type="file" accept="audio/*" className="hidden" onChange={(e) => onFile(id, e)} />
+                </label>
+                {s.url && (
+                  <button type="button" className="btn btn-danger text-sm py-1.5!" onClick={() => clear(id)}>Gỡ</button>
+                )}
+                {s.name && <span className="text-mist text-xs truncate">{s.name}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MediaTab({ state, reload, setMsg }) {
   async function onFile(e) {
     const file = e.target.files?.[0];
@@ -824,7 +885,7 @@ function MediaTab({ state, reload, setMsg }) {
       <p className="text-mist">Tải ảnh/video gợi ý. MC có thể hiện lên màn hình khán giả.</p>
       <input type="file" accept="image/*,video/*" onChange={onFile} className="my-3" />
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {(state.media || []).map((m) => (
+        {(state.media || []).filter((m) => m.type === "image" || m.type === "video").map((m) => (
           <div key={m.id}>
             {m.type === "video" ? (
               <video src={m.url} className="w-full rounded-lg" />

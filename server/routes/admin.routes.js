@@ -22,5 +22,7 @@ router.post("/khoi-dong-answer-seconds", requirePin, asyncHandler(admin.setKhoiD
 router.post("/khoi-dong-timer-seconds", requirePin, asyncHandler(admin.setKhoiDongTimerSeconds));
 router.post("/upload", requirePin, upload.single("file"), asyncHandler(admin.uploadMedia));
 router.delete("/media/:id", requirePin, asyncHandler(admin.deleteMedia));
+router.post("/sounds/:slot", requirePin, upload.single("file"), asyncHandler(admin.uploadSound));
+router.delete("/sounds/:slot", requirePin, asyncHandler(admin.deleteSound));
 
 export default router;

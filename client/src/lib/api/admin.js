@@ -66,6 +66,23 @@ export function saveMainQuestions(main) {
   return request("/api/admin/questions/main", { method: "POST", body: { main } });
 }
 
+export async function uploadSound(slot, file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`/api/admin/sounds/${slot}`, {
+    method: "POST",
+    headers: { "x-admin-pin": getPin() },
+    body: fd,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Tải âm thanh thất bại.");
+  return data;
+}
+
+export function deleteSound(slot) {
+  return request(`/api/admin/sounds/${slot}`, { method: "DELETE" });
+}
+
 export async function uploadFile(file) {
   const fd = new FormData();
   fd.append("file", file);

@@ -40,8 +40,8 @@ export function publicState() {
     submittedCount: d.contestants.filter((c) => c.submittedAt).length,
     // trạng thái game hiện tại
     game: d.game,
-    // danh sách các phương tiện truyền thông (hình ảnh, video, âm thanh)
     media: d.media,
+    sounds: d.sounds || { correct: { url: "" }, wrong: { url: "" }, bg: { url: "" }, wait: { url: "" } },
     // định nghĩa cấu trúc vòng thi
     rounds: ROUNDS,
   };

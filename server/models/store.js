@@ -16,6 +16,7 @@ import * as Team from "./Team.js";
 import * as Contestant from "./Contestant.js";
 import * as Question from "./Question.js";
 import * as Media from "./Media.js";
+import * as Sound from "./Sound.js";
 import * as GameState from "./GameState.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -36,6 +37,7 @@ export function defaultDb() {
     teams: TEAM_DEFS.map((t) => ({ ...t, memberIds: [], score: 0 })),
     questions: { soKhao, main },
     media: [],
+    sounds: Sound.emptySounds(),
     game: defaultGame(),
   };
 }
@@ -84,6 +86,7 @@ async function persist(data) {
     await Question.saveSoKhao(conn, data.questions.soKhao);
     await Question.saveMain(conn, data.questions.main);
     await Media.saveAll(conn, data.media || []);
+    await Sound.saveAll(conn, data.sounds || Sound.emptySounds());
     await GameState.save(conn, data.game);
     await conn.commit();
   } catch (err) {
@@ -105,6 +108,7 @@ async function assemble() {
     const soKhao = await Question.loadSoKhao(conn);
     const main = await Question.loadMain(conn);
     const media = await Media.loadAll(conn);
+    const sounds = await Sound.loadAll(conn);
     const game = await GameState.load(conn);
     const fallback = defaultDb();
     // Hợp nhất đội: giữ dữ liệu đội đã có trong DB, tự bổ sung đội mới (e/f) từ TEAM_DEFS.
@@ -134,6 +138,7 @@ async function assemble() {
         main: normalizeMainKhoiDong(mergedMain),
       },
       media,
+      sounds,
       game: game || defaultGame(),
     };
   } finally {
@@ -153,6 +158,7 @@ export async function loadDb() {
       ...defaultDb(),
       ...json,
       settings: { ...defaultDb().settings, ...(json.settings || {}) },
+      sounds: { ...Sound.emptySounds(), ...(json.sounds || {}) },
       questions: {
         soKhao: json.questions?.soKhao || defaultDb().questions.soKhao,
         main: normalizeMainKhoiDong(json.questions?.main || defaultDb().questions.main),
@@ -186,8 +192,9 @@ export async function resetContest(keepQuestions = true) {
   const prev = getDb();
   const next = defaultDb();
   if (keepQuestions) next.questions = prev.questions;
-  next.media = prev.media || [];
-  next.settings = { ...next.settings, ...prev.settings, prelimOpen: false };
+    next.media = prev.media || [];
+    next.sounds = prev.sounds || Sound.emptySounds();
+    next.settings = { ...next.settings, ...prev.settings, prelimOpen: false };
   db = next;
   await persist(db);
   return db;

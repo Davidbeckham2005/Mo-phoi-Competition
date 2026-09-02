@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useAudienceAudio } from "../lib/useAudio.js";
 import { formatTime } from "../lib/format.js";
 import { on } from "../lib/socket.js";
 import { useGameState } from "../lib/useGame.js";
@@ -26,6 +27,7 @@ function playBuzz() {
 export default function Audience() {
   const { state, timer } = useGameState();
   const [flash, setFlash] = useState(null);
+  const { audioOn, enableAudio } = useAudienceAudio(state);
 
   useEffect(() => {
     return on("buzzer:press", (p) => {
@@ -37,6 +39,22 @@ export default function Audience() {
 
   if (!state) {
     return <div className="min-h-screen grid place-items-center text-mist">Đang kết nối màn hình…</div>;
+  }
+
+  if (!audioOn) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center bg-[#081021] text-white text-center px-5 select-none"
+        onClick={enableAudio}
+        style={{ cursor: "pointer", zIndex: 1000 }}
+      >
+        <div>
+          <div style={{ fontSize: 44, fontWeight: 700, marginBottom: 24 }}>🔊 Nhấn để mở âm thanh</div>
+          <div style={{ fontSize: 24 }}>Hệ thống yêu cầu bạn nhấp/tap chuột lên màn hình lần đầu để kích hoạt nhạc nền và hiệu ứng âm thanh.</div>
+          <div style={{ fontSize: 18, marginTop: 18, opacity: 0.6 }}>(Nếu mất âm thanh hãy tải lại trang và nhấn chuột/tap lần nữa)</div>
+        </div>
+      </div>
+    );
   }
 
   const g = state.game || {};
@@ -656,9 +674,37 @@ function KhoiDongAudience({ state, timer, flash }) {
     );
   }
 
-  // Khoàng nghỉ — không trình bày gì, chỉ giữ lớp nền; câu hỏi mới hiện khi MC bấm Tiếp tục.
   if (phase === "break") {
-    return <div className="relative isolate min-h-screen overflow-hidden">{bgLayer}</div>;
+    const b = g.khoiDong?.breakInfo || {};
+    const inviteTeamId = b.kind === "team" ? b.nextTeamId : b.teamId;
+    const inviteTeam = (state.teams || []).find((x) => x.id === inviteTeamId);
+    const memberNo = (b.nextMember ?? 0) + 1;
+    return (
+      <div className="relative isolate min-h-screen overflow-hidden">
+        {bgLayer}
+        <div className="relative flex flex-col items-center justify-center min-h-screen px-6 z-10 text-center">
+          <div className="kicker tracking-[0.35em] text-[#ffd60a]">VÒNG 1 · KHỞI ĐỘNG</div>
+          <div className="font-display font-bold text-[clamp(28px,4vw,56px)] text-white/75 mt-6">Mời</div>
+          {b.kind === "member" ? (
+            <>
+              <div className="font-display font-black text-[clamp(44px,7vw,96px)] leading-none text-[#ffd60a] mt-3">
+                Thành viên {memberNo}
+              </div>
+              <div className="font-display font-bold text-[clamp(28px,4vw,56px)] text-white mt-5">
+                của đội {inviteTeam?.name || ""}
+              </div>
+            </>
+          ) : (
+            <div
+              className="font-display font-black text-[clamp(48px,8vw,110px)] leading-none mt-3"
+              style={{ color: inviteTeam?.color || "#ffd60a" }}
+            >
+              Đội {inviteTeam?.name || ""}
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (

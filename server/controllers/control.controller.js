@@ -1,5 +1,6 @@
 import { getDb } from "../models/store.js";
 import * as game from "../services/game.service.js";
+import { emitEvent } from "../config/io.js";
 
 const actions = {
   // Reset vòng 2 (Vượt chướng ngại vật) yêu cầu nhập mật khẩu admin để xác nhận.
@@ -42,7 +43,11 @@ const actions = {
     }
     return game.jumpToQuestion(p.teamId, p.questionIndex, p.memberIndex);
   },
-  "answer.mark": (p) => game.markAnswer(!!p.correct, p.teamId),
+  "answer.mark": (p) => {
+    const r = game.markAnswer(!!p.correct, p.teamId);
+    emitEvent("sound:play", { slot: p.correct ? "correct" : "wrong" });
+    return r;
+  },
   "score.add": (p) => game.addScore(p.teamId, p.points),
   "score.set": (p) => game.setScore(p.teamId, p.score),
   "khoi_dong.timer": (p) => game.setKhoiDongTimer(p.seconds),
@@ -72,7 +77,11 @@ const actions = {
   "puzzle.show": () => game.showPuzzle(),
   "puzzle.skip": () => game.skipSteal(),
   "order.pick": (p) => game.pickOrder(p.teamId),
-  "keyword.solve": (p) => game.solveKeyword(p.teamId, !!p.correct),
+  "keyword.solve": (p) => {
+    const r = game.solveKeyword(p.teamId, !!p.correct);
+    emitEvent("sound:play", { slot: p.correct ? "correct" : "wrong" });
+    return r;
+  },
   "media.show": (p) => game.showMedia(p.url, p.type),
   "scores.show": () => game.showScores(),
   "vedich.pick": (p) => game.vedichPick(p.points, p.slot),
@@ -87,7 +96,11 @@ const actions = {
   "tangtoc.stop": (p) => game.tangTocStop(p.pin),
   "tangtoc.settle": () => game.settleTangToc(),
   "tangtoc.phase": (p) => game.tangTocSetPhase(p.phase),
-  "tangtoc.mark": (p) => game.tangTocMark(p.teamId, !!p.correct),
+  "tangtoc.mark": (p) => {
+    const r = game.tangTocMark(p.teamId, !!p.correct);
+    emitEvent("sound:play", { slot: p.correct ? "correct" : "wrong" });
+    return r;
+  },
   "tangtoc.reveal": (p) => game.tangTocReveal(p.step),
   "contest.finish": () => game.finishContest(),
   "contest.resetGame": () => game.resetGameKeepTeams(),
