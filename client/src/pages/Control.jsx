@@ -5,6 +5,7 @@ import { getPin } from "../lib/session.js";
 import { formatTime } from "../lib/format.js";
 import { on } from "../lib/socket.js";
 import { useGameState } from "../lib/useGame.js";
+import { activeTeamIds } from "../lib/teams.js";
 import {
   isOpen,
   isLocked,
@@ -12,7 +13,7 @@ import {
   keywordGuessOpen,
   cornersDone as allCornersDone,
 } from "../lib/cnv.js";
-import QuestionScorePanel from "./control/QuestionScorePanel.jsx";
+import QuestionScorePanel, { KdScorePanel } from "./control/QuestionScorePanel.jsx";
 import RoundKhoiDong from "./control/RoundKhoiDong.jsx";
 import RoundVuotCnv from "./control/RoundVuotCnv.jsx";
 import RoundTangToc from "./control/RoundTangToc.jsx";
@@ -46,7 +47,7 @@ export default function Control() {
   }, [nav]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function act(action, body) {
-    sendControl(action, body).catch((e) => alert(e.message));
+    return sendControl(action, body).catch((e) => alert(e.message));
   }
 
   if (!state) return <div className="min-h-screen grid place-items-center text-mist">Đang tải bàn điều khiển…</div>;
@@ -245,13 +246,7 @@ export default function Control() {
     >
       {/* CỘT TRÁI — Vòng thi / đội */}
       <aside className="aside-col panel">
-        <div className="flex justify-between items-center select-none">
-          <div>
-            <div className="kicker">MC / Ban tổ chức</div>
-            <h3 className="font-display font-bold mt-2">{state.settings?.title}</h3>
-          </div>
-        </div>
-        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2 mt-4">Vòng thi</div>
+        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Vòng thi</div>
         <div className="grid gap-2">
           {[
             ["khoi_dong", "Khởi động"],
@@ -262,14 +257,18 @@ export default function Control() {
             <button
               key={id}
               type="button"
-              className={`btn btn-ghost ${g.round === id ? "!border-gold text-gold" : ""}`}
+              className={`flex items-center justify-between gap-2 border border-[rgba(255,255,255,0.15)] px-3 py-2.5 text-left transition ${
+                g.round === id
+                  ? "bg-white/20 ring-1 ring-white/40 text-white"
+                  : "bg-[#7d90b8] hover:bg-white/20 text-black/90"
+              }`}
               onClick={() => requestRound(id, label)}
             >
-              {label}
+              <span className="font-semibold text-sm">{label}</span>
             </button>
           ))}
-          <button type="button" className="btn" onClick={() => act("scores.show")}>Hiện bảng điểm</button>
-          <button type="button" className="btn btn-ok" onClick={() => act("contest.finish")}>Kết quả cuối</button>
+          <button type="button" className="border border-[rgba(255,255,255,0.25)] bg-[#7d90b8] px-3 py-2.5 font-semibold text-sm text-black/90 hover:bg-white/20 transition" onClick={() => act("scores.show")}>Hiện bảng điểm</button>
+          <button type="button" className="border border-[rgba(255,255,255,0.25)] bg-[#7d90b8] px-3 py-2.5 font-semibold text-sm text-black/90 hover:bg-white/20 transition" onClick={() => act("contest.finish")}>Kết quả cuối</button>
         </div>
         {g.round !== "tang_toc" && (<>
         <hr className="my-4 border-line" />
@@ -283,25 +282,21 @@ export default function Control() {
                 type="button"
                 onClick={() =>
                   isKd
-                    ? act("question.jump", { teamId: t.id, questionIndex: firstValidIndex(t.id).questionIndex, memberIndex: firstValidIndex(t.id).memberIndex })
+                    ? act("question.jump", { teamId: t.id, questionIndex: firstValidIndex(t.id).questionIndex, memberIndex: 0 })
                     : act("team.set", { teamId: t.id })
                 }
-                className={`flex items-center gap-3 rounded-xl border-2 px-3 py-2.5 text-left transition ${
+                className={`flex items-center gap-3 border border-[rgba(255,255,255,0.15)] px-3 py-2.5 text-left transition ${
                   active
-                    ? "border-gold bg-gold/10 ring-1 ring-gold/30"
-                    : "border-line bg-panel-solid hover:border-gold/40"
+                    ? "bg-white/25 ring-1 ring-white/50"
+                    : "bg-[#64769e] hover:bg-white/20"
                 }`}
-                style={active ? {} : { borderLeftColor: t.color }}
               >
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: t.color }}
-                />
-                <span className="flex-1 min-w-0">
-                  <span className="block font-semibold text-sm truncate" style={{ color: t.color }}>{t.name}</span>
+                <span className={`flex-1 min-w-0 font-semibold text-sm truncate ${active ? "text-white" : "text-black/80"}`}>
+                  {t.name}
                 </span>
-                <span className="font-display text-lg font-bold">{t.score}</span>
-                {active && <span className="badge badge-ok text-xs!">●</span>}
+                <span className={`font-display text-lg font-bold ${active ? "text-white" : "text-black/80"}`}>
+                  {t.score}
+                </span>
               </button>
             );
           })}
@@ -314,7 +309,10 @@ export default function Control() {
 
       {/* CỘT GIỮA */}
       <main className="flex flex-col gap-3.5 min-w-0">
-        {/* 1 · TRẠNG THÁI (không phải Round 1 — Round 1 gộp đồng hồ vào ô Câu hỏi & đáp án) */}
+        {/* 1 · HIỂN THỊ CÂU HỎI — thời gian · đáp án · ảnh (Round 1) — trên đầu trang */}
+        {g.round === "khoi_dong" && <QuestionScorePanel ctx={ctx} />}
+
+        {/* 2 · TRẠNG THÁI (không phải Round 1 — Round 1 gộp đồng hồ vào ô Câu hỏi & đáp án) */}
         {g.round !== "khoi_dong" && <div className="panel flex flex-wrap items-center gap-3 py-3">
           <span className="round-badge">{g.round || "setup"}</span>
           <span className={`badge ${status.cls === "ok" ? "badge-ok" : status.cls === "warn" ? "badge-warn" : ""}`}>
@@ -334,16 +332,14 @@ export default function Control() {
           </span>
         </div>}
 
-        {/* 2+3 · CÂU HỎI & CHẤM ĐIỂM — dùng chung cho các vòng không phải Vượt CNV/Tăng tốc */}
-        {g.round === "khoi_dong" && <QuestionScorePanel ctx={ctx} />}
-
-        {/* 4 · THEO VÒNG — Vượt chướng ngại vật */}
+        {/* 3 · QUẢN LÝ CÂU HỎI theo vòng */}
         <RoundVuotCnv ctx={ctx} />
-
-        {/* QUẢN LÝ CÂU HỎI theo vòng */}
         <RoundVeDich ctx={ctx} />
         <RoundKhoiDong ctx={ctx} />
         <RoundTangToc ctx={ctx} />
+
+        {/* 4 · CHẤM ĐIỂM — dưới cùng */}
+        <KdScorePanel ctx={ctx} />
       </main>
 
       {/* CỘT PHẢI — Bảng điểm */}
@@ -351,7 +347,9 @@ export default function Control() {
         <b>Bảng điểm</b>
           <>
             <div className="flex flex-col gap-3 mt-3">
-              {state.teams.map((t) => {
+{state.teams
+            .filter((t) => (isKd ? true : activeTeamIds(g, state.teams).includes(t.id)))
+            .map((t) => {
                 const rank = rankedById[t.id];
                 const top = rank <= 3;
                 return (

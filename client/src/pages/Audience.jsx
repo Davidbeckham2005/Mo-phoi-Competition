@@ -3,6 +3,7 @@ import { formatTime } from "../lib/format.js";
 import { on } from "../lib/socket.js";
 import { useGameState } from "../lib/useGame.js";
 import { isOpen, isLocked } from "../lib/cnv.js";
+import { activeTeamIds } from "../lib/teams.js";
 
 function playBuzz() {
   try {
@@ -573,9 +574,32 @@ function KhoiDongAudience({ state, timer, flash }) {
   const phase = g.khoiDong?.phase || "play";
   const fallbackImg = `https://picsum.photos/seed/${g.currentTeam}-${memberNo}-${(g.questionIndex || 0) + 1}/800/600`;
   const t = timer || {};
-  const kdDur = t.duration || game.khoiDong?.timerSeconds || 60;
+  const kdDur = t.duration || g.khoiDong?.timerSeconds || 60;
   const kdRem = t.remaining ?? kdDur;
-  const timeProgress = phase === "play" ? Math.max(0, Math.min(1, (kdDur - kdRem) / kdDur)) : 0;
+  // Progress mượt: gộp dữ liệu server (đếm theo giây) với đồng hồ real-time (rAF) để
+  // viền conic chạy liên tục, không giật theo nấc 1 giây. Dựa vào endsAt (mốc tuyệt đối
+  // từ server) nên mọi màn hình cùng vị trí; kdRem giữ role dự phòng khi endsAt chưa có.
+  const running = !!timer?.running;
+  const rawProgress = Math.max(0, Math.min(1, (kdDur - kdRem) / kdDur));
+  const [smoothProgress, setSmoothProgress] = useState(rawProgress);
+  useEffect(() => {
+    if (phase !== "play" || !running) {
+      setSmoothProgress(rawProgress);
+      return;
+    }
+    const endsAt = timer?.endsAt ?? Date.now() + kdRem * 1000;
+    let raf = 0;
+    const loop = () => {
+      const remMs = Math.max(0, endsAt - Date.now());
+      const p = Math.max(0, Math.min(1, (kdDur * 1000 - remMs) / (kdDur * 1000)));
+      setSmoothProgress(p);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [phase, running, kdDur, timer?.endsAt, kdRem]);
+  // Hiển thị theo real-time nhưng vẫn bám giá trị server nếu nó nhảy (MC đổi ảnh).
+  const timeProgress = phase === "play" ? smoothProgress : 0;
 
   // Lớp nền dùng CHUNG cho mọi phase — fixed phủ toàn viewport, nằm dưới mọi nội dung
   // (container dùng isolate để tạo stacking context riêng) nên không bao giờ bị mất.
@@ -593,6 +617,11 @@ function KhoiDongAudience({ state, timer, flash }) {
       )}
     </>
   );
+
+  // Chưa bắt đầu lượt (MC chưa chọn đội): khán giả chỉ giữ nền, không hiển thị đội/ảnh mặc định
+  if (g.questionStatus === "idle") {
+    return <div className="relative isolate min-h-screen overflow-hidden">{bgLayer}</div>;
+  }
 
   // Ring 1 kết thúc — tổng điểm toàn đội
   if (phase === "done") {
@@ -716,9 +745,18 @@ function KhoiDongAudience({ state, timer, flash }) {
               );
             })}
           </div>
-          <div className="px-4 pb-4 pt-1 text-center border-t border-[rgba(255,214,10,0.1)]">
-            <div className="font-display font-bold text-[clamp(20px,2.6vw,34px)] text-white">
-              Đây là tế bào/cấu trúc/cơ quan gì?
+          <div className="flex items-stretch border-t border-[rgba(255,214,10,0.1)]">
+            <div className="flex-1 px-4 py-1 text-center flex items-center justify-center border-r border-[rgba(255,214,10,0.1)]">
+              <div className="font-display font-bold text-[clamp(20px,2.6vw,34px)] text-white">
+                Đây là tế bào/cấu trúc/cơ quan gì?
+              </div>
+            </div>
+            <div className="shrink-0 flex flex-col items-center justify-center gap-0.5 px-6 py-2 bg-[#ffd60a]/15">
+              <div className="kicker text-[10px] tracking-[0.2em] text-white/70">{activeTeam?.name || "—"}</div>
+              <div className="font-display font-black text-[clamp(28px,3.4vw,44px)] leading-none text-[#ffd60a]">
+                {activeTeam?.score ?? 0}
+              </div>
+              <div className="text-[10px] tracking-[0.2em] text-white/50">ĐIỂM</div>
             </div>
           </div>
           </div>
@@ -838,7 +876,7 @@ function TangTocStage({ state, g, timer }) {
           Các đội đã gửi đáp án — video vừa dừng lại!
         </div>
         <div className="flex gap-6 mt-2">
-          {teams.filter((t) => ["a", "b", "c", "d"].includes(t.id)).map((t) => (
+          {teams.filter((t) => activeTeamIds(g, teams).includes(t.id)).map((t) => (
             <div
               key={t.id}
               className="rounded-xl bg-panel/60 border border-line w-[160px] aspect-[4/3] grid place-items-center gap-2"

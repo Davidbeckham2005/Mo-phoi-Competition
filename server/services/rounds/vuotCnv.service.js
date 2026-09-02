@@ -13,6 +13,13 @@
 //   cnv.selectRow(0); cnv.revealRow(1); ...
 
 import { getDb, saveDb } from "../../models/store.js";
+import { TEAM_ORDER } from "../../config/constants.js";
+
+// Team hợp lệ = có trong TEAM_ORDER (round 2 chỉ chạy với top-4, nhưng đội "e"/"f"
+// cũng là team hợp lệ khi đạt top-4).
+function isKnownTeam(id) {
+  return TEAM_ORDER.includes(id);
+}
 
 // Các hàm dùng chung được game.service.js tiêm vào khi khởi động module.
 let emit = () => {};
@@ -185,7 +192,7 @@ export function selectRow(rowIndex) {
 export function pickOrder(teamId) {
   const p = g().puzzle;
   if (!p.orderPending) return;
-  if (!["a", "b", "c", "d"].includes(teamId)) return;
+  if (!isKnownTeam(teamId)) return;
   p.pendingPick = p.pendingPick || [];
   if (p.pendingPick.includes(teamId)) {
     p.pendingPick = p.pendingPick.filter((id) => id !== teamId);
@@ -237,7 +244,7 @@ export function revealCenter(teamId = null) {
   if (game.puzzle.centerRevealed) return; // không mở lại / không cộng điểm trùng
   game.puzzle.centerRevealed = true;
   // Đúng câu hỏi ô trung tâm → đội đó được thêm 10 điểm
-  const tid = ["a", "b", "c", "d"].includes(teamId) ? teamId : null;
+  const tid = isKnownTeam(teamId) ? teamId : null;
   if (tid) addScore(tid, 10);
   saveDb();
   emit();
@@ -288,7 +295,8 @@ export function solveKeyword(teamId, correct) {
     // TỪ KHÓA riêng (puzzle.keywordClaim), chuông chính chỉ dành cho trả lời hàng ngang.
     resetBuzzer(false);
     // Cả 4 đội đã đoán sai → không còn ai được trả lời: tự mở đáp án (không tính điểm)
-    const allBlocked = ["a", "b", "c", "d"].every((id) =>
+    const active = game.puzzle.order?.length ? game.puzzle.order : TEAM_ORDER.slice(0, 4);
+    const allBlocked = active.every((id) =>
       game.puzzle.keywordBlocked.includes(id)
     );
     if (allBlocked) {

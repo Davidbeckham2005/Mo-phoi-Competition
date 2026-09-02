@@ -1,3 +1,5 @@
+import { activeTeamIds } from "../../lib/teams.js";
+
 export default function RoundVuotCnv({ ctx }) {
   const { g, d, q, p, cnv, state, pts, solved, locked, cornersDone, cnvRowPhase, cnvKeywordPhase, rowOwner, revealed, showing, status, act } = ctx;
   if (g.round !== "vuot_cnv") return null;
@@ -96,7 +98,7 @@ export default function RoundVuotCnv({ ctx }) {
           {helpingOrder ? (
             <div className="w-full mt-1.5 flex flex-wrap items-center gap-2 rounded-xl border border-gold/40 bg-gold/5 px-3 py-2">
               <span className="text-xs tracking-[0.18em] uppercase text-gold">Bằng điểm — xếp thứ tự chọn:</span>
-              {state.teams.map((t) => {
+              {state.teams.filter((t) => activeTeamIds(g, state.teams).includes(t.id)).map((t) => {
                 const placed = pendingPick.includes(t.id);
                 const pos = pendingPick.indexOf(t.id);
                 return (
@@ -245,7 +247,7 @@ export default function RoundVuotCnv({ ctx }) {
         <div className="flex flex-wrap items-center gap-2 mt-2.5">
           <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-line px-2 py-1">
             <span className="text-xs text-mist mr-1">★ Ô trung tâm +10:</span>
-            {state.teams.map((t) => (
+            {state.teams.filter((t) => activeTeamIds(g, state.teams).includes(t.id)).map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -295,7 +297,7 @@ export default function RoundVuotCnv({ ctx }) {
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-mist">Sai / hết giờ — đội giành quyền:</span>
               {(state.teams || [])
-                .filter((t) => t.id !== g.currentTeam)
+                .filter((t) => activeTeamIds(g, state.teams).includes(t.id) && t.id !== g.currentTeam)
                 .map((t) => (
                   <button key={t.id} type="button" className="btn btn-sm" onClick={() => act("buzzer.press", { teamId: t.id })}>
                     {t.name}

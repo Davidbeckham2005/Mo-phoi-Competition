@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { activeTeamIds } from "../../lib/teams.js";
 
 export default function RoundTangToc({ ctx }) {
   const { g, act, state } = ctx;
@@ -102,7 +103,7 @@ export default function RoundTangToc({ ctx }) {
   else if (shown && !running) status = { label: "Sẵn sàng chiếu — bấm “▶ Chiếu video”", tone: "badge" };
 
   const rows = teams
-    .filter((t) => ["a", "b", "c", "d"].includes(t.id))
+    .filter((t) => activeTeamIds(g, teams).includes(t.id))
     .map((t) => {
       const sub = subs[t.id];
       const r = ranked.find((x) => x.teamId === t.id);

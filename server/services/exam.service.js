@@ -1,3 +1,4 @@
+import * as XLSX from "xlsx";
 import { getDb, saveDb } from "../models/store.js";
 
 function shuffle(arr) {
@@ -39,6 +40,163 @@ export function registerContestant({ name, studentId, school, className }) {
   db.contestants.push(contestant);
   saveDb();
   return contestant;
+}
+
+function normKey(h) {
+  return String(h || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function pickField(obj, keys) {
+  for (const [k, v] of Object.entries(obj)) {
+    if (keys.has(normKey(k))) return String(v ?? "").trim();
+  }
+  return "";
+}
+
+function mapContestantRow(obj) {
+  const name = pickField(obj, new Set(["name", "hoten", "hovaten", "ten", "fullname", "hovatenhocsinh"]));
+  const studentId = pickField(obj, new Set(["studentid", "masothisinh", "mathisinh", "maso", "mssv", "ms", "sbd"]));
+  const school = pickField(obj, new Set(["school", "truong", "tentruong"]));
+  const className = pickField(obj, new Set(["classname", "class", "lop", "tenlop"]));
+  if (name || studentId) return { name, studentId, school, className };
+  const vals = Object.values(obj).map((v) => String(v ?? "").trim());
+  return { name: vals[0] || "", studentId: vals[1] || "", school: vals[2] || "", className: vals[3] || "" };
+}
+
+function parseCsvRows(text) {
+  const first = text.split(/\r?\n/).find((l) => l.trim()) || "";
+  const sc = (first.match(/;/g) || []).length;
+  const cc = (first.match(/,/g) || []).length;
+  const tc = (first.match(/\t/g) || []).length;
+  let delim = ",";
+  if (tc > sc && tc > cc) delim = "\t";
+  else if (sc > cc) delim = ";";
+
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else inQuotes = false;
+      } else cell += ch;
+    } else if (ch === '"') inQuotes = true;
+    else if (ch === delim) {
+      row.push(cell);
+      cell = "";
+    } else if (ch === "\n") {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else if (ch !== "\r") cell += ch;
+  }
+  if (cell.length || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+  const nonempty = rows.filter((r) => r.some((c) => String(c).trim()));
+  if (!nonempty.length) return [];
+  const headers = nonempty[0].map((h) => String(h || "").trim());
+  const headerLooksLikeData = !headers.some((h) => {
+    const k = normKey(h);
+    return ["name", "hoten", "hovaten", "ten", "studentid", "masothisinh", "mathisinh", "maso", "mssv"].includes(k);
+  });
+  const start = headerLooksLikeData ? 0 : 1;
+  const keys = headerLooksLikeData ? ["name", "studentId", "school", "className"] : headers;
+  return nonempty.slice(start).map((r) => {
+    const obj = {};
+    keys.forEach((k, i) => {
+      obj[k] = r[i] || "";
+    });
+    return mapContestantRow(obj);
+  });
+}
+
+export function parseContestantFile(text, filename = "") {
+  const raw = String(text || "").replace(/^\uFEFF/, "").trim();
+  if (!raw) return [];
+  const isJson = /\.json$/i.test(filename) || raw.startsWith("[") || raw.startsWith("{");
+  if (isJson) {
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw Object.assign(new Error("Tệp JSON không hợp lệ."), { status: 400 });
+    }
+    const arr = Array.isArray(data) ? data : data.contestants || data.data || [];
+    if (!Array.isArray(arr)) {
+      throw Object.assign(new Error("JSON phải là mảng thí sinh."), { status: 400 });
+    }
+    return arr.map((row) => mapContestantRow(row && typeof row === "object" ? row : {}));
+  }
+  return parseCsvRows(raw);
+}
+
+export function parseContestantXlsx(buffer) {
+  let wb;
+  try {
+    wb = XLSX.read(buffer, { type: "buffer", cellDates: false });
+  } catch {
+    throw Object.assign(new Error("Tệp Excel không hợp lệ."), { status: 400 });
+  }
+  const sheetName = wb.SheetNames[0];
+  if (!sheetName) return [];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "", raw: false });
+  return rows.map((row) => mapContestantRow(row && typeof row === "object" ? row : {}));
+}
+
+export function importContestants(rows) {
+  const db = getDb();
+  let created = 0;
+  let skipped = 0;
+  const errors = [];
+  for (let i = 0; i < rows.length; i++) {
+    const name = String(rows[i]?.name || "").trim();
+    const sid = String(rows[i]?.studentId || "").trim();
+    const school = String(rows[i]?.school || "").trim();
+    const className = String(rows[i]?.className || "").trim();
+    if (!name && !sid) continue;
+    if (!name || !sid) {
+      errors.push({ line: i + 1, message: "Thiếu họ tên hoặc mã số thí sinh." });
+      continue;
+    }
+    const existed = db.contestants.find((c) => c.studentId.toLowerCase() === sid.toLowerCase());
+    if (existed) {
+      skipped++;
+      continue;
+    }
+    db.contestants.push({
+      id: crypto.randomUUID(),
+      name,
+      studentId: sid,
+      school,
+      className,
+      startedAt: null,
+      submittedAt: null,
+      questionOrder: [],
+      answers: {},
+      score: 0,
+      correctCount: 0,
+      timeSpent: 0,
+      rank: null,
+      qualified: false,
+      teamId: null,
+    });
+    created++;
+  }
+  if (created) saveDb();
+  return { created, skipped, errors, total: rows.length };
 }
 
 export function startExam(contestantId) {
@@ -205,55 +363,6 @@ export function leaderboard(limit = 50) {
     }));
 }
 
-export function selectTop16AndAssign(mode = "snake") {
-  rankAll();
-  const db = getDb();
-  const top = db.contestants
-    .filter((c) => c.submittedAt)
-    .sort((a, b) => a.rank - b.rank)
-    .slice(0, db.settings.topN);
-
-  db.contestants.forEach((c) => {
-    c.qualified = false;
-    c.teamId = null;
-  });
-  db.teams.forEach((t) => {
-    t.memberIds = [];
-  });
-
-  top.forEach((c) => {
-    c.qualified = true;
-  });
-
-  const teams = db.teams;
-  if (mode === "sequential") {
-    const size = Math.ceil(top.length / 4) || 4;
-    top.forEach((c, i) => {
-      const team = teams[Math.min(3, Math.floor(i / size))];
-      c.teamId = team.id;
-      team.memberIds.push(c.id);
-    });
-  } else {
-    const order = [0, 1, 2, 3, 3, 2, 1, 0];
-    top.forEach((c, i) => {
-      const team = teams[order[i % 8]];
-      c.teamId = team.id;
-      team.memberIds.push(c.id);
-    });
-  }
-  saveDb();
-  return {
-    top: top.map((c) => ({
-      id: c.id,
-      name: c.name,
-      rank: c.rank,
-      score: c.score,
-      teamId: c.teamId,
-    })),
-    teams: db.teams,
-  };
-}
-
 export function assignTeams(assignments) {
   const db = getDb();
   db.teams.forEach((t) => {
@@ -274,43 +383,51 @@ export function assignTeams(assignments) {
   return db.teams;
 }
 
-export function seedDemoContestants() {
+// BTC xóa trực tiếp một thí sinh khỏi cuộc thi (cả khỏi đội đang thuộc).
+export function deleteContestant(id) {
   const db = getDb();
-  const first = [
-    "An", "Bình", "Chi", "Dũng", "Em", "Giang", "Hà", "Khoa",
-    "Lan", "Minh", "Nam", "Oanh", "Phúc", "Quân", "Trang", "Uyên",
-    "Vinh", "Yến", "Hùng", "My", "Tú", "Linh",
-  ];
-  first.forEach((name, i) => {
-    const studentId = `HS${String(i + 1).padStart(3, "0")}`;
-    if (db.contestants.some((c) => c.studentId === studentId)) return;
-    const score = Math.max(10, 30 - Math.floor(i * 0.7) - (i % 3));
-    const timeSpent = 400 + i * 17;
-    const order = db.questions.soKhao.map((q) => q.id);
-    const answers = {};
-    order.forEach((id, qi) => {
-      const q = db.questions.soKhao[qi];
-      answers[id] = qi < score ? q.answer : (q.answer === "A" ? "B" : "A");
-    });
-    db.contestants.push({
-      id: crypto.randomUUID(),
-      name: `Nguyễn ${name}`,
-      studentId,
-      school: "THPT Mini Project",
-      className: `12A${(i % 4) + 1}`,
-      startedAt: Date.now() - 20 * 60 * 1000,
-      submittedAt: Date.now() - (22 - i) * 60 * 1000,
-      questionOrder: order,
-      answers,
-      score,
-      correctCount: score,
-      timeSpent,
-      rank: null,
-      qualified: false,
-      teamId: null,
-    });
+  const idx = db.contestants.findIndex((c) => c.id === id);
+  if (idx < 0) {
+    throw Object.assign(new Error("Không tìm thấy thí sinh."), { status: 404 });
+  }
+  db.contestants.splice(idx, 1);
+  db.teams.forEach((t) => {
+    t.memberIds = (t.memberIds || []).filter((mid) => mid !== id);
   });
-  rankAll();
   saveDb();
-  return leaderboard(100);
+  return { ok: true };
+}
+
+export function deleteContestants(ids) {
+  const db = getDb();
+  const set = new Set((ids || []).map(String).filter(Boolean));
+  if (!set.size) {
+    throw Object.assign(new Error("Chưa chọn thí sinh."), { status: 400 });
+  }
+  const before = db.contestants.length;
+  db.contestants = db.contestants.filter((c) => !set.has(c.id));
+  db.teams.forEach((t) => {
+    t.memberIds = (t.memberIds || []).filter((mid) => !set.has(mid));
+  });
+  saveDb();
+  return { ok: true, deleted: before - db.contestants.length };
+}
+
+// Chia đều toàn bộ thí sinh vào các đội theo lượt (round-robin).
+export function divideAllTeams() {
+  const db = getDb();
+  db.teams.forEach((t) => {
+    t.memberIds = [];
+  });
+  db.contestants.forEach((c) => {
+    c.teamId = null;
+    c.qualified = true;
+  });
+  db.contestants.forEach((c, i) => {
+    const team = db.teams[i % db.teams.length];
+    c.teamId = team.id;
+    team.memberIds.push(c.id);
+  });
+  saveDb();
+  return db.teams;
 }

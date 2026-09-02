@@ -9,6 +9,7 @@ import Control from "./pages/Control.jsx";
 import Admin from "./pages/Admin.jsx";
 import Team from "./pages/Team.jsx";
 import StaffLogin from "./pages/StaffLogin.jsx";
+import ErrorBoundary from "./pages/control/ErrorBoundary.jsx";
 
 export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
@@ -26,7 +27,7 @@ export default function App() {
         <Route path="/dang-ky" element={<Register />} />
         <Route path="/thi" element={<Exam />} />
         <Route path="/ket-qua" element={<ExamResult />} />
-        <Route path="/man-hinh" element={<Audience />} />
+        <Route path="/man-hinh" element={<ErrorBoundary><Audience /></ErrorBoundary>} />
         <Route path="/mc" element={<Control />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/thi-sinh" element={<Team />} />

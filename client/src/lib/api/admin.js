@@ -9,10 +9,6 @@ export function getAdminState() {
   return request("/api/admin/state");
 }
 
-export function getLeaderboard() {
-  return request("/api/admin/leaderboard");
-}
-
 export function saveSettings(body) {
   return request("/api/admin/settings", { method: "POST", body });
 }
@@ -25,20 +21,37 @@ export function setKhoiDongTimerSeconds(seconds) {
   return request("/api/admin/khoi-dong-timer-seconds", { method: "POST", body: { seconds } });
 }
 
-export function openPrelim(open) {
-  return request("/api/admin/prelim/open", { method: "POST", body: { open } });
+export function createContestant(body) {
+  return request("/api/admin/contestants", { method: "POST", body });
 }
 
-export function selectTop(mode) {
-  return request("/api/admin/select-top", { method: "POST", body: { mode } });
+export async function importContestantsFile(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/admin/contestants/import", {
+    method: "POST",
+    headers: { "x-admin-pin": getPin() },
+    body: fd,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Đọc tệp thất bại.");
+  return data;
+}
+
+export function deleteContestant(id) {
+  return request(`/api/admin/contestants/${id}`, { method: "DELETE" });
+}
+
+export function deleteContestants(ids) {
+  return request("/api/admin/contestants/bulk-delete", { method: "POST", body: { ids } });
+}
+
+export function divideTeams() {
+  return request("/api/admin/divide-teams", { method: "POST", body: {} });
 }
 
 export function assignTeams(assignments) {
   return request("/api/admin/assign-teams", { method: "POST", body: { assignments } });
-}
-
-export function createDemo() {
-  return request("/api/admin/demo", { method: "POST", body: {} });
 }
 
 export function resetContest() {
@@ -47,14 +60,6 @@ export function resetContest() {
 
 export function saveTeams(teams) {
   return request("/api/admin/teams", { method: "POST", body: { teams } });
-}
-
-export function saveSoKhaoQuestion(q) {
-  return request("/api/admin/questions/so-khao", { method: "POST", body: q });
-}
-
-export function deleteSoKhaoQuestion(id) {
-  return request(`/api/admin/questions/so-khao/${id}`, { method: "DELETE" });
 }
 
 export function saveMainQuestions(main) {

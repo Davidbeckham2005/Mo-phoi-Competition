@@ -16,6 +16,7 @@
 //   vedich.pick(points); vedich.setStar(true); ...
 
 import { getDb, saveDb } from "../../models/store.js";
+import { TEAM_ORDER } from "../../config/constants.js";
 
 // Các hàm dùng chung được game.service.js tiêm vào khi khởi động module.
 let emit = () => {};
@@ -47,7 +48,7 @@ export function defaultState() {
     // Giai đoạn thi: "soan" (chưa chốt) | "countdown" (đang đếm 3-2-1) | "answering" (đang trả lời)
     phase: "soan",
     // Các câu hỏi đã CHỌN cho từng đội (tối đa 3 câu, mảng các id).
-    picked: { a: [], b: [], c: [], d: [] },
+    picked: TEAM_ORDER.reduce((acc, id) => { acc[id] = []; return acc; }, {}),
     // Câu đang thi trong danh sách picked của đội hiện tại.
     pickIndex: 0,
   };
@@ -83,7 +84,7 @@ export function ensureBank() {
   const db = getDb();
   const b = bank(db);
   let created = 0;
-  for (const teamId of ["a", "b", "c", "d"]) {
+  for (const teamId of TEAM_ORDER) {
     const list = Array.isArray(b[teamId]) ? b[teamId] : [];
     b[teamId] = list;
     for (const pts of PACKAGE_POINTS) {

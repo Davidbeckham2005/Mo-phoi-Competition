@@ -47,7 +47,17 @@ const actions = {
   "score.set": (p) => game.setScore(p.teamId, p.score),
   "khoi_dong.timer": (p) => game.setKhoiDongTimer(p.seconds),
   "khoi_dong.answerSeconds": (p) => game.setKhoiDongAnswerSeconds(p.seconds),
-  "khoi_dong.reset": (p) => game.resetKhoiDong(p.teamId),
+  "khoi_dong.reset": (p) => {
+    // Reset trạng thái (điểm/history) của thí sinh trong vòng Khởi động là thao tác
+    // DESTRUCTIVE — mỗi ADMIN mới được lưu lượng. Yêu cầu mật khẩu admin mỗi lần.
+    const db = getDb();
+    if (String(p.pin ?? "") !== String(db.settings.pin)) {
+      const err = new Error("Reset trạng thái Khởi động cần mật khẩu admin để xác nhận.");
+      err.status = 401;
+      throw err;
+    }
+    return game.resetKhoiDong(p.teamId);
+  },
   "khoi_dong.continue": () => game.continueKhoiDong(),
   "team.set": (p) => game.setCurrentTeam(p.teamId),
   "buzzer.open": () => game.openBuzzer(),

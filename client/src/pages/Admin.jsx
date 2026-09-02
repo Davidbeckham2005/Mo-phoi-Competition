@@ -1,15 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   getAdminState,
-  getLeaderboard,
-  openPrelim,
-  selectTop,
-  createDemo,
-  saveTeams,
+  createContestant,
+  importContestantsFile,
+  deleteContestant,
+  deleteContestants,
+  divideTeams,
   assignTeams,
-  saveSoKhaoQuestion,
-  deleteSoKhaoQuestion,
+  saveTeams,
   saveMainQuestions,
   uploadFile,
   saveSettings,
@@ -21,20 +20,18 @@ import { getPin } from "../lib/session.js";
 import { formatTime } from "../lib/format.js";
 import { sendControl } from "../lib/api/control.js";
 import { on } from "../lib/socket.js";
+import { TEAM_ORDER } from "../lib/teams.js";
 
 export default function Admin() {
   const nav = useNavigate();
-  const [tab, setTab] = useState("ket-qua");
+  const [tab, setTab] = useState("thi-sinh");
   const [state, setState] = useState(null);
-  const [board, setBoard] = useState([]);
   const [msg, setMsg] = useState("");
   const [timer, setTimer] = useState(null);
 
   async function load() {
     try {
-      const s = await getAdminState();
-      setState(s);
-      setBoard(await getLeaderboard());
+      setState(await getAdminState());
     } catch {
       nav("/dang-nhap?next=/admin");
     }
@@ -74,9 +71,8 @@ export default function Admin() {
 
       <div className="flex flex-wrap gap-2 mb-5">
         {[
-          ["ket-qua", "Kết quả sơ khảo"],
+          ["thi-sinh", "Thí sinh"],
           ["doi", "4 đội"],
-          ["bang-diem", "Bảng điểm"],
           ["cau-hoi", "Câu hỏi"],
           ["media", "Hình ảnh / Video"],
           ["dieu-khien", "Hẹn giờ & chuông"],
@@ -96,9 +92,8 @@ export default function Admin() {
       </div>
 
       {msg && <p className="badge badge-ok inline-block mb-4">{msg}</p>}
-      {tab === "ket-qua" && <ResultsTab board={board} reload={load} setMsg={setMsg} />}
-      {tab === "doi" && <TeamsTab state={state} board={board} reload={load} setMsg={setMsg} />}
-      {tab === "bang-diem" && <ScoreTab state={state} reload={load} setMsg={setMsg} />}
+      {tab === "thi-sinh" && <ContestantsTab state={state} reload={load} setMsg={setMsg} />}
+      {tab === "doi" && <TeamsTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "cau-hoi" && <QuestionsTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "media" && <MediaTab state={state} reload={load} setMsg={setMsg} />}
       {tab === "dieu-khien" && <TimerBuzzerTab state={state} timer={timer} setMsg={setMsg} />}
@@ -107,53 +102,204 @@ export default function Admin() {
   );
 }
 
-function ResultsTab({ board, reload, setMsg }) {
+function ContestantsTab({ state, reload, setMsg }) {
+  const [form, setForm] = useState({ name: "", studentId: "", school: "", className: "" });
+  const [search, setSearch] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
+  const list = state.contestants || [];
+
+  async function add(e) {
+    e.preventDefault();
+    try {
+      await createContestant(form);
+      setForm({ name: "", studentId: "", school: "", className: "" });
+      setMsg("Đã thêm thí sinh");
+      reload();
+    } catch (err) {
+      setMsg(err.message);
+    }
+  }
+
+  async function onImport(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    try {
+      const r = await importContestantsFile(file);
+      const errN = (r.errors || []).length;
+      setMsg(`Đã đọc ${r.created} thí sinh mới` + (r.skipped ? `, bỏ qua ${r.skipped} mã trùng` : "") + (errN ? `, ${errN} dòng lỗi` : ""));
+      reload();
+    } catch (err) {
+      setMsg(err.message);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function downloadTemplate() {
+    const csv = "\uFEFFHọ tên,Mã thí sinh,Trường,Lớp\nNguyễn Văn A,TS001,THPT ABC,12A1\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "mau-thi-sinh.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function toggle(id) {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  async function del(c) {
+    if (!confirm(`Xóa thí sinh ${c.name}?`)) return;
+    await deleteContestant(c.id);
+    setSelected((prev) => {
+      const n = new Set(prev);
+      n.delete(c.id);
+      return n;
+    });
+    setMsg("Đã xóa thí sinh");
+    reload();
+  }
+
+  async function delSelected() {
+    const ids = [...selected];
+    if (!ids.length) return;
+    if (!confirm(`Xóa ${ids.length} thí sinh đã chọn?`)) return;
+    await deleteContestants(ids);
+    setSelected(new Set());
+    setMsg(`Đã xóa ${ids.length} thí sinh`);
+    reload();
+  }
+
+  async function assign(contestantId, teamId) {
+    const current = Object.fromEntries(
+      list.filter((c) => c.teamId).map((c) => [c.id, c.teamId])
+    );
+    if (teamId) current[contestantId] = teamId;
+    else delete current[contestantId];
+    await assignTeams(Object.entries(current).map(([id, tid]) => ({ contestantId: id, teamId: tid })));
+    reload();
+  }
+
+  async function divide() {
+    if (!confirm("Chia đều tất cả thí sinh vào các đội?")) return;
+    await divideTeams();
+    setMsg("Đã chia đều thí sinh vào các đội");
+    reload();
+  }
+
+  const s = search.trim().toLowerCase();
+  const filtered = list.filter((c) =>
+    !s
+      ? true
+      : [c.name, c.studentId, c.school, c.className].some((v) => (v || "").toLowerCase().includes(s))
+  );
+  const allChecked = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
+
+  function toggleAll() {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (allChecked) filtered.forEach((c) => n.delete(c.id));
+      else filtered.forEach((c) => n.add(c.id));
+      return n;
+    });
+  }
+
   return (
     <div className="panel">
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button type="button" className="btn" onClick={async () => { await openPrelim(true); setMsg("Đã mở sơ khảo"); reload(); }}>
-          Mở sơ khảo
-        </button>
-        <button type="button" className="btn btn-ghost" onClick={async () => { await openPrelim(false); setMsg("Đã đóng sơ khảo"); reload(); }}>
-          Đóng sơ khảo
-        </button>
-        <button type="button" className="btn" onClick={async () => { await selectTop("snake"); setMsg("Đã chọn top 16 và chia 4 đội (kiểu rắn)"); reload(); }}>
-          Chọn top 16 + chia đội
-        </button>
-        <button type="button" className="btn btn-ghost" onClick={async () => { await createDemo(); setMsg("Đã tạo dữ liệu demo"); reload(); }}>
-          Tạo thí sinh demo
-        </button>
+      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[2fr_1fr_1fr_1fr_auto] items-end mb-3">
+        <label className="label-grid">
+          Họ tên *
+          <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        </label>
+        <label className="label-grid">
+          Mã *
+          <input required value={form.studentId} onChange={(e) => setForm({ ...form, studentId: e.target.value })} />
+        </label>
+        <label className="label-grid">
+          Trường
+          <input value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} />
+        </label>
+        <label className="label-grid">
+          Lớp
+          <input value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} />
+        </label>
+        <button type="submit" className="btn btn-ok py-1.5! text-sm!">+ Thêm</button>
+      </form>
+
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <h3 className="font-bold">Thí sinh ({list.length})</h3>
+        <label className={`btn btn-ghost text-sm py-1.5! cursor-pointer ${importing ? "opacity-60 pointer-events-none" : ""}`}>
+          {importing ? "Đang đọc…" : "Đọc file"}
+          <input type="file" accept=".xlsx,.xls,.csv,.tsv,.txt,.json" className="hidden" disabled={importing} onChange={onImport} />
+        </label>
+        <button type="button" className="btn btn-ghost text-sm py-1.5!" onClick={downloadTemplate}>Mẫu</button>
+        {list.length > 0 && (
+          <input className="w-44! ml-auto" placeholder="Tìm…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        )}
+        {list.length > 0 && (
+          <button type="button" className="btn text-sm py-1.5!" onClick={divide}>Chia đội</button>
+        )}
+        {selected.size > 0 && (
+          <button type="button" className="btn btn-danger text-sm py-1.5!" onClick={delSelected}>
+            Xóa {selected.size}
+          </button>
+        )}
       </div>
+
       <table className="table">
         <thead>
           <tr>
-            <th>#</th><th>Họ tên</th><th>Mã</th><th>Lớp</th><th>Điểm</th><th>Thời gian</th><th>Top 16</th><th>Đội</th>
+            <th className="w-8">
+              {filtered.length > 0 && (
+                <input type="checkbox" className="w-auto!" checked={allChecked} onChange={toggleAll} />
+              )}
+            </th>
+            <th>#</th><th>Họ tên</th><th>Mã</th><th>Trường</th><th>Lớp</th><th>Đội</th>
+            {filtered.length > 0 && <th></th>}
           </tr>
         </thead>
         <tbody>
-          {board.map((c) => (
+          {filtered.map((c, i) => (
             <tr key={c.id}>
-              <td>{c.rank}</td>
+              <td>
+                <input type="checkbox" className="w-auto!" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
+              </td>
+              <td className="text-mist">{i + 1}</td>
               <td>{c.name}</td>
               <td>{c.studentId}</td>
-              <td>{c.className}</td>
-              <td>{c.score}</td>
-              <td>{formatTime(c.timeSpent)}</td>
-              <td>{c.qualified ? <span className="badge badge-ok">Có</span> : <span className="badge badge-no">Không</span>}</td>
-              <td>{c.teamId ? c.teamId.toUpperCase() : "—"}</td>
+              <td>{c.school || "—"}</td>
+              <td>{c.className || "—"}</td>
+              <td>
+                <select value={c.teamId || ""} onChange={(e) => assign(c.id, e.target.value)}>
+                  <option value="">—</option>
+                  {state.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </td>
+              <td>
+                <button type="button" className="btn btn-danger text-xs py-0.5! px-2!" onClick={() => del(c)}>Xóa</button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-      {board.length === 0 && <p className="text-mist">Chưa có bài nộp. Mở sơ khảo hoặc tạo dữ liệu demo.</p>}
+      {filtered.length === 0 && <p className="text-mist text-sm mt-3">Chưa có thí sinh. Thêm thủ công hoặc đọc file.</p>}
     </div>
   );
 }
 
-function TeamsTab({ state, board, reload, setMsg }) {
+function TeamsTab({ state, reload, setMsg }) {
   const [names, setNames] = useState(() => Object.fromEntries(state.teams.map((t) => [t.id, t.name])));
   const [passes, setPasses] = useState(() => Object.fromEntries(state.teams.map((t) => [t.id, t.pass || ""])));
-  const top = board.filter((c) => c.qualified || c.rank <= 16).slice(0, 16);
+  const list = state.contestants || [];
 
   async function saveAll() {
     await saveTeams(state.teams.map((t) => ({ id: t.id, name: names[t.id], pass: passes[t.id] })));
@@ -163,9 +309,10 @@ function TeamsTab({ state, board, reload, setMsg }) {
 
   async function assign(contestantId, teamId) {
     const current = Object.fromEntries(
-      board.filter((c) => c.teamId).map((c) => [c.id, c.teamId])
+      list.filter((c) => c.teamId).map((c) => [c.id, c.teamId])
     );
-    current[contestantId] = teamId;
+    if (teamId) current[contestantId] = teamId;
+    else delete current[contestantId];
     const assignments = Object.entries(current).map(([id, tid]) => ({ contestantId: id, teamId: tid }));
     await assignTeams(assignments);
     reload();
@@ -194,14 +341,14 @@ function TeamsTab({ state, board, reload, setMsg }) {
       <h3 className="font-bold mt-7 mb-2">Gán thí sinh vào đội</h3>
       <table className="table">
         <thead>
-          <tr><th>#</th><th>Họ tên</th><th>Điểm</th><th>Đội</th></tr>
+          <tr><th>#</th><th>Họ tên</th><th>Mã</th><th>Đội</th></tr>
         </thead>
         <tbody>
-          {top.map((c) => (
+          {list.map((c, i) => (
             <tr key={c.id}>
-              <td>{c.rank}</td>
+              <td className="text-mist">{i + 1}</td>
               <td>{c.name}</td>
-              <td>{c.score}</td>
+              <td>{c.studentId}</td>
               <td>
                 <select value={c.teamId || ""} onChange={(e) => assign(c.id, e.target.value)}>
                   <option value="">—</option>
@@ -212,59 +359,7 @@ function TeamsTab({ state, board, reload, setMsg }) {
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function ScoreTab({ state, reload, setMsg }) {
-  const [freeAmounts, setFreeAmounts] = useState(() => Object.fromEntries(state.teams.map((t) => [t.id, 10])));
-
-  async function add(teamId, points) {
-    try {
-      await sendControl("score.add", { teamId, points });
-    } catch (e) {
-      alert(e.message);
-      return;
-    }
-    const team = state.teams.find((t) => t.id === teamId);
-    setMsg(`Đã ${points >= 0 ? "cộng" : "trừ"} ${Math.abs(points)} điểm cho ${team?.name}`);
-    reload();
-  }
-
-  return (
-    <div className="panel">
-      <h3 className="font-bold">Bảng điểm — cộng điểm</h3>
-      <p className="text-mist text-sm mt-1">Nhập số điểm bất kỳ rồi bấm Cộng / Trừ, hoặc dùng nút nhanh bên dưới.</p>
-      <div className="grid gap-4 sm:grid-cols-2 mt-4">
-        {state.teams.map((t) => {
-          const amt = Number(freeAmounts[t.id]) || 0;
-          return (
-            <div key={t.id} className="rounded-xl border p-4 bg-panel-solid" style={{ borderColor: t.color }}>
-              <div className="flex justify-between items-center mb-3">
-                <b style={{ color: t.color }}>{t.name}</b>
-                <span className="font-display text-3xl font-bold">{t.score}</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-mist text-sm">Cộng điểm tự do:</span>
-                <input
-                  type="number"
-                  className="w-28!"
-                  value={freeAmounts[t.id]}
-                  onChange={(e) => setFreeAmounts({ ...freeAmounts, [t.id]: e.target.value })}
-                />
-                <button type="button" className="btn btn-ok" onClick={() => add(t.id, amt)}>+ Cộng</button>
-                <button type="button" className="btn btn-danger" onClick={() => add(t.id, -amt)}>− Trừ</button>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-3">
-                <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(t.id, 10)}>+10</button>
-                <button type="button" className="btn btn-ok py-1.5! text-sm!" onClick={() => add(t.id, 20)}>+20</button>
-                <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(t.id, -10)}>−10</button>
-                <button type="button" className="btn btn-danger py-1.5! text-sm!" onClick={() => add(t.id, -20)}>−20</button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {list.length === 0 && <p className="text-mist text-sm mt-3">Chưa có thí sinh nào. Thêm ở tab "Thí sinh".</p>}
     </div>
   );
 }
@@ -305,7 +400,7 @@ function normalizeMain(v) {
     tangToc: v.tangToc || [],
     veDich: v.veDich || {},
   };
-  for (const tid of ["a", "b", "c", "d"]) {
+  for (const tid of TEAM_ORDER) {
     const raw = m.khoiDong[tid] || [];
     // Chuẩn hóa dữ liệu Khởi động thành dạng lưng: mảng "bọc thí sinh", mỗi bọc là 5 hình ảnh.
     // Nếu dữ liệu đang phẳng (câu/ảnh phẳng) → gom thành bọc 5 mỗi lượt; nếu đã lưng thì giữ nguyên.
@@ -336,12 +431,15 @@ function normalizeMain(v) {
 
 function QuestionsTab({ state, reload, setMsg }) {
   const main = state.questions.main || {};
-  const [sub, setSub] = useState("sokhao");
+  const [sub, setSub] = useState("khoi_dong");
   const [draft, setDraft] = useState({ main: clone(main) });
+  const lastMain = useRef(main);
   const dirty = !eq(draft.main, main);
 
   useEffect(() => {
-    setDraft({ main: clone(state.questions.main || {}) });
+    if (eq(state.questions.main, lastMain.current)) return;
+    lastMain.current = clone(state.questions.main || {});
+    setDraft({ main: lastMain.current });
   }, [state.questions.main]);
 
   async function saveDraft() {
@@ -354,7 +452,6 @@ function QuestionsTab({ state, reload, setMsg }) {
   }
 
   const items = [
-    ["sokhao", "Sơ khảo"],
     ["khoi_dong", "Khởi động"],
     ["vuot_cnv", "Vượt CNV"],
     ["tang_toc", "Tăng tốc"],
@@ -375,17 +472,11 @@ function QuestionsTab({ state, reload, setMsg }) {
             }`}
           >
             {label}
-            {id === "sokhao" && <span className="ml-1 text-xs">{state.questions.soKhao?.length || 0}</span>}
           </button>
         ))}
       </div>
 
-      {sub === "sokhao" ? (
-        <div className="panel">
-          <PrelimManager qs={state.questions.soKhao || []} reload={reload} setMsg={setMsg} />
-        </div>
-      ) : (
-        <div className="panel">
+      <div className="panel">
           <div className="flex flex-wrap items-center gap-3 mb-4 rounded-xl border border-line bg-night/40 px-3 py-2">
             <span className="text-sm font-semibold">Sửa trực tiếp — bấm <b>Lưu vòng chính</b> khi xong</span>
             <div className="ml-auto flex items-center gap-2">
@@ -402,136 +493,18 @@ function QuestionsTab({ state, reload, setMsg }) {
           {sub === "tang_toc" && <TangTocEditor draft={draft} setDraft={setDraft} />}
           {sub === "ve_dich" && <VeDichEditor draft={draft} setDraft={setDraft} teams={state.teams} />}
           {sub === "json" && <JsonEditor draft={draft} setDraft={setDraft} setMsg={setMsg} />}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PrelimManager({ qs, reload, setMsg }) {
-  const [search, setSearch] = useState("");
-  const [bulk, setBulk] = useState("");
-  const [draft, setDraft] = useState(() => clone(qs));
-
-  useEffect(() => {
-    setDraft(clone(qs));
-  }, [qs]);
-
-  function patch(i, fn) {
-    setDraft(draft.map((q, k) => (k === i ? fn(q) : q)));
-  }
-  async function saveItem(q) {
-    await saveSoKhaoQuestion({ ...q, options: q.options || ["A.", "B.", "C.", "D."] });
-    setMsg("Đã lưu câu hỏi");
-    reload();
-  }
-  async function saveAll() {
-    const rows = draft.filter((q) => (q.question || "").trim());
-    for (const q of rows) await saveSoKhaoQuestion(q);
-    setMsg("Đã lưu " + rows.length + " câu");
-    reload();
-  }
-  async function del(q) {
-    if (!confirm("Xóa câu hỏi này?")) return;
-    await deleteSoKhaoQuestion(q.id);
-    setMsg("Đã xóa câu hỏi");
-    reload();
-  }
-  function addEmpty() {
-    setDraft([...draft, { id: "", question: "", options: ["A.", "B.", "C.", "D."], answer: "A", topic: "" }]);
-  }
-  function importBulk() {
-    const parsed = [];
-    for (const line of bulk.split("\n")) {
-      const parts = line.split("|").map((s) => s.trim());
-      if (parts.length < 3) continue;
-      const options = [];
-      for (let i = 1; i <= 4; i++) options.push((parts[i] || "").replace(/^[A-D]\.\s*/, ""));
-      parsed.push({
-        id: "",
-        question: parts[0],
-        options,
-        answer: (parts[5] || "A").replace(/\.$/, "").toUpperCase(),
-        topic: (parts[6] || "").trim(),
-      });
-    }
-    if (!parsed.length) {
-      setMsg("Không thấy câu hợp lệ — mỗi dòng: Câu hỏi | A | B | C | D | Đáp án | Chủ đề");
-      return;
-    }
-    setDraft([...draft, ...parsed]);
-    setBulk("");
-    setMsg("Đã thêm " + parsed.length + " câu — bấm Lưu tất cả");
-  }
-
-  const s = search.trim().toLowerCase();
-  const filtered = draft.filter((q) =>
-    !s
-      ? true
-      : (q.question || "").toLowerCase().includes(s) || (q.topic || "").toLowerCase().includes(s) || (q.answer || "").toLowerCase().includes(s)
-  );
-
-  return (
-    <div>
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <h3 className="font-bold mr-auto">Câu hỏi sơ khảo</h3>
-        <input className="w-56!" placeholder="🔍 Tìm câu hỏi / chủ đề / đáp án…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <button type="button" className="btn" onClick={addEmpty}>+ Thêm câu</button>
-        <button type="button" className="btn btn-ok" disabled={!draft.some((q) => (q.question || "").trim())} onClick={saveAll}>Lưu tất cả</button>
       </div>
-
-      <details className="rounded-xl border border-line bg-night/40 p-3 mb-3">
-        <summary className="text-sm font-semibold cursor-pointer text-mist">Nhập nhanh nhiều câu (mỗi dòng: Câu hỏi | A | B | C | D | Đáp án | Chủ đề)</summary>
-        <textarea rows={5} value={bulk} onChange={(e) => setBulk(e.target.value)} className="w-full font-mono text-sm mt-2" placeholder={"Ví dụ:\nĐường lên đỉnh núi gồm mấy khúc cong | 3 | 4 | 5 | 6 | B | châm ngôn"} />
-        <div className="flex items-center gap-2 mt-2">
-          <button type="button" className="btn btn-ghost text-sm!" disabled={!bulk.trim()} onClick={importBulk}>+ Thêm {bulk.split("\n").filter((l) => l.trim()).length} dòng vừa nhập</button>
-          <span className="text-mist text-xs">Câu mới chưa có ID sẽ được nạp khi bấm Lưu</span>
-        </div>
-      </details>
-
-      <table className="table mt-3">
-        <thead><tr><th>#</th><th>Câu hỏi</th><th>Phương án</th><th>Đáp án</th><th>Chủ đề</th><th></th></tr></thead>
-        <tbody>
-          {filtered.map((q, i) => (
-            <tr key={q.id || "new-" + i}>
-              <td className="text-mist">{draft.indexOf(q) + 1}</td>
-              <td><textarea rows={2} className="min-w-[240px]" value={q.question || ""} onChange={(e) => patch(i, (t) => ({ ...t, question: e.target.value }))} /></td>
-              <td>
-                {["A", "B", "C", "D"].map((l, k) => (
-                  <div key={l} className="flex items-center gap-1 text-xs">
-                    <b className="w-4">{l}.</b>
-                    <input className="w-36!" value={(q.options && q.options[k]) || ""} onChange={(e) => patch(i, (t) => { const o = [...(t.options || ["", "", "", ""])]; o[k] = e.target.value; return { ...t, options: o }; })} />
-                  </div>
-                ))}
-              </td>
-              <td>
-                <select value={q.answer || "A"} onChange={(e) => patch(i, (t) => ({ ...t, answer: e.target.value }))}>
-                  {["A", "B", "C", "D"].map((l) => <option key={l}>{l}</option>)}
-                </select>
-              </td>
-              <td><input className="w-24!" value={q.topic || ""} onChange={(e) => patch(i, (t) => ({ ...t, topic: e.target.value }))} /></td>
-              <td>
-                <div className="flex flex-col gap-1">
-                  <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => saveItem(draft[i])}>Lưu</button>
-                  <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => { const c = clone(draft[i]); c.id = ""; setDraft([...draft.slice(0, i + 1), c, ...draft.slice(i + 1)]); }}>Sao chép</button>
-                  <button type="button" className="btn btn-danger text-xs py-1!" onClick={() => (q.id ? del(q) : setDraft(draft.filter((_, k) => k !== i)))}>Xóa</button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {filtered.length === 0 && <p className="text-mist text-sm mt-3">Không có câu hỏi nào.</p>}
     </div>
   );
 }
 
 function KhoiDongEditor({ draft, setDraft, teams }) {
   const m = draft.main;
-  const teamIds = ["a", "b", "c", "d"];
+  const teamIds = TEAM_ORDER;
 
   const setCluster = (tid, memberIdx, p) => {
-    const clusters = (m.khoiDong?.[tid] || []).map((cl, k) => (k === memberIdx ? p : cl));
+    const clusters = [...(m.khoiDong?.[tid] || [])];
+    clusters[memberIdx] = p;
     setDraft({ ...draft, main: { ...m, khoiDong: { ...(m.khoiDong || {}), [tid]: clusters } } });
   };
   const setQ = (tid, memberIdx, i, p) => {
@@ -756,7 +729,7 @@ function TangTocEditor({ draft, setDraft }) {
 
 function VeDichEditor({ draft, setDraft, teams }) {
   const m = draft.main;
-  const teamIds = ["a", "b", "c", "d"];
+  const teamIds = TEAM_ORDER;
   function findIdx(tid, id) {
     return (m.veDich?.[tid] || []).findIndex((q) => q.id === id);
   }
@@ -947,18 +920,6 @@ function SettingsTab({ state, reload, setMsg }) {
       <label className="label-grid">
         PIN ban tổ chức
         <input value={s.pin} onChange={(e) => setS({ ...s, pin: e.target.value })} />
-      </label>
-      <label className="label-grid">
-        Thời gian sơ khảo (giây)
-        <input type="number" value={s.prelimDuration} onChange={(e) => setS({ ...s, prelimDuration: Number(e.target.value) })} />
-      </label>
-      <label className="label-grid">
-        Số câu sơ khảo
-        <input type="number" value={s.prelimQuestionCount} onChange={(e) => setS({ ...s, prelimQuestionCount: Number(e.target.value) })} />
-      </label>
-      <label className="label-grid">
-        Số thí sinh vào vòng trong
-        <input type="number" value={s.topN} onChange={(e) => setS({ ...s, topN: Number(e.target.value) })} />
       </label>
       <label className="flex items-center gap-2 text-sm text-mist">
         <input

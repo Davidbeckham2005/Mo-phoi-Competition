@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { getConnection } from "../config/database.js";
 import {
   TEAM_DEFS,
+  TEAM_ORDER,
   ROUNDS,
   emptyPuzzle,
   defaultGame,
@@ -46,7 +47,7 @@ function normalizeMainKhoiDong(main) {
   const fixed = { ...main };
   const normQ = (q) => ({ id: q.id || (q.id ? q.id : ""), answer: q.answer || "", points: q.points || 10, mediaUrl: q.mediaUrl || "", mediaType: q.mediaType || "", ...q });
   const fixedKd = {};
-  for (const tid of ["a", "b", "c", "d"]) {
+  for (const tid of TEAM_ORDER) {
     const raw = fixed.khoiDong?.[tid] || [];
     if (!Array.isArray(raw) || raw.length === 0) { fixedKd[tid] = []; continue; }
     const asMod = (x) => Array.isArray(x) ? x.filter((q) => q && typeof q === "object") : [];
@@ -106,13 +107,31 @@ async function assemble() {
     const media = await Media.loadAll(conn);
     const game = await GameState.load(conn);
     const fallback = defaultDb();
+    // Hợp nhất đội: giữ dữ liệu đội đã có trong DB, tự bổ sung đội mới (e/f) từ TEAM_DEFS.
+    const baseTeams = teams.length ? teams : fallback.teams;
+    const mergedTeams = fallback.teams.map((def) => {
+      const existing = baseTeams.find((t) => t.id === def.id);
+      if (existing) return existing;
+      return { ...def, memberIds: [], score: 0 };
+    });
+    // Hợp nhất câu hỏi main: giữ dữ liệu đã lưu, bổ sung khối dữ liệu đội mới (khoiDong e/f,
+    // veDich e/f) từ JSON để vòng 1/4 chạy được với 6 đội.
+    const dbMain = main || fallback.questions.main;
+    const freshMain = fallback.questions.main;
+    const mergedMain = { ...dbMain };
+    if (!mergedMain.khoiDong) mergedMain.khoiDong = {};
+    if (!mergedMain.veDich) mergedMain.veDich = {};
+    for (const tid of TEAM_ORDER) {
+      if (!mergedMain.khoiDong[tid] && freshMain?.khoiDong?.[tid]) mergedMain.khoiDong[tid] = freshMain.khoiDong[tid];
+      if (!mergedMain.veDich[tid] && freshMain?.veDich?.[tid]) mergedMain.veDich[tid] = freshMain.veDich[tid];
+    }
     return {
       settings: { ...fallback.settings, ...settings },
-      teams: teams.length ? teams : fallback.teams,
+      teams: mergedTeams,
       contestants,
       questions: {
         soKhao: soKhao.length ? soKhao : fallback.questions.soKhao,
-        main: normalizeMainKhoiDong(main || fallback.questions.main),
+        main: normalizeMainKhoiDong(mergedMain),
       },
       media,
       game: game || defaultGame(),

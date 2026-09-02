@@ -1,4 +1,5 @@
   import { getDb, saveDb, defaultGame, emptyPuzzle, ROUNDS } from "../models/store.js";
+  import { TEAM_ORDER } from "../config/constants.js";
   import * as cnv from "./rounds/vuotCnv.service.js";
   import * as vedich from "./rounds/veDich.service.js";
 
@@ -85,6 +86,34 @@
 
   function team(id) {
     return getDb().teams.find((t) => t.id === id);
+  }
+
+  // Danh sách id đầy đủ đội vòng 1 (theo thứ tự lượt thi).
+  function allTeamIds() {
+    return TEAM_ORDER;
+  }
+
+  // 4 đội điểm cao nhất — dùng cho các vòng 2/3/4. Sort giảm dần theo điểm, hoà điểm
+  // ưu tiên id nhỏ hơn (thứ tự a→f). Nếu có hoà điểm ở ranh giới thứ 4, vẫn lấy thiếu
+  // chẵn 4 → MC tự quyết (xử lý sau). Trả về mảng id theo thứ tự điểm.
+  function topTeamIds() {
+    return getDb()
+      .teams.slice()
+      .sort((x, y) => y.score - x.score || x.id.localeCompare(y.id))
+      .slice(0, 4)
+      .map((t) => t.id);
+  }
+
+  // Bộ 4 đội tham gia các vòng 2–4. Nếu đã đóng băng (qualifiedTeams) thì dùng nó,
+  // nếu chưa thì tính top-4 theo điểm hiện tại.
+  function activeTeamIds() {
+    const q = g().qualifiedTeams;
+    if (Array.isArray(q) && q.length) return q;
+    return topTeamIds();
+  }
+
+  function isTopTeam(id) {
+    return activeTeamIds().includes(id);
   }
 
   export function startTimerLoop() {
@@ -316,14 +345,17 @@ export function resetKhoiDong(teamId = null) {
     setTimer(0, false);
     if (roundId === "vuot_cnv") {
       game.puzzle = emptyPuzzle();
+      // Đóng băng bộ 4 đội tham gia các vòng 2–4 ngay khi vào vòng 2 (top-4 theo điểm
+      // sau vòng 1). Giữ nguyên qua vòng 3/4 kể cả khi điểm giữa chừng thay đổi.
+      game.qualifiedTeams = topTeamIds();
       // Thứ tự chọn ô theo điểm hiện tại: điểm cao nhất được chọn trước.
       // Nếu có đội bằng điểm → hoãn chốt, để MC tự xếp thứ tự (orderPick).
-      const sorted = getDb()
-        .teams.filter((t) => ["a", "b", "c", "d"].includes(t.id))
+      const top = getDb()
+        .teams.filter((t) => game.qualifiedTeams.includes(t.id))
         .slice()
         .sort((x, y) => y.score - x.score || x.id.localeCompare(y.id));
-      const hasTie = sorted.some((t, i) => i > 0 && t.score === sorted[i - 1].score);
-      game.puzzle.order = hasTie ? [] : sorted.map((t) => t.id);
+      const hasTie = top.some((t, i) => i > 0 && t.score === top[i - 1].score);
+      game.puzzle.order = hasTie ? [] : top.map((t) => t.id);
       game.puzzle.orderPending = hasTie;
       game.puzzle.turnIndex = 0;
       game.display.mode = "puzzle";
@@ -339,6 +371,11 @@ export function resetKhoiDong(teamId = null) {
       // Đảm bảo mỗi đội có đủ ngân hàng câu (3×20, 3×30, 3×40); tự tạo bản nháp nếu thiếu.
       vedich.ensureBank();
       game.veDich = vedich.defaultState();
+      // Chỉ 4 đội điểm cao thi vòng 4; bắt đầu từ đội điểm cao nhất.
+      const top = activeTeamIds();
+      const first = top[0] || game.currentTeam;
+      game.currentTeam = first;
+      game.veDich.answeringTeam = first;
     }
     saveDb();
     emit();
@@ -423,7 +460,7 @@ export function resetKhoiDong(teamId = null) {
       // Mỗi thí sinh có TỔNG 1 phút cho cả 5 ảnh: chỉ reset đồng hồ khi bắt đầu
       // thí sinh mới (timerStarted !== memberIndex), không reset khi đổi ảnh 2–5.
       const mi = game.khoiDong.memberIndex ?? 0;
-      if (game.khoiDong.timerStarted !== mi) {
+      if (game.khoiDong.timerStarted !== mi || !game.timer.running) {
         game.khoiDong.timerStarted = mi;
         setTimer(timerSec, true);
       }
@@ -712,10 +749,14 @@ export function resetKhoiDong(teamId = null) {
     // Kết thúc lượt của thí sinh/đội → dừng đồng hồ cũ; đồng hồ 60s mới sẽ do
     // showQuestion() khởi động khi MC bấm Tiếp tục / nhảy sang thí sinh kế.
     pauseTimer();
-    const order = ["a", "b", "c", "d"];
+    const order = allTeamIds();
     const teamIdx = order.indexOf(game.currentTeam);
     const memberTotal = (getDb().questions.main.khoiDong[game.currentTeam] || []).length || 1;
     const mi = game.khoiDong?.memberIndex ?? 0;
+    // Tránh lỗi hiển thị: khi sang break (chờ MC chuyển thí sinh/đội), không để
+    // questionStatus = "idle" (vì nextQuestion → resetDisplayToBoard đã đưa về idle),
+    // nếu không MC tưởng là "chưa bắt đầu — chọn đội" còn khán giả bị màn nền.
+    game.questionStatus = "showing";
     if (mi + 1 < memberTotal) {
       game.khoiDong.phase = "break";
       game.khoiDong.breakInfo = { kind: "member", teamId: game.currentTeam, nextMember: mi + 1, memberTotal };
@@ -765,10 +806,10 @@ if (game.round === "khoi_dong") {
         game.questionStatus = "idle";
         setTimer(0, false);
       } else if (picked.length >= 3) {
-        // Đã trả lời hết 3 câu → chuyển sang đội kế tiếp; đội mới tự soạn bộ câu của mình.
-        const order = ["a", "b", "c", "d"];
+        // Đã trả lời hết 3 câu → chuyển sang đội kế tiếp trong top 4; đội mới tự soạn bộ câu.
+        const order = activeTeamIds();
         const i = order.indexOf(game.currentTeam);
-        if (i < 3) {
+        if (i >= 0 && i < order.length - 1) {
           const next = order[i + 1];
           game.currentTeam = next;
           game.veDich.pickIndex = 0;
@@ -795,9 +836,16 @@ if (game.round === "khoi_dong") {
 
   export function continueKhoiDong() {
     const game = g();
+    // Nếu đang thi mà MC bấm "Kết thúc thí sinh này" → chuyển thẳng sang thí sinh kế.
+    // Đánh dấu các ảnh chưa trả lời của thí sinh này là sai rồi đặt vào break member
+    // để dòng "Tiếp tục" phía dưới xử lý nhất quán (giữ nguyên đội).
+    if (game.round === "khoi_dong" && game.khoiDong?.phase === "play") {
+      markKhoiDongUnanswered();
+      enterKhoiDongBreak();
+      return;
+    }
     if (game.round !== "khoi_dong" || game.khoiDong?.phase !== "break") return;
     const b = game.khoiDong.breakInfo;
-    const order = ["a", "b", "c", "d"];
     if (b?.kind === "member") {
       game.khoiDong.memberIndex = Math.min(b.nextMember, b.memberTotal - 1);
       game.questionIndex = 0;
@@ -811,10 +859,10 @@ if (game.round === "khoi_dong") {
       game.khoiDong.breakInfo = null;
     }
     setTimer(game.khoiDong?.timerSeconds || 60, false);
-    saveDb();
-    emit();
     // Hiện câu hỏi đầu tiên của thành viên/đội mới sau khoảng nghỉ
     if (currentQuestion()) showQuestion();
+    saveDb();
+    emit();
   }
 
   export function prevQuestion() {
@@ -846,6 +894,12 @@ if (game.round === "khoi_dong") {
 
   export function setCurrentTeam(teamId) {
     const game = g();
+    // Các vòng 2–4 chỉ thi với 4 đội điểm cao nhất.
+    if (game.round && game.round !== "khoi_dong" && !isTopTeam(teamId)) {
+      saveDb();
+      emit();
+      return;
+    }
     game.currentTeam = teamId;
     game.questionIndex = 0;
     if (game.round === "khoi_dong") {
@@ -853,7 +907,7 @@ if (game.round === "khoi_dong") {
       const history = game.khoiDong?.history || {};
       game.khoiDong = { submissions: {}, timerSeconds: timerSec, answerSeconds: game.khoiDong?.answerSeconds, history, memberIndex: 0, timerStarted: -1 };
       setTimer(timerSec, false);
-      showQuestion();
+      if (currentQuestion()) showQuestion();
       return;
     }
     if (game.round === "ve_dich") {
@@ -893,7 +947,9 @@ if (game.round === "khoi_dong") {
         game.khoiDong.timerStarted = -1;
         setTimer(timerSec, false);
       }
-      showQuestion();
+      if (currentQuestion()) showQuestion();
+      saveDb();
+      emit();
       return;
     }
     if (game.round === "tang_toc") {
@@ -957,7 +1013,8 @@ if (game.round === "khoi_dong") {
 
   export function pressBuzzer(teamId, intent = "row") {
     const game = g();
-    if (!["a", "b", "c", "d"].includes(teamId)) return { ignored: true };
+    // Chỉ 4 đội điểm cao (top-4) được dùng chuông/từ khóa cho các vòng 2–4.
+    if (!isTopTeam(teamId)) return { ignored: true };
     // === ĐOÁN TỪ KHÓA (nút vàng TỪ KHÓA) — ghi danh được bất kỳ lúc nào trong
     // vòng 2, kể cả đang thi hàng ngang. Dùng puzzle.keywordClaim riêng (KHÔNG dùng
     // game.buzzer.winner) để không làm lẫn với chuông trả lời hàng ngang. ===
@@ -1077,6 +1134,8 @@ if (game.round === "khoi_dong") {
 
   export function submitTangToc(teamId, answer) {
     const game = g();
+    // Chỉ 4 đội điểm cao thi vòng 3.
+    if (!isTopTeam(teamId)) return { ok: false, reason: "not-open" };
     // Chỉ nhận bài khi đang trong giai đoạn chiếu video, đồng hồ còn chạy.
     if (game.round !== "tang_toc" || game.tangToc?.phase !== "video" || !game.timer.running) {
       return { ok: false, reason: "not-open" };

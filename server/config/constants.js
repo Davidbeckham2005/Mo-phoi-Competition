@@ -3,7 +3,12 @@ export const TEAM_DEFS = [
   { id: "b", name: "Đội B", color: "#4cc9f0", accent: "#90e0ef", pass: "phoenix" },
   { id: "c", name: "Đội C", color: "#80ed99", accent: "#b7efc5", pass: "tiger" },
   { id: "d", name: "Đội D", color: "#ffd60a", accent: "#ffe566", pass: "turtle" },
+  { id: "e", name: "Đội E", color: "#c084fc", accent: "#e0aaff", pass: "eagle" },
+  { id: "f", name: "Đội F", color: "#f97316", accent: "#fdba74", pass: "falcon" },
 ];
+
+// Danh sách id đầy đủ (thứ tự lượt thi vòng 1); các vòng 2-4 dùng top 4 điểm cao.
+export const TEAM_ORDER = ["a", "b", "c", "d", "e", "f"];
 
 export const ROUNDS = [
   { id: "khoi_dong", name: "Khởi động" },
@@ -63,19 +68,22 @@ export function defaultGame() {
     timer: { remaining: 0, running: false, endsAt: null, duration: 0 },
     buzzer: { open: false, locked: false, winner: null, order: [], blocked: [] },
     puzzle: emptyPuzzle(),
-    veDich: { packagePoints: 20, star: false, answeringTeam: null, stealOpen: false, picked: { a: [], b: [], c: [], d: [] }, pickIndex: 0 },
+    veDich: { packagePoints: 20, star: false, answeringTeam: null, stealOpen: false, picked: { a: [], b: [], c: [], d: [], e: [], f: [] }, pickIndex: 0 },
     tangToc: { submissions: {}, ranked: [] },
     khoiDong: { submissions: {}, history: {}, timerSeconds: 60, answerSeconds: 4 },
     roundStarted: false,
     finished: false,
     winnerTeamId: null,
+    // 4 đội được chọn vào các vòng 2–4 (đóng băng khi bắt đầu mỗi vòng: vòng 2 lấy
+    // top-4 theo điểm sau vòng 1; vòng 3/4 giữ nguyên bộ đội đã vào vòng 2).
+    qualifiedTeams: null,
   };
 }
 
 export function defaultSettings() {
   return {
     title: "CUỘC THI TRI THỨC 2026",
-    subtitle: "Hành trình kiến thức — 4 đội tranh tài",
+    subtitle: "Hành trình kiến thức — 6 đội tranh tài",
     pin: "2026",
     prelimDuration: 15 * 60,
     prelimQuestionCount: 30,

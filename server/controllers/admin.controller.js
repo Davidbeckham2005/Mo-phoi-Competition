@@ -17,10 +17,6 @@
     return adminState();
   }
 
-  export function getLeaderboard() {
-    return exam.leaderboard(200);
-  }
-
   export function saveSettings(req) {
     // lấy dữ liệu đang cài đặt trên Ram
     Object.assign(getDb().settings, req.body || {});
@@ -29,31 +25,64 @@
     game.emit();
     return getDb().settings;
   }
-// mở phần thi sơ khảo (prelim) hoặc đóng lại ?
-  export function openPrelim(req) {
-    getDb().settings.prelimOpen = !!req.body.open;
-    saveDb();
+
+  // BTC nhập trực tiếp thí sinh vào cuộc thi
+  export function createContestant(req) {
+    const c = exam.registerContestant(req.body || {});
     emitEvent("prelim:update", publicState());
-    return { prelimOpen: getDb().settings.prelimOpen };
+    game.emit();
+    return c;
   }
 
-  export function selectTop(req) {
-    const result = exam.selectTop16AndAssign(req.body.mode || "snake");
+  export function importContestants(req) {
+    if (!req.file) {
+      const err = new Error("Không có tệp.");
+      err.status = 400;
+      throw err;
+    }
+    const name = req.file.originalname || "";
+    const buf = req.file.buffer;
+    const isXlsx = /\.xlsx?$/i.test(name) || (buf[0] === 0x50 && buf[1] === 0x4b);
+    const rows = isXlsx
+      ? exam.parseContestantXlsx(buf)
+      : exam.parseContestantFile(buf.toString("utf8"), name);
+    if (!rows.length) {
+      const err = new Error("Không tìm thấy thí sinh trong tệp.");
+      err.status = 400;
+      throw err;
+    }
+    const result = exam.importContestants(rows);
     emitEvent("prelim:update", publicState());
     game.emit();
     return result;
+  }
+
+  export function deleteContestant(req) {
+    const res = exam.deleteContestant(req.params.id);
+    emitEvent("prelim:update", publicState());
+    game.emit();
+    return res;
+  }
+
+  export function deleteContestants(req) {
+    const res = exam.deleteContestants(req.body.ids || []);
+    emitEvent("prelim:update", publicState());
+    game.emit();
+    return res;
+  }
+
+  // Chia đều tất cả thí sinh vào các đội
+  export function divideTeams() {
+    const teams = exam.divideAllTeams();
+    emitEvent("prelim:update", publicState());
+    game.emit();
+    return teams;
   }
 
   export function assignTeams(req) {
     const teams = exam.assignTeams(req.body.assignments || []);
     game.emit();
     return teams;
-  }
-
-  export function createDemo() {
-    const lb = exam.seedDemoContestants();
-    emitEvent("prelim:update", publicState());
-    return lb;
   }
 
   export async function reset(req) {
@@ -75,24 +104,6 @@
     saveDb();
     game.emit();
     return db.teams;
-  }
-
-  export function saveSoKhaoQuestion(req) {
-    const db = getDb();
-    const q = req.body;
-    if (!q.id) q.id = `sk-${Date.now()}`;
-    const idx = db.questions.soKhao.findIndex((x) => x.id === q.id);
-    if (idx >= 0) db.questions.soKhao[idx] = q;
-    else db.questions.soKhao.push(q);
-    saveDb();
-    return db.questions.soKhao;
-  }
-
-  export function deleteSoKhaoQuestion(req) {
-    const db = getDb();
-    db.questions.soKhao = db.questions.soKhao.filter((q) => q.id !== req.params.id);
-    saveDb();
-    return db.questions.soKhao;
   }
 
   export function saveMainQuestions(req) {

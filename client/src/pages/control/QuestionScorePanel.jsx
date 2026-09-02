@@ -1,15 +1,11 @@
 import { formatTime } from "../../lib/format.js";
 
 export default function QuestionScorePanel({ ctx }) {
-  const { isKd, q, d, revealed, showing, pts, saiText, act, cnvRowPhase, g, remaining, running } = ctx;
-  // Vòng 3 (Tăng tốc) chấm điểm theo từng đội (nhanh → 40/30/20/10) qua bảng riêng,
-  // không dùng nút Đúng/Sai cộng điểm một đội này — ẩn bảng chấm điểm chung.
-  const ttscoring = g?.round === "tang_toc";
-  // Round 1 (Khởi động): câu đã chấm Đúng/Sai (có giá trị boolean trong history) →
-  // khóa hẳn, không cho ấn Đúng/Sai lại.
-  const mi = g?.khoiDong?.memberIndex ?? 0;
-  const kdCurMark = isKd ? g?.khoiDong?.history?.[g.currentTeam]?.[mi]?.[g.questionIndex] : undefined;
-  const alreadyScored = isKd && typeof kdCurMark === "boolean";
+  const { isKd, q, d, revealed, showing, pts, act, g, remaining, running } = ctx;
+  const kdIdle = isKd && g?.questionStatus === "idle";
+  const fallbackImg = isKd
+    ? `https://picsum.photos/seed/${g?.currentTeam}-${(g?.khoiDong?.memberIndex ?? 0) + 1}-${(g?.questionIndex || 0) + 1}/800/600`
+    : "";
   return (
     <>
       {/* CÂU HỎI & ĐÁP ÁN */}
@@ -19,7 +15,10 @@ export default function QuestionScorePanel({ ctx }) {
             <div className="kicker text-xs tracking-[0.18em] uppercase">Câu hỏi &amp; đáp án</div>
           </div>
         )}
-        {!q && (
+        {kdIdle && (
+          <div className="text-mist">Chuyển đội để bắt đầu lượt.</div>
+        )}
+        {!q && !kdIdle && (
           <div className="text-mist">
             {isKd
               ? "Chuyển đội để bắt đầu lượt."
@@ -42,19 +41,15 @@ export default function QuestionScorePanel({ ctx }) {
             </div>
           </>
         )}
-        {q && isKd && (
-          <div className="flex flex-col items-stretch gap-3">
-            <span className={`self-center inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/70 px-5 py-1.5 timer-xl text-4xl ${remaining <= 5 && running ? "timer-danger" : "text-gold"}`}>
+        {q && isKd && !kdIdle && (
+          <div className="flex flex-col items-stretch gap-2">
+            <span className={`self-center inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/70 px-4 py-0.5 timer-xl text-2xl ${remaining <= 5 && running ? "timer-danger" : "text-gold"}`}>
               {formatTime(remaining)}
             </span>
-            <div className="font-display text-xl leading-snug text-white text-center">{q.answer}</div>
+            <div className="font-display text-base leading-snug text-white text-center">{q.answer}</div>
             <div className="flex-1 min-w-0">
-              <div className="h-[420px] w-full rounded-xl bg-[#0e1830] overflow-hidden grid place-items-center">
-                {q.mediaUrl ? (
-                  <img src={q.mediaUrl} className="w-full h-full object-contain" />
-                ) : (
-                  <span className="text-6xl text-[#9aa7c7]/40">?</span>
-                )}
+              <div className="w-full max-h-[240px] rounded-xl bg-[#0e1830] overflow-hidden grid place-items-center">
+                <img src={q.mediaUrl || fallbackImg} className="w-full h-full max-h-[240px] object-contain" />
               </div>
             </div>
           </div>
@@ -83,28 +78,27 @@ export default function QuestionScorePanel({ ctx }) {
           </>
         )}
       </div>
-
-      {/* CHẤM ĐIỂM */}
-      {!ttscoring && !(g.round === "ve_dich" && !q) && (
-      <div className="panel !rounded-2xl !border-[rgba(255,214,10,0.18)] !bg-[#2a3d63] !shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
-        <div className="kicker text-xs tracking-[0.18em] uppercase mb-2">Chấm điểm</div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn btn-ok flex-1 min-w-[180px]" disabled={!q || alreadyScored} onClick={() => act("answer.mark", { correct: true })}>
-            ĐÚNG +{pts}{cnvRowPhase ? " • mở mảnh" : ""}
-          </button>
-          <button type="button" className="btn btn-danger flex-1 min-w-[180px]" disabled={!q || alreadyScored} onClick={() => act("answer.mark", { correct: false })}>
-            SAI {saiText !== "không trừ" ? `• ${saiText}` : ""}
-          </button>
-        </div>
-        {alreadyScored && (
-          <div className={`mt-2.5 rounded-lg border px-3 py-2 text-xs font-semibold ${
-            kdCurMark ? "border-ok/40 bg-ok/10 text-ok" : "border-danger/40 bg-danger/10 text-danger"
-          }`}>
-            Đã chấm {kdCurMark ? "ĐÚNG" : "SAI"}
-          </div>
-        )}
-      </div>
-      )}
     </>
+  );
+}
+
+export function KdScorePanel({ ctx }) {
+  const { isKd, q, saiText, act, cnvRowPhase, g, pts } = ctx;
+  const ttscoring = g?.round === "tang_toc";
+  const mi = g?.khoiDong?.memberIndex ?? 0;
+  const kdCurMark = isKd ? g?.khoiDong?.history?.[g.currentTeam]?.[mi]?.[g.questionIndex] : undefined;
+  const alreadyScored = isKd && typeof kdCurMark === "boolean";
+  if (ttscoring || (g.round === "ve_dich" && !q)) return null;
+  return (
+    <div className="px-3 py-2.5">
+      <div className="flex gap-2 w-[70%] mx-auto">
+        <button type="button" className="btn btn-ok !rounded-none flex-1" disabled={!q || alreadyScored} onClick={() => act("answer.mark", { correct: true })}>
+          ĐÚNG +{pts}{cnvRowPhase ? " • mở mảnh" : ""}
+        </button>
+        <button type="button" className="btn btn-danger !rounded-none flex-1" disabled={!q || alreadyScored} onClick={() => act("answer.mark", { correct: false })}>
+          SAI {saiText !== "không trừ" ? `• ${saiText}` : ""}
+        </button>
+      </div>
+    </div>
   );
 }
