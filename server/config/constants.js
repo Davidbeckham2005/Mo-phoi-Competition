@@ -21,17 +21,11 @@ export function emptyPuzzle() {
   return {
     rowsSolved: [false, false, false, false],
     rowsLocked: [false, false, false, false],
-    teamForRow: [null, null, null, null],
     centerRevealed: false,
     keywordSolved: false,
     keywordWinner: null,
     keywordPointsAwarded: 0,
     currentRow: 0,
-    order: [],
-    turnIndex: 0,
-    orderPending: false,
-    pendingPick: [],
-    awaitingSteal: false,
     // Cửa sổ giành quyền đoán TỪ KHÓA giữa vòng: mở sau mỗi hàng ngang, đóng khi chọn ô mới
     keywordWindow: false,
     // Các đội đã đoán TỪ KHÓA sai (giữ nguyên tới khi ra từ khóa, không được đoán lại)
@@ -41,9 +35,16 @@ export function emptyPuzzle() {
     // Kết quả hàng ngang vừa xử lý xong (đúng/sai) để hiển thị hiệu ứng phản hồi,
     // tự động xóa khi chọn ô kế tiếp (selectRow)
     lastResult: null,
-    // Các đội đoán TỪ KHÓA (chướng ngại vật) SAI → bị cấm trả lời câu hỏi hàng ngang
-    // tiếp theo (không làm đội chính, không được cướp) cho tới hết vòng.
+    // Các đội đoán TỪ KHÓA (chướng ngại vật) SAI → bị cấm đoán từ khóa tiếp theo
+    // (không ghi danh lại được) cho tới hết vòng.
     rowBanned: [],
+    // === Trả lời TỰ LUẬN gửi về MC (tham khảo vòng 3 Tăng tốc) phân bố trong vòng 2.
+    // Mọi đội cùng nộp đáp án cho câu hàng ngang hiện tại, kèm thời gian nộp (elapsed).
+    // rowPhase: "open" | "closed" | "scored" — đang nhận bài / đã đóng / đã chấm xong ô.
+    rowPhase: "open",
+    submissions: {},   // teamId -> { answer, elapsed }
+    corrections: {},   // teamId -> true|false (MC chấm từng đội)
+    ranked: [],        // danh sách xếp hạng tính điểm theo tốc độ (đã chốt)
   };
 }
 

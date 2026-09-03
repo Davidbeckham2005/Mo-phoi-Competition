@@ -174,24 +174,10 @@
           !cnv.cornersResolved() &&
           !game.puzzle.keywordWindow
         ) {
-          // Hết thời gian trả lời: mở chuông cho các đội khác giành quyền.
-          // Đội vừa hết giờ bị CHẶN (không được cướp lại chính ô của mình),
-          // đối xứng với nhánh "sai lần đầu".
-          // Điều kiện trên (chưa đủ 4 góc, chưa ra từ khóa, không trong cửa sổ từ khóa)
-          // đã đủ xác định đang có hàng ngang đang thi — KHÔNG phụ thuộc display.mode,
-          // để chuông cướp luôn mở dù MC đang hiện câu hỏi, bảng mảnh hay màn khác.
-          const p = game.puzzle;
-          if (p.awaitingSteal) {
-            if (!game.buzzer?.winner) {
-              cnv.skipSteal();
-            }
-          } else {
-            p.awaitingSteal = true;
-            game.buzzer = game.buzzer || {};
-            game.buzzer.blocked = game.buzzer.blocked || [];
-            if (!game.buzzer.blocked.includes(game.currentTeam)) game.buzzer.blocked.push(game.currentTeam);
-            resetBuzzer(true);
-          }
+          // Hết thời gian trả lời HÀNG NGANG: đóng nhận bài để MC chấm các đội.
+          // (Round 2 giờ là trả lời TỰ LUẬN gửi về MC — không còn mở chuông cướp
+          // như trước. MC sẽ chấm từng đội rồi bấm Chốt.)
+          cnv.closeRowSubmissions();
         } else if (game.round === "khoi_dong") {
           // Hết thời giác thành véna → oznaczenie niezodpowiedzianych jako sai
           // i automatyczne przejście do przerwy (nie pokazujemy już câu hỏi).
@@ -348,17 +334,9 @@ export function resetKhoiDong(teamId = null) {
       // Đóng băng bộ 4 đội tham gia các vòng 2–4 ngay khi vào vòng 2 (top-4 theo điểm
       // sau vòng 1). Giữ nguyên qua vòng 3/4 kể cả khi điểm giữa chừng thay đổi.
       game.qualifiedTeams = topTeamIds();
-      // Thứ tự chọn ô theo điểm hiện tại: điểm cao nhất được chọn trước.
-      // Nếu có đội bằng điểm → hoãn chốt, để MC tự xếp thứ tự (orderPick).
-      const top = getDb()
-        .teams.filter((t) => game.qualifiedTeams.includes(t.id))
-        .slice()
-        .sort((x, y) => y.score - x.score || x.id.localeCompare(y.id));
-      const hasTie = top.some((t, i) => i > 0 && t.score === top[i - 1].score);
-      game.puzzle.order = hasTie ? [] : top.map((t) => t.id);
-      game.puzzle.orderPending = hasTie;
-      game.puzzle.turnIndex = 0;
-      game.display.mode = "puzzle";
+      // Không còn thứ tự chọn ô (pick-order): MC chọn trực tiếp ô nào cũng được.
+      // Mở vòng lập tức ở TAB CÂU HỎI (khi chưa chọn câu nào chỉ hiện khung hàng ngang).
+      game.display.mode = "question";
     }
     if (roundId === "tang_toc") {
       game.tangToc = freshTangToc();
@@ -527,6 +505,7 @@ export function resetKhoiDong(teamId = null) {
     emit();
   }
 
+  // markAnswer dùng chung: vòng 2 (vuot_cnv) chấm qua luồng riêng (puzzle.mark + puzzle.settle) nên bỏ qua.
   export function markAnswer(correct, teamId = null) {
     const game = g();
     const q = currentQuestion();
@@ -591,90 +570,14 @@ export function resetKhoiDong(teamId = null) {
       emit();
       return;
     }
-    // Vòng 2: ô hiện tại đã được xử lý xong (mở/khóa) → KHÔNG chấm lại.
-    // Tránh nhấn đúp "Đúng"/"Sai": +điểm 2 lần, −20 2 lần, hoặc advancePicker
-    // đúp làm nhảy cóc lượt của đội kế tiếp. Hết 4 góc thì nút hàng ngang cũng vô tác dụng.
+    // Vòng 2 (Vượt chướng ngại vật) chấm điểm qua bảng "Bài nộp tự luận" riêng:
+    // puzzle.mark (MC chấm từng đội) + puzzle.settle (chốt điểm theo tốc độ nộp).
+    // markAnswer chung không còn vai trò gì ở vòng này → bỏ qua hoàn toàn để không
+    // cộng/trừ điểm lẫn với cơ chế chấm theo tốc độ của vòng 2.
     if (game.round === "vuot_cnv") {
-      if (cnv.cornersResolved()) {
-        // Đã đủ 4 góc: hàng ngang không còn điểm để chấm nữa (từ khóa dùng action riêng)
-        saveDb();
-        emit();
-        return;
-      } else {
-        const row = game.puzzle.currentRow;
-        if (game.puzzle.rowsSolved?.[row] || game.puzzle.rowsLocked?.[row]) {
-          saveDb();
-          emit();
-          return;
-        }
-      }
-    }
-    // Vòng 2: cờ đánh dấu một ô vừa được xử lý xong (mở/khóa) → sau khi chấm,
-    // tự động đưa màn hình khán giả quay về bảng mảnh ghép thay vì đứng yên trên câu hỏi.
-    let resolvedInCnv = false;
-    if (correct) {
-      if (game.round === "vuot_cnv" && !cnv.cornersResolved() && game.puzzle.awaitingSteal) {
-        // Đội giành quyền trả lời đúng: +10 và mở mảnh.
-        // Chỉ cộng điểm khi THỰC SỰ có đội cướp (buzzer.winner) — không fallback về
-        // đội đang chọn (vốn đã trả lời sai ở bước trước).
-        if (game.buzzer.winner) {
-          addScore(game.buzzer.winner, points);
-          cnv.revealRow(game.puzzle.currentRow);
-          game.puzzle.lastResult = {
-            correct: true,
-            teamId: game.buzzer.winner,
-            row: game.puzzle.currentRow,
-            pts: points,
-          };
-          cnv.advancePicker();
-          resolvedInCnv = true;
-        }
-        game.puzzle.awaitingSteal = false;
-      } else {
-        addScore(tid, points);
-        if (game.round === "vuot_cnv" && !cnv.cornersResolved()) {
-          cnv.revealRow(game.puzzle.currentRow);
-          game.puzzle.lastResult = {
-            correct: true,
-            teamId: tid,
-            row: game.puzzle.currentRow,
-            pts: points,
-          };
-          cnv.advancePicker();
-          resolvedInCnv = true;
-        }
-      }
-    } else if (game.round === "vuot_cnv" && !cnv.cornersResolved()) {
-      const p = game.puzzle;
-      if (!p.awaitingSteal) {
-        // Sai lần đầu: mở chuông cho các đội CÒN LẠI giành quyền trả lời (đội vừa sai bị chặn)
-        p.awaitingSteal = true;
-        pauseTimer();
-        game.buzzer = game.buzzer || {};
-        game.buzzer.blocked = game.buzzer.blocked || [];
-        if (!game.buzzer.blocked.includes(tid)) game.buzzer.blocked.push(tid);
-        resetBuzzer(true);
-      } else {
-        // Đội giành quyền trả lời sai: -20 và khóa mảnh vĩnh viễn.
-        // Bắt buộc phải THỰC SỰ có đội đã cướp (buzzer.winner) mới tính —
-        // tránh bấm "Sai" lần 2 khi chuông còn mở gây −20 nhầm cho đội chưa ai trả lời.
-        if (!game.buzzer.winner) {
-          saveDb();
-          emit();
-          return;
-        }
-        addScore(game.buzzer.winner, -20);
-        cnv.lockRow(p.currentRow);
-        p.lastResult = {
-          correct: false,
-          teamId: game.buzzer.winner,
-          row: p.currentRow,
-          pts: -20,
-        };
-        p.awaitingSteal = false;
-        cnv.advancePicker();
-        resolvedInCnv = true;
-      }
+      saveDb();
+      emit();
+      return;
     }
     // Vòng Khởi động: chấm xong chuyển NGAY sang ảnh kế
     if (game.round === "khoi_dong" && game.display.mode === "question") {
@@ -700,27 +603,10 @@ export function resetKhoiDong(teamId = null) {
       }
       return;
     }
-    // Vòng 2: vừa xử lý xong một ô (mở/khóa) → tự đưa màn hình khán giả quay về
-    // bảng mảnh ghép luôn, MC khỏi bấm thêm nút chuyển. (Khi sai lần đầu đang chờ
-    // cướp thì resolvedInCnv = false → giữ nguyên màn hình câu hỏi cho đội cướp.)
-    if (resolvedInCnv) {
-      resetDisplayToBoard();
-      saveDb();
-      emit();
-      return;
-    }
     // Chỉ lật đáp án khi câu hỏi đang thực sự hiển thị trên màn hình.
-    // Vòng 2: phạm sai LẦN ĐẦU (đang chờ các đội khác cướp) thì CHƯA lật đáp án —
-    // để đội cướp tự trả lời, không bị lộ đáp án.
     if (game.display.mode === "question") {
-      const noReveal =
-        game.round === "vuot_cnv" &&
-        game.puzzle?.awaitingSteal &&
-        !cnv.cornersResolved();
-      if (!noReveal) {
-        game.display.answerRevealed = true;
-        game.questionStatus = "revealed";
-      }
+      game.display.answerRevealed = true;
+      game.questionStatus = "revealed";
     }
     saveDb();
     emit();
@@ -1050,11 +936,8 @@ if (game.round === "khoi_dong") {
       game.buzzer.winner = teamId;
       game.buzzer.locked = true;
       game.buzzer.open = false;
-      // Cướp quyền trả lời hàng ngang thành công → đếm ngược THIẾT LẬP LẠI TỪ ĐẦU
-      // (mặc định 30s) cho đội mới giành quyền trả lời.
-      if (game.round === "vuot_cnv" && game.puzzle?.awaitingSteal) {
-        setTimer(game.vuotCnv?.answerSeconds || 30, true);
-      } else if (game.round === "ve_dich" && game.veDich?.stealOpen) {
+      // Cướp quyền trả lời vòng Về đích → đếm ngược THIẾT LẬP LẠI TỪ ĐẦU cho đội mới.
+      if (game.round === "ve_dich" && game.veDich?.stealOpen) {
         setTimer(vedich.getAnswerSeconds(game), true);
       }
     }
@@ -1083,13 +966,15 @@ if (game.round === "khoi_dong") {
 
   export const revealPiece = (index, value = true) => cnv.revealPiece(index, value);
   export const selectRow = (rowIndex) => cnv.selectRow(rowIndex);
-  export const pickOrder = (teamId) => cnv.pickOrder(teamId);
-  export const skipSteal = () => cnv.skipSteal();
   export const revealRow = (rowIndex) => cnv.revealRow(rowIndex);
   export const revealCenter = (teamId = null) => cnv.revealCenter(teamId);
   export const revealAllPuzzle = () => cnv.revealAllPuzzle();
   export const solveKeyword = (teamId, correct) => cnv.solveKeyword(teamId, correct);
   export const showPuzzle = () => cnv.showPuzzle();
+  export const submitRowAnswer = (teamId, answer) => cnv.submitRowAnswer(teamId, answer);
+  export const markRowAnswer = (teamId, correct) => cnv.markRowAnswer(teamId, correct);
+  export const closeRowSubmissions = () => cnv.closeRowSubmissions();
+  export const settleRow = () => cnv.settleRow();
 
   export function showScores() {
     const game = g();

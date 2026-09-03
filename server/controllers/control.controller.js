@@ -70,13 +70,14 @@ const actions = {
   "buzzer.reset": (p) => game.resetBuzzer(!!p.open),
   "buzzer.press": (p) => game.pressBuzzer(p.teamId, p.intent),
   "puzzle.piece": (p) => game.revealPiece(p.index, p.value !== false),
-  "puzzle.select": (p) => game.selectRow(p.row, p.teamId),
+  "puzzle.select": (p) => game.selectRow(p.row),
   "puzzle.row": (p) => game.revealRow(p.row),
   "puzzle.center": (p) => game.revealCenter(p.teamId),
   "puzzle.all": () => game.revealAllPuzzle(),
   "puzzle.show": () => game.showPuzzle(),
-  "puzzle.skip": () => game.skipSteal(),
-  "order.pick": (p) => game.pickOrder(p.teamId),
+  "puzzle.close": () => game.closeRowSubmissions(),
+  "puzzle.mark": (p) => game.markRowAnswer(p.teamId, !!p.correct),
+  "puzzle.settle": () => game.settleRow(),
   "keyword.solve": (p) => {
     const r = game.solveKeyword(p.teamId, !!p.correct);
     emitEvent("sound:play", { slot: p.correct ? "correct" : "wrong" });

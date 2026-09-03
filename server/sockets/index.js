@@ -30,5 +30,11 @@ export function registerSockets(io) {
       if (!teamOk(payload)) return;
       game.submitKhoiDong(payload.teamId, payload.answer);
     });
+
+    socket.on("vuotcnv:submit", (payload) => {
+      if (!payload?.teamId) return;
+      if (!teamOk(payload)) return;
+      game.submitRowAnswer(payload.teamId, payload.answer);
+    });
   });
 }

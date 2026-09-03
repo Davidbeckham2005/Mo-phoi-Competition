@@ -301,6 +301,13 @@
     flex-wrap: wrap;
     gap: 4px;
   }
+  /* Khung hàng ngang gọn ở đầu màn hình câu hỏi Round 2 (màn khán giả) */
+  .r2-rows .ltr {
+    width: clamp(20px, 2.6vw, 42px);
+    height: clamp(20px, 2.6vw, 42px);
+    font-size: clamp(11px, 1.4vw, 20px);
+    border-radius: 10px;
+  }
   .aside-col {
     min-width: 0;
     overflow: hidden;

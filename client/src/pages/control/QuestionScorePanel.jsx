@@ -88,7 +88,8 @@ export function KdScorePanel({ ctx }) {
   const mi = g?.khoiDong?.memberIndex ?? 0;
   const kdCurMark = isKd ? g?.khoiDong?.history?.[g.currentTeam]?.[mi]?.[g.questionIndex] : undefined;
   const alreadyScored = isKd && typeof kdCurMark === "boolean";
-  if (ttscoring || (g.round === "ve_dich" && !q)) return null;
+  // Round 2 chấm theo bảng "Bài nộp tự luận" riêng (trong RoundVuotCnv) — ẩn nút chấm chung này.
+  if (ttscoring || g?.round === "vuot_cnv" || (g.round === "ve_dich" && !q)) return null;
   return (
     <div className="px-3 py-2.5">
       <div className="flex gap-2 w-[70%] mx-auto">

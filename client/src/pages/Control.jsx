@@ -64,10 +64,6 @@ export default function Control() {
   const cornersDone = allCornersDone(p);
   const cnvRowPhase = g.round === "vuot_cnv" && isRowPhase(p);
   const cnvKeywordPhase = g.round === "vuot_cnv" && keywordGuessOpen(p);
-  const rowOwner = (i) => {
-    const id = p.teamForRow?.[i];
-    return state.teams.find((t) => t.id === id);
-  };
 
   const showing = d.mode === "question";
   const revealed = !!d.answerRevealed;
@@ -168,7 +164,6 @@ export default function Control() {
   else if (isKd && showing) status = { cls: "ok", text: "ĐANG THI" };
   else if (isKd) status = { cls: "", text: "CHỰA BẦT DỈ" };
   else if (p.keywordSolved && g.round === "vuot_cnv") status = { cls: "ok", text: "ĐÃ XUẤT TỪ KHÓA" };
-  else if (p.awaitingSteal) status = { cls: "warn", text: "CHỜ CƯỚP QUYỀN" };
   else if (g.round === "vuot_cnv" && p.keywordWindow && !p.keywordSolved && !showing)
     status = p.lastResult
       ? { cls: p.lastResult.correct ? "ok" : "warn", text: p.lastResult.correct ? `ĐÚNG +${p.lastResult.pts} • HÀNG ${p.lastResult.row + 1} MỞ` : `SAI −${Math.abs(p.lastResult.pts || 0)} • HÀNG ${p.lastResult.row + 1} KHÓA` }
@@ -200,7 +195,7 @@ export default function Control() {
   }
 
   const saiText = cnvRowPhase
-    ? p.awaitingSteal ? "−20 & KHÓA mảnh" : "mở chuông cướp quyền"
+    ? "không trừ — chấm qua Bài nộp tự luận"
     : g.round === "ve_dich" && veStar
       ? `−${(q?.points || g.veDich?.packagePoints || 20) * 2}`
       : "không trừ";
@@ -220,7 +215,6 @@ export default function Control() {
     cornersDone,
     cnvRowPhase,
     cnvKeywordPhase,
-    rowOwner,
     showing,
     revealed,
     remaining,
@@ -313,24 +307,27 @@ export default function Control() {
         {g.round === "khoi_dong" && <QuestionScorePanel ctx={ctx} />}
 
         {/* 2 · TRẠNG THÁI (không phải Round 1 — Round 1 gộp đồng hồ vào ô Câu hỏi & đáp án) */}
-        {g.round !== "khoi_dong" && <div className="panel flex flex-wrap items-center gap-3 py-3">
-          <span className="round-badge">{g.round || "setup"}</span>
-          <span className={`badge ${status.cls === "ok" ? "badge-ok" : status.cls === "warn" ? "badge-warn" : ""}`}>
-            {status.text}
-          </span>
-          {progress && <span className="text-mist text-sm">{progress}</span>}
-          {answering && (
-            <span
-              className="badge"
-              style={{ borderColor: answering.color, color: answering.color }}
-            >
-              Trả lời: {winner ? `${winner.name} (chuông)` : cur?.name}
+        {g.round !== "khoi_dong" && (
+          <div className="panel flex flex-wrap items-center gap-3 py-3">
+            {g.round !== "vuot_cnv" && (
+              <>
+                <span className="round-badge">{g.round || "setup"}</span>
+                <span className={`badge ${status.cls === "ok" ? "badge-ok" : status.cls === "warn" ? "badge-warn" : ""}`}>
+                  {status.text}
+                </span>
+                {progress && <span className="text-mist text-sm">{progress}</span>}
+                {answering && (
+                  <span className="badge" style={{ borderColor: answering.color, color: answering.color }}>
+                    Trả lời: {winner ? `${winner.name} (chuông)` : cur?.name}
+                  </span>
+                )}
+              </>
+            )}
+            <span className={`inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1.5 timer-xl text-3xl ${remaining <= 5 && running ? "timer-danger" : "text-gold"} ${g.round === "vuot_cnv" ? "ml-auto" : "ml-auto"}`}>
+              {formatTime(remaining)}
             </span>
-          )}
-          <span className={`ml-auto inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1.5 timer-xl text-3xl ${remaining <= 5 && running ? "timer-danger" : "text-gold"}`}>
-            {formatTime(remaining)}
-          </span>
-        </div>}
+          </div>
+        )}
 
         {/* 3 · QUẢN LÝ CÂU HỎI theo vòng */}
         <RoundVuotCnv ctx={ctx} />

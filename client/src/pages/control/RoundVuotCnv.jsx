@@ -1,11 +1,10 @@
 import { activeTeamIds } from "../../lib/teams.js";
 
 export default function RoundVuotCnv({ ctx }) {
-  const { g, d, q, p, cnv, state, pts, solved, locked, cornersDone, cnvRowPhase, cnvKeywordPhase, rowOwner, revealed, showing, status, act } = ctx;
+  const { g, p, cnv, state, solved, locked, cornersDone, cnvRowPhase, revealed, showing, status, act } = ctx;
   if (g.round !== "vuot_cnv") return null;
 
   const rows = state.questions?.main?.vuotCnv?.rows || [];
-  const hasSteal = p.awaitingSteal;
   const remain = [0, 1, 2, 3].filter((r) => !solved[r] && !locked[r]).length;
   // Được đánh giá "Đoán từ khóa": CHỈ khi có đội GHI DANH qua nút TỪ KHÓA
   // (puzzle.keywordClaim). Tách hoàn toàn khỏi chuông trả lời hàng ngang
@@ -15,19 +14,6 @@ export default function RoundVuotCnv({ ctx }) {
   const kwGuessable = !p.keywordSolved && !!kwClaim;
   const kwWinner = kwClaim || null;
   const findTeam = (id) => state.teams?.find((t) => t.id === id);
-  const banned = p.rowBanned || [];
-  // Đội kế tiếp theo hàng đợi từ đầu vòng (order), lọc bỏ đội bị CẤM trả lời hàng ngang,
-  // quay vòng qua danh sách còn được phép. Khớp logic bên server (selectRow).
-  // VD: order = a,c,d,b, a bị ban → kế tiếp lần lượt c,d,b,c.
-  const nextEligible = (() => {
-    const eligible = (p.order || []).filter((id) => !banned.includes(id));
-    if (eligible.length === 0) return null;
-    return state.teams.find((t) => t.id === eligible[(p.turnIndex ?? 0) % eligible.length]);
-  })();
-  const picker = nextEligible;
-  const pickerIndex = (p.order || []).indexOf(picker ? picker.id : -1);
-  const pendingPick = p.pendingPick || [];
-  const helpingOrder = p.orderPending;
 
   return (
     <div className="grid gap-3.5">
@@ -45,15 +31,17 @@ export default function RoundVuotCnv({ ctx }) {
             >
               Câu hỏi
             </button>
-            <button
-              type="button"
-              className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition ${
-                !showing ? "bg-gold text-[#1a1400]" : "text-mist hover:text-gold"
-              }`}
-              onClick={() => act("screen.set", { mode: "puzzle" })}
-            >
-              Bảng mảnh
-            </button>
+            {showing && (
+              <button
+                type="button"
+                className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition ${
+                  !showing ? "bg-gold text-[#1a1400]" : "text-mist hover:text-gold"
+                }`}
+                onClick={() => act("screen.set", { mode: "puzzle" })}
+              >
+                Bảng mảnh
+              </button>
+            )}
           </div>
           {showing && !revealed && (
             <button type="button" className="btn btn-ghost text-sm! py-1.5!" onClick={() => act("question.reveal")}>
@@ -69,164 +57,213 @@ export default function RoundVuotCnv({ ctx }) {
             {status.text}
           </span>
           <div className="ml-auto flex items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-ok text-sm! py-1.5! px-3!"
-              disabled={!q}
-              title={cnvRowPhase ? `Đúng: +${pts} điểm và mở mảnh` : `Đúng: +${pts} điểm`}
-              onClick={() => act("answer.mark", { correct: true })}
-            >
-              Đúng +{pts}
-            </button>
-            <button
-              type="button"
-              className="btn btn-danger text-sm! py-1.5! px-3!"
-              disabled={!q}
-              title={cnvRowPhase ? (hasSteal ? "Sai: −20 điểm và khóa ô" : "Sai: mở chuông cho các đội khác cướp") : "Sai: không trừ điểm"}
-              onClick={() => act("answer.mark", { correct: false })}
-            >
-              Sai{hasSteal ? " −20" : ""}
-            </button>
+            {cnvRowPhase && p.rowPhase === "open" && (
+              <button
+                type="button"
+                className="btn text-sm! py-1.5! px-3!"
+                onClick={() => act("puzzle.close")}
+              >
+                Đóng nhận bài
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* CHỌN Ô — list câu hỏi + đáp án + đội gán */}
-      <div className="panel">
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          <div className="text-xs tracking-[0.18em] text-mist uppercase">Chọn ô</div>
-          {helpingOrder ? (
-            <div className="w-full mt-1.5 flex flex-wrap items-center gap-2 rounded-xl border border-gold/40 bg-gold/5 px-3 py-2">
-              <span className="text-xs tracking-[0.18em] uppercase text-gold">Bằng điểm — xếp thứ tự chọn:</span>
-              {state.teams.filter((t) => activeTeamIds(g, state.teams).includes(t.id)).map((t) => {
-                const placed = pendingPick.includes(t.id);
-                const pos = pendingPick.indexOf(t.id);
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition ${
-                      placed ? "border-gold bg-gold/15 text-gold" : "border-line text-mist hover:border-gold/60 hover:text-gold"
-                    }`}
-                    title={placed ? "Bấm để bỏ khỏi thứ tự" : "Bấm để xếp vào thứ tự"}
-                    onClick={() => act("order.pick", { teamId: t.id })}
-                  >
-                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: t.color }} />
-                    {t.id.toUpperCase()}. {t.name}
-                    {placed && <span className="text-mist text-[10px] font-bold ml-0.5">{pos + 1}✓</span>}
-                  </button>
-                );
-              })}
-              <span className="text-mist text-xs">
-                Bấm đội theo thứ tự ai chọn trước ({pendingPick.length}/4) — bấm lại để bỏ, đủ 4 đội là chốt.
-              </span>
+      {/* ẢNH CHƯỚNG NGẠI VẬT — đồng bộ với màn hình khán giả, hiện ở chế độ Bảng mảnh */}
+      {!showing && (
+      <div className="rounded-lg border border-[rgba(255,214,10,0.2)] bg-[#2a3d63] px-3 py-2.5 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          {cnv?.media?.url &&
+            (cnv.media.type === "video" ? (
+              <video
+                src={cnv.media.url}
+                controls
+                className="max-h-[24vh] max-w-[42%] rounded-md border border-line object-contain"
+              />
+            ) : (
+              <img
+                src={cnv.media.url}
+                alt="Ảnh ghép"
+                className="max-h-[24vh] max-w-[42%] rounded-md border border-line object-contain"
+              />
+            ))}
+          <div className="relative w-[min(360px,78%)] aspect-[16/10] rounded-md overflow-hidden ring-1 ring-line shrink-0">
+            <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
+              {[0, 1, 2, 3].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => !solved[r] && act("puzzle.piece", { index: r })}
+                  title={!solved[r] ? "Mở mảnh ghép này (đồng bộ lên màn hình khán giả)" : "Mảnh ghép đã mở"}
+                  className={`relative grid place-items-center font-display font-bold text-2xl transition ${
+                    solved[r]
+                      ? "bg-[#ffd60a]/80 text-[#1a1400]"
+                      : locked[r]
+                        ? "bg-danger/10 text-danger/80 cursor-not-allowed"
+                        : "bg-[#1d2c4a] text-mist hover:bg-[#2a3d63] hover:text-gold cursor-pointer"
+                  }`}
+                >
+                  {solved[r] ? r + 1 : locked[r] ? "✕" : "?"}
+                </button>
+              ))}
             </div>
-          ) : (
-            <>
-              <span className="text-xs tracking-wide text-mist uppercase">Thứ tự (điểm cao chọn trước):</span>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {p.order.map((id, j) => {
-                  const t = findTeam(id);
-                  if (!t) return null;
-                  const isBanned = banned.includes(id);
-                  const isNext = j === pickerIndex;
-                  return (
-                    <span
-                      key={id}
-                      className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold ${
-                        isBanned
-                          ? "border-red-500/60 bg-red-500/10 text-red-300 line-through"
-                          : isNext
-                            ? "border-gold bg-gold/10 text-gold"
-                            : "border-line text-mist/60"
-                      }`}
-                    >
-                      <span className="inline-block w-2 h-2 rounded-full" style={{ background: t.color }} />
-                      {j + 1}. {t.name}
-                    </span>
-                  );
-                })}
-              </div>
-            </>
-          )}
-          <span className="text-mist text-xs ml-auto">
-            {p.keywordSolved
-              ? "Đã đoán trúng từ khóa"
-              : helpingOrder
-                ? "Đang xếp thứ tự"
-                : picker
-                  ? `Kế tiếp: ${picker.name} — bấm "Chọn" ở ô cần mở`
-                  : "Đã hết lượt chọn"}
-          </span>
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute left-1/2 top-0 bottom-0 w-px bg-line" />
+              <div className="absolute top-1/2 left-0 right-0 h-px bg-line" />
+            </div>
+            <div
+              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[38%] h-[46%] rounded border-2 grid place-items-center font-display font-bold text-xl ${
+                p.centerRevealed
+                  ? "bg-[#ffd60a] text-[#1a1400] border-gold"
+                  : "bg-night border-line text-mist"
+              }`}
+            >
+              {p.centerRevealed ? "★" : "?"}
+            </div>
+          </div>
         </div>
-        <div className="grid gap-2">
+        {p.centerRevealed && cnv?.centerHint && (
+          <div className="text-mist text-xs mt-2 text-center">★ {cnv.centerHint}</div>
+        )}
+      </div>
+      )}
+
+      {/* MỞ Ô — list dọc: số kí tự + số mảnh ghép bên phải, biết trạng thái mở/chưa (chế độ Câu hỏi) */}
+      {showing && (
+      <div className="rounded-lg border border-[rgba(255,214,10,0.2)] bg-[#2a3d63] px-3 py-2.5 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
+        <div className="flex flex-col gap-1.5">
           {rows.map((row, i) => {
             const isCurrent = i === (p.currentRow ?? 0);
-            const owner = rowOwner(i);
             const count = row.letterCount || String(row.answer || "").replace(/\s/g, "").length;
             const canOpen = !solved[i] && !locked[i] && !p.keywordSolved;
-            const label = solved[i] ? "Đã mở" : locked[i] ? "Đã khóa" : isCurrent ? (hasSteal ? "Chờ cướp" : "Đang thi") : "Chưa gán";
+            const label = solved[i] ? "Đã mở" : locked[i] ? "Đã khóa" : isCurrent ? "Đang thi" : "Chưa mở";
             return (
-              <div
+              <button
                 key={row.id}
-                className={`flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2 transition ${
+                type="button"
+                disabled={!canOpen}
+                title={canOpen ? "Mở câu hỏi cho các đội cùng trả lời tự luận" : undefined}
+                onClick={() => act("puzzle.select", { row: i })}
+                className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition ${
                   isCurrent
-                    ? "border-gold bg-gold/10"
+                    ? "border-gold bg-gold/15"
                     : solved[i]
-                      ? "border-ok/40 bg-ok/5"
+                      ? "border-[rgba(255,214,10,0.6)] bg-[#ffd60a]/15"
                       : locked[i]
-                        ? "border-danger/40 bg-danger/5"
-                        : "border-line bg-panel-solid"
-                }`}
+                        ? "border-[rgba(255,70,94,0.4)] bg-[#ff465e]/10 opacity-70"
+                        : "border-[rgba(255,214,10,0.2)] bg-[#1d2c4a] hover:border-gold hover:bg-gold/10"
+                } disabled:opacity-40 disabled:cursor-not-allowed`}
               >
-                <div className="flex items-center gap-2 w-9 shrink-0">
-                  <span className={`flex items-center justify-center w-9 h-8 rounded-lg text-sm font-bold ${
-                    solved[i] || isCurrent ? "bg-gold text-[#1a1400]" : locked[i] ? "bg-danger/10 text-danger/80" : "border border-line text-mist"
-                  }`}>
-                    {i + 1}
+                <div className="flex items-baseline gap-1.5 min-w-0">
+                  <span className="font-display font-bold text-xl leading-none text-white">{count}</span>
+                  <span className="text-mist text-xs whitespace-nowrap">kí tự</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`text-xs font-semibold ${
+                      solved[i] ? "text-[#ffd60a]" : locked[i] ? "text-[#ff465e]/80" : isCurrent ? "text-gold" : "text-mist"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                  <span
+                    className={`flex items-center justify-center w-8 h-8 rounded font-display font-bold text-lg ${
+                      solved[i] || isCurrent
+                        ? "bg-[#ffd60a] text-[#1a1400]"
+                        : locked[i]
+                          ? "bg-[#ff465e]/20 text-[#ff465e]/80"
+                          : "border border-[rgba(255,214,10,0.3)] text-white/80"
+                    }`}
+                  >
+                    {locked[i] ? "✕" : i + 1}
                   </span>
                 </div>
-                <div className="w-24 shrink-0 text-xs leading-tight">
-                  <div className="text-gold font-bold">{row.points}đ</div>
-                  <div className={solved[i] ? "text-ok" : locked[i] ? "text-danger/80" : isCurrent ? "text-gold" : "text-mist"}>{label}</div>
-                </div>
-                <div className="w-28 shrink-0 text-sm truncate" title={owner?.name}>
-                  {owner ? (
-                    <>
-                      <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle" style={{ background: owner.color }} />
-                      <span style={{ color: owner.color }}>{owner.name}</span>
-                    </>
-                  ) : (
-                    <span className="text-mist">—</span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate" title={row.question}>{row.question}</div>
-                  <div className="text-ok text-sm font-semibold mt-0.5 truncate" title={row.answer}>
-                    Đáp án: {row.answer} <span className="text-mist font-normal">• {count} chữ</span>
-                  </div>
-                </div>
-                {canOpen ? (
-                  picker ? (
-                    <button
-                      type="button"
-                      className="btn text-sm! py-1.5! px-3! shrink-0"
-                      title={`Gán ${picker.name} và mở câu hỏi`}
-                      onClick={() => act("puzzle.select", { row: i })}
-                    >
-                      Chọn
-                    </button>
-                  ) : (
-                    <span className="shrink-0 text-mist text-xs uppercase">Hết lượt</span>
-                  )
-                ) : (
-                  <span className="shrink-0 w-14 text-right text-mist text-xs uppercase">Đã đóng</span>
-                )}
-              </div>
+              </button>
             );
           })}
         </div>
       </div>
+      )}
+
+      {/* BÀI NỘP TỰ LUẬN HÀNG NGANG — MC chấm từng đội rồi Chốt điểm */}
+      {cnvRowPhase && (
+        <div className="panel border-line/80">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-xs tracking-[0.18em] text-mist uppercase">Bài nộp hàng ngang</span>
+            {p.rowPhase === "open" && (
+              <span className="badge badge-warn text-xs!">Đang nhận bài — các đội gõ đáp án gửi về</span>
+            )}
+            {p.rowPhase === "closed" && (
+              <span className="badge badge-warn text-xs!">Đã đóng — hãy chấm từng đội rồi Chốt</span>
+            )}
+            {p.rowPhase === "scored" && (
+              <span className="badge badge-ok text-xs!">Đã chốt điểm ô này</span>
+            )}
+            {p.rowPhase === "open" && <span className="text-mist text-xs ml-auto">Đã nộp: {Object.keys(p.submissions || {}).length}</span>}
+          </div>
+
+          {p.rowPhase !== "open" && (
+            <div className="grid gap-1.5">
+              {(p.ranked?.length && p.rowPhase === "scored"
+                ? p.ranked
+                : Object.entries(p.submissions || {})
+                    .map(([teamId, s]) => ({ teamId, answer: s.answer, elapsed: s.elapsed, correct: p.corrections?.[teamId] ?? null, points: 0, place: null }))
+                    .sort((a, b) => a.elapsed - b.elapsed)
+              ).map((r) => {
+                const t = findTeam(r.teamId);
+                if (!t) return null;
+                const ok = r.correct === true;
+                const bad = r.correct === false;
+                return (
+                  <div key={r.teamId} className="flex flex-wrap items-center gap-2 rounded-lg border border-line/60 px-2.5 py-1.5">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: t.color }} />
+                    <b className="text-sm w-28 truncate">{t.name}</b>
+                    <span className="text-mist text-xs font-mono shrink-0">{r.elapsed != null ? r.elapsed.toFixed(2) + "s" : "—"}</span>
+                    <span className="text-sm flex-1 min-w-[120px] truncate" title={r.answer}>“{r.answer || "—"}”</span>
+                    {p.rowPhase !== "scored" && (
+                      <div className="flex gap-1 items-center">
+                        <button
+                          type="button"
+                          className={`btn px-2! py-1! text-xs! ${ok ? "btn-ok" : ""}`}
+                          onClick={() => act("puzzle.mark", { teamId: r.teamId, correct: true })}
+                        >
+                          Đúng
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn px-2! py-1! text-xs! ${bad ? "btn-danger" : ""}`}
+                          onClick={() => act("puzzle.mark", { teamId: r.teamId, correct: false })}
+                        >
+                          Sai
+                        </button>
+                      </div>
+                    )}
+                    <span className={`w-14 text-right font-display font-bold text-sm ${ok ? "text-ok" : ""}`}>
+                      {ok ? `+${r.points}` : ""}
+                    </span>
+                    {r.place != null && <span className={`badge text-xs! ${r.place === 1 ? "badge-ok" : ""}`}>#{r.place}</span>}
+                  </div>
+                );
+              })}
+              {Object.keys(p.submissions || {}).length === 0 && (
+                <p className="text-mist text-xs">Chưa có đội nào nộp bài.</p>
+              )}
+            </div>
+          )}
+
+          {p.rowPhase === "closed" && (
+            <div className="flex items-center gap-2 mt-2.5 border-t border-line/50 pt-2.5">
+              <button type="button" className="btn btn-ok text-sm!" onClick={() => act("puzzle.settle")}>
+                Chốt điểm (tính theo tốc độ)
+              </button>
+              <span className="text-mist text-xs">
+                Chỉ đội ĐÚNG được điểm: nhanh nhất 40 · kế 30 · 20 · 10. Có ≥1 đội đúng → mở mảnh, ngược lại khóa.
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* TỪ KHÓA */}
       <div className="panel">
@@ -270,46 +307,13 @@ export default function RoundVuotCnv({ ctx }) {
               mở (không điểm)
             </button>
           </div>
-          <button type="button" className="btn btn-ghost text-sm! py-1.5!" onClick={() => act("puzzle.all")}>
-            Mở hết
-          </button>
           <span className="text-mist text-xs">
             {p.keywordSolved
               ? "Đã có từ khóa."
-              : hasSteal
-                ? "Đang cướp quyền — sai −20 & khóa mảnh."
-                : `Còn ${remain} ô chưa xử lý.`}
+              : `Còn ${remain} ô chưa xử lý.`}
           </span>
         </div>
       </div>
-
-      {/* GIÀNH QUYỀN KHI SAI / HẾT GIỜ */}
-      {hasSteal && (
-        <div className="panel border-danger/40 bg-danger/5">
-          {g.buzzer?.winner ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="badge badge-ok">Đang trả lời</span>
-              <span className="text-sm text-mist">
-                {state.teams.find((t) => t.id === g.buzzer.winner)?.name} — bấm Đúng / Sai ở trên để chấm.
-              </span>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-mist">Sai / hết giờ — đội giành quyền:</span>
-              {(state.teams || [])
-                .filter((t) => activeTeamIds(g, state.teams).includes(t.id) && t.id !== g.currentTeam)
-                .map((t) => (
-                  <button key={t.id} type="button" className="btn btn-sm" onClick={() => act("buzzer.press", { teamId: t.id })}>
-                    {t.name}
-                  </button>
-                ))}
-              <button type="button" className="btn btn-ghost text-sm! py-1.5!" onClick={() => act("puzzle.skip")}>
-                Bỏ qua
-              </button>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ĐOÁN TỪ KHÓA — đơn giản: ai đã giải / ai giữ quyền + nút Đúng/Sai */}
       <div className="panel">

@@ -4,7 +4,7 @@
 // game.service.js để tăng tính tái sử dụng và dễ bảo trì.
 //
 // Module này TỰ chứa các helper nội bộ (cornersResolved, keywordPoints, openKeywordWindow,
-// advancePicker, lockRow, cnvView) và chỉ nhận các hàm dùng chung (emit, addScore, pauseTimer,
+// lockRow, cnvView) và chỉ nhận các hàm dùng chung (emit, addScore, pauseTimer,
 // resetDisplayToBoard, showQuestion, resetBuzzer) qua hàm init() — tránh import vòng (circular).
 //
 // Cách dùng (từ game.service.js):
@@ -92,13 +92,7 @@ function openKeywordWindow() {
   game.buzzer = { open: false, locked: false, winner: null, order: [], blocked: [] };
 }
 
-// Sang đội kế tiếp trong hàng đợi (sau khi ô đã được giải quyết xong)
-export function advancePicker() {
-  const p = g().puzzle;
-  p.turnIndex = (p.turnIndex ?? 0) + 1;
-}
-
-// Trả lời sai lần 2: khóa mảnh vĩnh viễn
+// Trả lời sai lần 2 / tất cả sai: khóa mảnh vĩnh viễn (không mở lại, không ai được chấm ô này nữa)
 export function lockRow(rowIndex) {
   const game = g();
   const i = Number(rowIndex);
@@ -135,49 +129,16 @@ export function selectRow(rowIndex) {
   const i = Number(rowIndex);
   if (!(i >= 0 && i <= 3)) return;
   if (p.rowsSolved?.[i] || p.rowsLocked?.[i] || p.keywordSolved) return;
-  if (p.orderPending) {
-    throw new Error("Đang chờ xếp thứ tự đội bằng điểm — hãy chốt xong thứ tự trước.");
-  }
-  // Thứ tự trả lời theo hàng đợi từ đầu vòng: lọc bỏ đội bị CẤM trả lời hàng ngang
-  // (đoán từ khóa sai), rồi lấy đội kế tiếp trong danh sách còn được phép, quay vòng.
-  // Hết 1 vòng các đội còn được phép mới quay lại đội đầu.
-  const banned = p.rowBanned || [];
-  const order = p.order || [];
-  const eligible = order.filter((id) => !banned.includes(id));
-  if (eligible.length === 0) {
-    throw new Error("Đã hết đội còn được trả lời hàng ngang — chuyển sang đoán từ khóa.");
-  }
-  // Duyệt theo thứ tự quay vòng GỐC (p.order) và BỎ QUA các đội bị CẤM trả lời hàng
-  // ngang (đoán từ khóa sai). Không dùng chỉ số trên mảng eligible đã bị lọc — vì khi
-  // một đội bị khóa, eligible.length thu nhỏ còn turnIndex vẫn đếm trên thứ tự gốc làm
-  // đội kế tiếp bị nhảy cóc sai. Ví dụ order=[A,B,C,D], B bị cấm, turnIndex=2 → đội kế
-  // tiếp phải là C (theo lượt) chứ không phải D.
-  const start = p.turnIndex ?? 0;
-  let teamId = null;
-  for (let k = 0; k < order.length; k++) {
-    const id = order[(start + k) % order.length];
-    if (!banned.includes(id)) {
-      teamId = id;
-      break;
-    }
-  }
-  p.teamForRow = p.teamForRow || [null, null, null, null];
-  const owner = p.teamForRow[i];
-  if (owner && owner !== teamId) {
-    const rowActive =
-      (p.currentRow === i && game.questionStatus !== "idle") || p.awaitingSteal;
-    if (rowActive) {
-      throw new Error(`Ô này đang thi đấu thuộc đội ${String(owner).toUpperCase()} — không chuyển sang đội ${teamId.toUpperCase()} được.`);
-    }
-  }
-  p.teamForRow[i] = teamId;
-  game.currentTeam = teamId;
   p.currentRow = i;
-  p.awaitingSteal = false;
   // Bắt đầu ô mới: đóng cửa sổ đoán từ khóa giữa vòng (keywordBlocked vẫn giữ nguyên),
-  // dọn chuông và danh sách đội bị chặn cướp của ô trước, xóa hiệu ứng trả lời vừa rồi
+  // dọn chuông của ô trước, xóa hiệu ứng trả lời vừa rồi
   p.keywordWindow = false;
   p.lastResult = null;
+  // Mở ô mới → chuẩn bị nhận bài tự luận của các đội
+  p.rowPhase = "open";
+  p.submissions = {};
+  p.corrections = {};
+  p.ranked = [];
   game.buzzer = { open: false, locked: false, winner: null, order: [], blocked: [] };
   game.questionStatus = "idle";
   game.display.mode = "puzzle";
@@ -185,43 +146,6 @@ export function selectRow(rowIndex) {
   saveDb();
   emit();
   showQuestion();
-}
-
-// MC tự xếp thứ tự khi có đội bằng điểm: bấm từng đội vào thứ tự (bấm lại để bỏ).
-// Đủ 4 đội → chốt thành thứ tự chính thức.
-export function pickOrder(teamId) {
-  const p = g().puzzle;
-  if (!p.orderPending) return;
-  if (!isKnownTeam(teamId)) return;
-  p.pendingPick = p.pendingPick || [];
-  if (p.pendingPick.includes(teamId)) {
-    p.pendingPick = p.pendingPick.filter((id) => id !== teamId);
-  } else {
-    p.pendingPick.push(teamId);
-  }
-  if (p.pendingPick.length === 4) {
-    p.order = [...p.pendingPick];
-    p.orderPending = false;
-  }
-  saveDb();
-  emit();
-}
-
-// Không đội nào cướp: đóng cửa cướp, KHÓA VĨNH VIỄN ô hàng ngang này (không mở lại,
-// không tính điểm cho ai), quay về bảng và sang đội kế tiếp.
-// Được gọi từ MC (nút "bỏ qua") HOẶC tự động khi hết giờ giành quyền mà không ai bấm chuông.
-export function skipSteal() {
-  const game = g();
-  const p = game.puzzle;
-  if (!p.awaitingSteal) return;
-  p.awaitingSteal = false;
-  lockRow(p.currentRow); // khóa vĩnh viễn (mở cửa sổ từ khóa, saveDb, emit)
-  resetDisplayToBoard();
-  game.buzzer = { open: false, locked: false, winner: null, order: [], blocked: [] };
-  pauseTimer();
-  advancePicker();
-  saveDb();
-  emit();
 }
 
 // Đội trả lời đúng: mở đúng 1 mảnh góc tương ứng hàng ngang
@@ -286,16 +210,18 @@ export function solveKeyword(teamId, correct) {
     // và nhả quyền nắm giữ (keywordClaim) để đội khác có thể ghi danh tiếp.
     const kb = game.puzzle.keywordBlocked || [];
     if (!kb.includes(tid)) game.puzzle.keywordBlocked = [...kb, tid];
-    // Thêm quy tắc mới: đoán TỪ KHÓA (chướng ngại vật) SAI → đội này không được
-    // phép trả lời các câu hỏi HÀNG NGANG còn lại (không làm đội chính, không cướp).
+    // Thêm quy tắc: đoán TỪ KHÓA (chướng ngại vật) SAI → đội này bị cấm ghi danh
+    // đoán từ khóa tiếp theo cho tới hết vòng.
     const rb = game.puzzle.rowBanned || [];
     if (!rb.includes(tid)) game.puzzle.rowBanned = [...rb, tid];
     game.puzzle.keywordClaim = null;
     // Không mở chuông chính khi đoán từ khóa SAI — đội đoán từ khóa dùng lại nút
-    // TỪ KHÓA riêng (puzzle.keywordClaim), chuông chính chỉ dành cho trả lời hàng ngang.
+    // TỪ KHÓA riêng (puzzle.keywordClaim), chuông chính chỉ dành cho cướp quyền Về đích.
     resetBuzzer(false);
-    // Cả 4 đội đã đoán sai → không còn ai được trả lời: tự mở đáp án (không tính điểm)
-    const active = game.puzzle.order?.length ? game.puzzle.order : TEAM_ORDER.slice(0, 4);
+    // Cả 4 đội đã đoán sai → không còn ai được đoán: tự mở đáp án (không tính điểm)
+    const active = game.qualifiedTeams?.length
+      ? game.qualifiedTeams
+      : TEAM_ORDER.slice(0, 4);
     const allBlocked = active.every((id) =>
       game.puzzle.keywordBlocked.includes(id)
     );
@@ -310,6 +236,121 @@ export function solveKeyword(teamId, correct) {
       game.buzzer.open = false;
     }
   }
+  saveDb();
+  emit();
+}
+
+// === TRẢ LỜI TỰ LUẬN GỬI VỀ MC (tham khảo vòng 3 Tăng tốc) ====================
+// Mọi đội cùng nộp đáp án cho câu hàng ngang hiện tại; hệ thống ghi nhận thời gian
+// nộp (elapsed, giây thập phân tính từ lúc hiện câu). MC chấm đúng/sai từng đội rồi
+// bấm "Chốt" — điểm theo độ nhanh giữa các đội đúng: nhất 40 · nhì 30 · ba 20 · tư 10.
+// Trả lời sai = 0 điểm (KHÔNG bị trừ). Có ≥1 đội đúng → mở mảnh; tất cả sai → khóa.
+
+// Điểm khi trả lời đúng theo độ NANH (xếp giữa các đội đúng).
+export const ROW_POINTS = [40, 30, 20, 10];
+
+// Số giây miễn phí để bấm chấm: rowChấm không dùng chuông cướp nên không cần.
+function rowElapsed() {
+  const game = g();
+  const dur = game.timer.duration || 0;
+  const now = Date.now();
+  if (game.timer.running && game.timer.endsAt) {
+    return Math.max(0, Math.min(dur, (now - (game.timer.endsAt - dur * 1000)) / 1000));
+  }
+  return Math.max(0, dur - (game.timer.remaining || 0));
+}
+
+// Đội gửi đáp án tự luận về MC (ghi nhận thời gian nộp).
+export function submitRowAnswer(teamId, answer) {
+  const game = g();
+  const p = game.puzzle;
+  if (game.round !== "vuot_cnv" || p.keywordSolved) return { ok: false, reason: "closed" };
+  if (p.rowPhase !== "open") return { ok: false, reason: "closed" };
+  if (game.questionStatus !== "showing") return { ok: false, reason: "not-open" };
+  const prev = p.submissions[teamId];
+  if (prev) return { ok: false, reason: "already" };
+  p.submissions[teamId] = {
+    answer: String(answer || "").trim(),
+    elapsed: rowElapsed(),
+  };
+  saveDb();
+  emit();
+  return { ok: true };
+}
+
+// MC chấm đúng/sai một đội (cho phép sửa lại trước khi chốt).
+export function markRowAnswer(teamId, correct) {
+  const game = g();
+  if (!game.puzzle?.submissions?.[teamId]) return;
+  game.puzzle.corrections[teamId] = !!correct;
+  saveDb();
+  emit();
+}
+
+// Đóng nhận bài (MC bấm hoặc tự động khi hết giờ): chuyển sang giai đoạn chấm.
+export function closeRowSubmissions() {
+  const game = g();
+  const p = game.puzzle;
+  if (p.rowPhase !== "open") return;
+  p.rowPhase = "closed";
+  saveDb();
+  emit();
+}
+
+// Xếp hạng các bài nộp theo độ nhanh + nhận định đúng/sai + điểm dự kiến.
+export function computeRowRanked() {
+  const game = g();
+  const p = game.puzzle;
+  const subs = Object.entries(p.submissions || {}).map(([teamId, s]) => ({
+    teamId,
+    answer: s.answer,
+    elapsed: s.elapsed,
+  }));
+  const byElapsed = [...subs].sort((a, b) => a.elapsed - b.elapsed);
+  const corr = p.corrections || {};
+  const correct = byElapsed
+    .filter((s) => corr[s.teamId] === true)
+    .map((s, i) => ({ ...s, place: i + 1, points: ROW_POINTS[i] || 10 }));
+  const correctMap = {};
+  correct.forEach((s) => (correctMap[s.teamId] = s));
+  return byElapsed.map((s) => {
+    const c = correctMap[s.teamId];
+    return {
+      teamId: s.teamId,
+      answer: s.answer,
+      elapsed: s.elapsed,
+      correct: corr[s.teamId] === true ? true : corr[s.teamId] === false ? false : null,
+      points: c ? c.points : 0,
+      place: c ? c.place : null,
+    };
+  });
+}
+
+// MC "Chốt điểm" cho ô hiện tại: cộng điểm theo tốc độ, mở/khóa mảnh, sang đội kế.
+export function settleRow() {
+  const game = g();
+  const p = game.puzzle;
+  if (game.round !== "vuot_cnv" || p.keywordSolved || p.rowPhase === "scored") return;
+  const ranked = computeRowRanked();
+  p.ranked = ranked;
+  p.rowPhase = "scored";
+  // Cộng điểm cho các đội ĐÚNG theo độ nhanh (sai = 0, không trừ).
+  ranked.filter((r) => r.correct === true && r.points > 0).forEach((r) => addScore(r.teamId, r.points));
+  // Phản hồi kết quả ô vừa xử lý (cho màn Đội & Khán giả).
+  const anyCorrect = ranked.some((r) => r.correct === true);
+  p.lastResult = {
+    correct: anyCorrect,
+    teamId: anyCorrect ? (ranked.find((r) => r.correct === true && r.place === 1)?.teamId ?? null) : null,
+    row: p.currentRow,
+    pts: anyCorrect ? (ranked.find((r) => r.correct === true && r.place === 1)?.points || 0) : 0,
+  };
+  // Có ≥1 đội đúng → mở mảnh; tất cả sai → khóa vĩnh viễn. Cả hai đều mở cửa sổ từ khóa.
+  if (anyCorrect) {
+    revealRow(p.currentRow);
+  } else {
+    lockRow(p.currentRow);
+  }
+  resetDisplayToBoard();
   saveDb();
   emit();
 }
