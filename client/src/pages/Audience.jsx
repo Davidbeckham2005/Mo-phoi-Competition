@@ -96,9 +96,29 @@ export default function Audience() {
       ? [...(state.teams || [])].sort((a, b) => b.score - a.score).slice(0, 4)
       : state.teams;
 
+  // Vòng 2: đồng bộ background với màn khán giả vòng 1 (nền tối #070b16 + ảnh mờ theo cài đặt).
+  const cnvBg = g.round === "vuot_cnv";
+  const cnvAudienceBg = state.settings?.audienceBg || "dark";
+  const cnvBgUrl = state.settings?.audienceBgUrl || "";
+  const cnvUseBlur = cnvAudienceBg === "blur" && cnvBgUrl;
+
   return (
-    <div className="min-h-screen flex flex-col px-6 py-4 gap-3">
-      <div className="flex justify-between items-start gap-4 flex-wrap">
+    <div className="min-h-screen flex flex-col px-6 py-4 gap-3 relative isolate overflow-hidden">
+      {cnvBg && (
+        <>
+          <div className="fixed inset-0 z-0 bg-[#070b16]" />
+          {cnvUseBlur && (
+            <>
+              <div
+                className="fixed inset-0 z-0 bg-cover bg-center scale-110"
+                style={{ backgroundImage: `url(${cnvBgUrl})`, filter: "blur(14px) brightness(0.5)" }}
+              />
+              <div className="fixed inset-0 z-0 bg-[#070b16]/45" />
+            </>
+          )}
+        </>
+      )}
+      <div className="relative flex justify-between items-start gap-4 flex-wrap z-10">
         <div>
           <div className="kicker">{state.settings?.subtitle}</div>
           <h1 className="font-display font-bold text-[clamp(28px,4vw,52px)] leading-tight mt-1">
@@ -113,7 +133,7 @@ export default function Audience() {
         </div>
       </div>
 
-      <div className="relative flex-1 grid place-items-center min-h-[52vh]">
+      <div className="relative flex-1 grid place-items-center min-h-[52vh] z-10">
         {g.buzzer?.winner && (
           <div className="round-badge absolute top-2 left-1/2 -translate-x-1/2 z-10">
             Quyền trả lời: {state.teams.find((t) => t.id === g.buzzer.winner)?.name}
@@ -122,7 +142,9 @@ export default function Audience() {
         <Stage state={state} timer={timer} />
       </div>
 
-      <TeamsRow teams={outTeams} state={state} flash={flash} currentTeam={g.currentTeam} />
+      <div className="relative z-10">
+        <TeamsRow teams={outTeams} state={state} flash={flash} currentTeam={g.currentTeam} />
+      </div>
     </div>
   );
 }
@@ -277,27 +299,18 @@ function Stage({ state, timer }) {
   );
 }
 
-// Khung ô chữ Vòng 2: 4 hàng ngang + từ khóa (dạng hộp chữ cái) — đặt trên đầu màn câu hỏi.
-// Hàng ngang đang được hỏi (p.currentRow) được làm nổi nhãn để khán giả theo dõi.
+// Khung ô chữ Vòng 2: 2 cột — bên trái số kí tự, bên phải các hàng ngang (ô chữ tròn, viền liền).
+// Đặt trên đầu màn câu hỏi khán giả. Không hiện dòng từ khóa.
 function CnvRowsFrame({ state, g }) {
   const p = g.puzzle || {};
   const cnv = state.cnv;
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-2.5">
+      {/* 2 cột: bên trái = số kí tự, bên phải = các hàng ngang (căn đều) */}
       {(cnv?.rows || []).map((row, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <span
-            className={`text-sm w-16 shrink-0 text-right ${
-              row.status === "open"
-                ? "text-gold"
-                : row.status === "locked"
-                  ? "text-danger/80"
-                  : i === p.currentRow
-                    ? "text-white font-semibold"
-                    : "text-mist"
-            }`}
-          >
-            Hàng {i + 1}
+        <div key={i} className="flex items-center gap-4">
+          <span className="text-sm w-10 shrink-0 text-right font-display font-bold tabular-nums text-gold">
+            {row.letterCount}
           </span>
           <div className="flex gap-1.5">
             {row.status === "open"
@@ -314,23 +327,6 @@ function CnvRowsFrame({ state, g }) {
           </div>
         </div>
       ))}
-
-      {/* Từ khóa */}
-      <div className="flex items-center gap-1.5 mt-1">
-        <span className="text-sm w-16 shrink-0 text-right text-gold">Từ khóa</span>
-        {p.keywordSolved && cnv?.keyword
-          ? cnv.keyword.split("").map((ch, j) => (
-              <span key={j} className={`ltr ltr-kw ${/\s/.test(ch) ? "" : "ltr-gold"}`}>
-                {/\s/.test(ch) ? "" : ch}
-              </span>
-            ))
-          : Array.from({ length: cnv?.keywordLetterCount || 0 }, (_, j) => (
-              <span key={j} className="ltr ltr-kw" />
-            ))}
-        {!!cnv?.keywordLetterCount && (
-          <span className="text-mist text-sm ml-2">{cnv.keywordLetterCount} chữ cái</span>
-        )}
-      </div>
     </div>
   );
 }
@@ -340,7 +336,7 @@ function Round2Question({ state, d, g }) {
   const p = g.puzzle || {};
   return (
     <div className="w-full max-w-[1000px] mx-auto text-center flex flex-col items-center">
-      {/* Khung hàng ngang + từ khóa (ô chữ chướng ngại vật) */}
+      {/* Khung các hàng ngang (2 cột: số kí tự + ô chữ) */}
       <div className="r2-rows mb-6">
         <CnvRowsFrame state={state} g={g} />
       </div>

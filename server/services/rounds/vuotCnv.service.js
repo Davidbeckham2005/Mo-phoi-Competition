@@ -145,7 +145,12 @@ export function selectRow(rowIndex) {
   game.display.answerRevealed = false;
   saveDb();
   emit();
+  // Thiết lập câu hỏi hiện tại + đồng hồ cho bài nộp tự luận (questionStatus "showing",
+  // timer chạy để tính thời gian nộp của từng đội) NHƯNG giữ màn hình khán giả ở
+  // BẢNG MẢNH — không tự chuyển sang màn hình câu hỏi. MC chủ động bấm "Câu hỏi"
+  // khi muốn chiếu câu hỏi lên màn hình lớn.
   showQuestion();
+  game.display.mode = "puzzle";
 }
 
 // Đội trả lời đúng: mở đúng 1 mảnh góc tương ứng hàng ngang
