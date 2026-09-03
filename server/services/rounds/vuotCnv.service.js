@@ -25,6 +25,7 @@ function isKnownTeam(id) {
 let emit = () => {};
 let addScore = () => {};
 let pauseTimer = () => {};
+let setTimer = () => {};
 let resetDisplayToBoard = () => {};
 let showQuestion = () => {};
 let resetBuzzer = () => {};
@@ -34,6 +35,7 @@ export function init(deps) {
   if (deps.emit) emit = deps.emit;
   if (deps.addScore) addScore = deps.addScore;
   if (deps.pauseTimer) pauseTimer = deps.pauseTimer;
+  if (deps.setTimer) setTimer = deps.setTimer;
   if (deps.resetDisplayToBoard) resetDisplayToBoard = deps.resetDisplayToBoard;
   if (deps.showQuestion) showQuestion = deps.showQuestion;
   if (deps.resetBuzzer) resetBuzzer = deps.resetBuzzer;
@@ -57,27 +59,29 @@ export function cnvView(db) {
     })),
     keywordLetterCount: cnv.letterCount || String(cnv.keyword || "").replace(/\s/g, "").length,
     keyword: p.keywordSolved ? cnv.keyword : "",
-    centerHint: p.centerRevealed ? cnv.centerHint : "",
     media: cnv.media && cnv.media.url ? { type: cnv.media.type || "image", url: cnv.media.url } : null,
+    // Câu hỏi hiện tại hiển thị CÙNG bảng mảnh (vòng 2: 5 hàng ngang đều là câu hỏi,
+    // mở đủ 5 mảnh → hiện nguyên bức ảnh; từ khóa chỉ nhìn hình, không có câu hỏi riêng).
+    currentRow: p.currentRow ?? 0,
+    rowPhase: p.rowPhase || "idle",
+    question: p.rowPhase === "open" && cnv.rows?.[p.currentRow]
+      ? (cnv.rows[p.currentRow].question || "")
+      : "",
   };
 }
 
-// 4 ô góc đã được xử lý hết (mở hoặc khóa vĩnh viễn)
+// 5 hàng ngang đã được xử lý hết (mở hoặc khóa vĩnh viễn)
 export function cornersResolved(p = g().puzzle) {
-  return [0, 1, 2, 3].every((i) => p.rowsSolved?.[i] || p.rowsLocked?.[i]);
+  return [0, 1, 2, 3, 4].every((i) => p.rowsSolved?.[i] || p.rowsLocked?.[i]);
 }
 
 export function keywordPoints() {
   const p = g().puzzle;
   const opened = p.rowsSolved.filter(Boolean).length;
-  // Điểm khi đoán TRÚNG từ khóa CNV theo giai đoạn:
-  //   sau hàng ngang 1 → 60 · sau 2 → 50 · sau 3 → 40 · sau 4 → 30
-  //   sau khi mở ô trung tâm → 20 (đúng câu trung tâm được +10 riêng)
-  if (p.centerRevealed) return 20;
-  if (opened <= 1) return 60;
-  if (opened === 2) return 50;
-  if (opened === 3) return 40;
-  return 30; // opened >= 4
+  // Điểm khi đoán TRÚNG từ khóa CNV theo giai đoạn (chỉ nhìn hình):
+  //   sau hàng ngang 1 → 60 · sau 2 → 50 · sau 3 → 40 · sau 4 → 30 · sau 5 → 20
+  const OPEN_POINTS = [60, 50, 40, 30, 20];
+  return OPEN_POINTS[Math.max(0, Math.min(opened, 5) - 1)] ?? 20;
 }
 
 // Mở CỬA SỔ đoán TỪ KHÓA: chạy sau MỖI hàng ngang vừa xử lý xong (mở hoặc khóa).
@@ -96,7 +100,7 @@ function openKeywordWindow() {
 export function lockRow(rowIndex) {
   const game = g();
   const i = Number(rowIndex);
-  if (!(i >= 0 && i <= 3)) return;
+  if (!(i >= 0 && i <= 4)) return;
   pauseTimer();
   game.puzzle.rowsLocked[i] = true;
   // Vừa xử lý xong một hàng ngang (khóa) → mở cửa sổ đoán từ khóa cho mốc này
@@ -111,14 +115,10 @@ export function revealPiece(index, value = true) {
   const game = g();
   const i = Number(index);
   if (!(i >= 0 && i <= 4)) return;
-  if (i !== 4) {
-    game.puzzle.rowsSolved[i] = !!value;
-    if (value) game.puzzle.rowsLocked[i] = false;
-    // Mỗi mốc vừa mở mảnh → mở cửa sổ đoán từ khóa (không xóa danh sách đội đã đoán sai)
-    if (value) openKeywordWindow();
-  } else {
-    game.puzzle.centerRevealed = !!value;
-  }
+  game.puzzle.rowsSolved[i] = !!value;
+  if (value) game.puzzle.rowsLocked[i] = false;
+  // Mỗi mốc vừa mở mảnh → mở cửa sổ đoán từ khóa (không xóa danh sách đội đã đoán sai)
+  if (value) openKeywordWindow();
   saveDb();
   emit();
 }
@@ -127,37 +127,78 @@ export function selectRow(rowIndex) {
   const game = g();
   const p = game.puzzle;
   const i = Number(rowIndex);
-  if (!(i >= 0 && i <= 3)) return;
+  if (!(i >= 0 && i <= 4)) return;
   if (p.rowsSolved?.[i] || p.rowsLocked?.[i] || p.keywordSolved) return;
   p.currentRow = i;
+  // Giữ nguyên màn hình người dùng đang xem (câu hỏi hoặc bảng mảnh) khi mở ô mới
+  const prevMode = game.display.mode;
   // Bắt đầu ô mới: đóng cửa sổ đoán từ khóa giữa vòng (keywordBlocked vẫn giữ nguyên),
   // dọn chuông của ô trước, xóa hiệu ứng trả lời vừa rồi
   p.keywordWindow = false;
   p.lastResult = null;
-  // Mở ô mới → chuẩn bị nhận bài tự luận của các đội
+  // Mở ô mới → chuẩn bị nhận bài tự luận của các đội. KHÔNG tự đếm giờ: MC cần thời
+  // gian đọc câu hỏi trước, rồi mới bấm nút "Bắt đầu giờ" (startRowTimer). Trước khi
+  // MC bấm giờ (p.timingStarted === false) các đội chưa thể nộp đáp án.
   p.rowPhase = "open";
   p.submissions = {};
   p.corrections = {};
   p.ranked = [];
+  p.timingStarted = false;
   game.buzzer = { open: false, locked: false, winner: null, order: [], blocked: [] };
   game.questionStatus = "idle";
-  game.display.mode = "puzzle";
   game.display.answerRevealed = false;
   saveDb();
   emit();
-  // Thiết lập câu hỏi hiện tại + đồng hồ cho bài nộp tự luận (questionStatus "showing",
-  // timer chạy để tính thời gian nộp của từng đội) NHƯNG giữ màn hình khán giả ở
-  // BẢNG MẢNH — không tự chuyển sang màn hình câu hỏi. MC chủ động bấm "Câu hỏi"
-  // khi muốn chiếu câu hỏi lên màn hình lớn.
+  // Thiết lập câu hỏi hiện tại cho bài nộp tự luận (questionStatus "showing") NHƯNG
+  // KHÔNG tự đổi màn hình — giữ nguyên trạng thái màn hình đang xem (bảng mảnh hoặc
+  // câu hỏi). Đồng hồ được tạm dừng: MC bấm "Bắt đầu giờ" thì mới chạy.
   showQuestion();
-  game.display.mode = "puzzle";
+  pauseTimer();
+  game.display.mode = prevMode || "puzzle";
+  saveDb();
+  emit();
+}
+
+// MC bấm "Bỏ chọn" cho ô đang mở: quay về trạng thái CHƯA chọn câu hỏi nào —
+// không đếm giờ, không hiện câu hỏi, xóa sạch bài nộp của ô đó. (Hoàn tác selectRow.)
+// GIỮ NGUYÊN tab khán giả đang xem (câu hỏi / bảng mảnh) — chỉ xóa nội dung câu hỏi,
+// không nhảy màn hình.
+export function deselectRow() {
+  const game = g();
+  const p = game.puzzle;
+  if (game.round !== "vuot_cnv") return;
+  if (p.rowPhase !== "open") return;
+  // Giữ nguyên màn hình người dùng đang xem (câu hỏi hoặc bảng mảnh)
+  const prevMode = game.display.mode;
+  p.rowPhase = "closed";
+  p.submissions = {};
+  p.corrections = {};
+  p.ranked = [];
+  p.timingStarted = false;
+  game.buzzer = { open: false, locked: false, winner: null, order: [], blocked: [] };
+  setTimer(0, false);
+  resetDisplayToBoard();
+  game.display.mode = prevMode || "puzzle";
+  saveDb();
+  emit();
+}
+
+// MC bấm "Bắt đầu giờ" cho ô đang mở: bắt đầu đếm thời gian cho bài nộp tự luận.
+// Đến lúc này các đội mới có thể gửi đáp án (xem submitRowAnswer).
+export function startRowTimer() {
+  const game = g();
+  const p = game.puzzle;
+  if (game.round !== "vuot_cnv" || p.keywordSolved) return;
+  if (p.rowPhase !== "open") return;
+  p.timingStarted = true;
+  setTimer(game.vuotCnv?.answerSeconds || 30, true);
 }
 
 // Đội trả lời đúng: mở đúng 1 mảnh góc tương ứng hàng ngang
 export function revealRow(rowIndex) {
   const game = g();
   const i = Number(rowIndex);
-  if (!(i >= 0 && i <= 3)) return;
+  if (!(i >= 0 && i <= 4)) return;
   if (game.puzzle.rowsLocked?.[i]) return; // khóa vĩnh viễn, không mở lại
   pauseTimer();
   game.puzzle.rowsSolved[i] = true;
@@ -167,24 +208,11 @@ export function revealRow(rowIndex) {
   emit();
 }
 
-export function revealCenter(teamId = null) {
-  const game = g();
-  if (!cornersResolved()) return; // chỉ được chọn khi 4 ô góc đã xử lý hết
-  if (game.puzzle.centerRevealed) return; // không mở lại / không cộng điểm trùng
-  game.puzzle.centerRevealed = true;
-  // Đúng câu hỏi ô trung tâm → đội đó được thêm 10 điểm
-  const tid = isKnownTeam(teamId) ? teamId : null;
-  if (tid) addScore(tid, 10);
-  saveDb();
-  emit();
-}
-
 export function revealAllPuzzle() {
   const game = g();
-  game.puzzle.rowsSolved = [true, true, true, true];
-  game.puzzle.rowsLocked = [false, false, false, false];
-  game.puzzle.centerRevealed = true;
-  // "Mở hết" dùng sớm khi chưa đủ 4 góc cũng cần mở cửa sổ đoán từ khóa
+  game.puzzle.rowsSolved = [true, true, true, true, true];
+  game.puzzle.rowsLocked = [false, false, false, false, false];
+  // "Mở hết" dùng sớm khi chưa đủ 5 mảnh cũng cần mở cửa sổ đoán từ khóa
   openKeywordWindow();
   saveDb();
   emit();
@@ -272,6 +300,8 @@ export function submitRowAnswer(teamId, answer) {
   if (game.round !== "vuot_cnv" || p.keywordSolved) return { ok: false, reason: "closed" };
   if (p.rowPhase !== "open") return { ok: false, reason: "closed" };
   if (game.questionStatus !== "showing") return { ok: false, reason: "not-open" };
+  // Chỉ được nộp đáp án sau khi MC đã bấm "Bắt đầu giờ" (timingStarted).
+  if (!p.timingStarted) return { ok: false, reason: "not-started" };
   const prev = p.submissions[teamId];
   if (prev) return { ok: false, reason: "already" };
   p.submissions[teamId] = {

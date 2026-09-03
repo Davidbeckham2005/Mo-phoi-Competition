@@ -19,9 +19,8 @@ export const ROUNDS = [
 
 export function emptyPuzzle() {
   return {
-    rowsSolved: [false, false, false, false],
-    rowsLocked: [false, false, false, false],
-    centerRevealed: false,
+    rowsSolved: [false, false, false, false, false],
+    rowsLocked: [false, false, false, false, false],
     keywordSolved: false,
     keywordWinner: null,
     keywordPointsAwarded: 0,
@@ -41,7 +40,10 @@ export function emptyPuzzle() {
     // === Trả lời TỰ LUẬN gửi về MC (tham khảo vòng 3 Tăng tốc) phân bố trong vòng 2.
     // Mọi đội cùng nộp đáp án cho câu hàng ngang hiện tại, kèm thời gian nộp (elapsed).
     // rowPhase: "open" | "closed" | "scored" — đang nhận bài / đã đóng / đã chấm xong ô.
-    rowPhase: "open",
+    // Khởi tạo "closed": vào vòng 2 CHƯA mở/chiếu câu hỏi nào (mở ở bảng mảnh ghép).
+    // Phải bấm chọn 1 ô (selectRow → "open") thì mới có câu hỏi và mới hiện nút
+    // "Bắt đầu giờ".
+    rowPhase: "closed",
     submissions: {},   // teamId -> { answer, elapsed }
     corrections: {},   // teamId -> true|false (MC chấm từng đội)
     ranked: [],        // danh sách xếp hạng tính điểm theo tốc độ (đã chốt)

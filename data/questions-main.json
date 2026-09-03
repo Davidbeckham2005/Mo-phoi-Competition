@@ -65,9 +65,15 @@
         "answer": "VÀNG",
         "points": 10,
         "letterCount": 4
+      },
+      {
+        "id": 5,
+        "question": "Pháo hoa rực rỡ thường được thả trên bầu trời mỗi dịp lễ hội nào?",
+        "answer": "TẾT NGUYÊN ĐÁN",
+        "points": 10,
+        "letterCount": 12
       }
     ],
-    "centerHint": "Hình ảnh: rồng thời Lý uốn lượn trên mây.",
     "media": { "type": "image", "url": "" }
   },
   "tangToc": [

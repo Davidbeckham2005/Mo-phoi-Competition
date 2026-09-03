@@ -389,8 +389,8 @@ function KhoiDongBody({ g, d, team }) {
 // cho hàng ngang đã bỏ. Đoán TỪ KHÓA vẫn dùng nút vàng TỪ KHÓA + MC chấm như cũ.
 function Round2Status({ g, teams, me, remaining, running, submitted, answer, setAnswer, onSubmit }) {
   const keywordDone = !!g.puzzle?.keywordSolved;
-  const cornersAllDone = [0, 1, 2, 3].every((i) => g.puzzle?.rowsSolved?.[i] || g.puzzle?.rowsLocked?.[i]);
-  // Cửa sổ đoán từ khóa theo lối cũ (sau từng hàng ngang / đủ 4 góc) — vẫn dùng để hiện hướng dẫn,
+  const cornersAllDone = [0, 1, 2, 3, 4].every((i) => g.puzzle?.rowsSolved?.[i] || g.puzzle?.rowsLocked?.[i]);
+  // Cửa sổ đoán từ khóa theo lối cũ (sau từng hàng ngang / đủ 5 mảnh) — vẫn dùng để hiện hướng dẫn,
   // còn việc đoán vòng 2 giờ được ghi danh (puzzle.keywordClaim) bất kỳ lúc nào qua nút TỪ KHÓA.
   const keywordGuessOpen = !keywordDone && (!!g.puzzle?.keywordWindow || cornersAllDone);
   const kwClaim = g.puzzle?.keywordClaim;

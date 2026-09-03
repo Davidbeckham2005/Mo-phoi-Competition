@@ -59,8 +59,8 @@ export default function Control() {
   const cnv = state.cnv;
   const isKd = g.round === "khoi_dong";
 
-  const solved = [0, 1, 2, 3].map((i) => isOpen(p, i));
-  const locked = [0, 1, 2, 3].map((i) => isLocked(p, i));
+  const solved = [0, 1, 2, 3, 4].map((i) => isOpen(p, i));
+  const locked = [0, 1, 2, 3, 4].map((i) => isLocked(p, i));
   const cornersDone = allCornersDone(p);
   const cnvRowPhase = g.round === "vuot_cnv" && isRowPhase(p);
   const cnvKeywordPhase = g.round === "vuot_cnv" && keywordGuessOpen(p);
@@ -187,8 +187,8 @@ export default function Control() {
   else if (g.round === "vuot_cnv") {
     const doneCount = solved.filter(Boolean).length;
     progress = cnvKeywordPhase
-      ? `Đoán từ khóa • ${doneCount}/4 góc mở`
-      : `Hàng ngang ${(p.currentRow ?? 0) + 1} • ${cornersDone ? 4 : doneCount}/4 góc xong`;
+      ? `Đoán từ khóa • ${doneCount}/5 mảnh mở`
+      : `Hàng ngang ${(p.currentRow ?? 0) + 1} • ${cornersDone ? 5 : doneCount}/5 mảnh xong`;
   } else if (g.round === "ve_dich") {
     const picked = ((g.veDich?.picked || {})[cur?.id] || []);
     progress = `Câu ${(g.veDich?.pickIndex || 0) + 1}/${picked.length || 3} • ${q?.points || g.veDich?.packagePoints || 20}đ${veStar ? " • Sao ×2" : ""} • ${cur?.name || ""}`;
@@ -306,24 +306,21 @@ export default function Control() {
         {/* 1 · HIỂN THỊ CÂU HỎI — thời gian · đáp án · ảnh (Round 1) — trên đầu trang */}
         {g.round === "khoi_dong" && <QuestionScorePanel ctx={ctx} />}
 
-        {/* 2 · TRẠNG THÁI (không phải Round 1 — Round 1 gộp đồng hồ vào ô Câu hỏi & đáp án) */}
-        {g.round !== "khoi_dong" && (
+        {/* 2 · TRẠNG THÁI (không phải Round 1 — Round 1 gộp đồng hồ vào ô Câu hỏi & đáp án).
+           Vòng 2 đã gộp đồng hồ + trạng thái vào thanh điều khiển riêng (không hiện panel này). */}
+        {g.round !== "khoi_dong" && g.round !== "vuot_cnv" && (
           <div className="panel flex flex-wrap items-center gap-3 py-3">
-            {g.round !== "vuot_cnv" && (
-              <>
-                <span className="round-badge">{g.round || "setup"}</span>
-                <span className={`badge ${status.cls === "ok" ? "badge-ok" : status.cls === "warn" ? "badge-warn" : ""}`}>
-                  {status.text}
-                </span>
-                {progress && <span className="text-mist text-sm">{progress}</span>}
-                {answering && (
-                  <span className="badge" style={{ borderColor: answering.color, color: answering.color }}>
-                    Trả lời: {winner ? `${winner.name} (chuông)` : cur?.name}
-                  </span>
-                )}
-              </>
+            <span className="round-badge">{g.round || "setup"}</span>
+            <span className={`badge ${status.cls === "ok" ? "badge-ok" : status.cls === "warn" ? "badge-warn" : ""}`}>
+              {status.text}
+            </span>
+            {progress && <span className="text-mist text-sm">{progress}</span>}
+            {answering && (
+              <span className="badge" style={{ borderColor: answering.color, color: answering.color }}>
+                Trả lời: {winner ? `${winner.name} (chuông)` : cur?.name}
+              </span>
             )}
-            <span className={`inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1.5 timer-xl text-3xl ${remaining <= 5 && running ? "timer-danger" : "text-gold"} ${g.round === "vuot_cnv" ? "ml-auto" : "ml-auto"}`}>
+            <span className={`ml-auto inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1.5 timer-xl text-3xl ${remaining <= 5 && running ? "timer-danger" : "text-gold"}`}>
               {formatTime(remaining)}
             </span>
           </div>

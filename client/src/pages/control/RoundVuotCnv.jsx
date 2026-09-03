@@ -1,11 +1,11 @@
-import { activeTeamIds } from "../../lib/teams.js";
+import { formatTime } from "../../lib/format.js";
 
 export default function RoundVuotCnv({ ctx }) {
-  const { g, p, cnv, state, solved, locked, cornersDone, cnvRowPhase, revealed, showing, status, act } = ctx;
+  const { g, p, cnv, state, solved, locked, cnvRowPhase, revealed, showing, remaining, running, act } = ctx;
   if (g.round !== "vuot_cnv") return null;
 
   const rows = state.questions?.main?.vuotCnv?.rows || [];
-  const remain = [0, 1, 2, 3].filter((r) => !solved[r] && !locked[r]).length;
+  const remain = [0, 1, 2, 3, 4].filter((r) => !solved[r] && !locked[r]).length;
   // Được đánh giá "Đoán từ khóa": CHỈ khi có đội GHI DANH qua nút TỪ KHÓA
   // (puzzle.keywordClaim). Tách hoàn toàn khỏi chuông trả lời hàng ngang
   // (buzzer.winner) để không lẫn 2 chuông — tránh chấm nhầm điểm từ khóa cho
@@ -17,32 +17,17 @@ export default function RoundVuotCnv({ ctx }) {
 
   return (
     <div className="grid gap-3.5">
-      {/* ĐIỀU KHIỂN — 1 switch màn hình + 2 nút chấm */}
+      {/* ĐIỀU KHIỂN — toggle 2 màn hình khán giả (Câu hỏi / Bảng mảnh) gộp với đồng hồ */}
       <div className="panel">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-xl border border-line bg-night/50 p-1">
-            <button
-              type="button"
-              className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition ${
-                showing ? "bg-gold text-[#1a1400]" : "text-mist hover:text-gold"
-              }`}
-              title="Chuyển màn hình lớn sang câu hỏi (giữ nguyên đáp án đã lật, không đếm lại giờ)"
-              onClick={() => act("screen.set", { mode: "question" })}
-            >
-              Câu hỏi
-            </button>
-            {showing && (
-              <button
-                type="button"
-                className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition ${
-                  !showing ? "bg-gold text-[#1a1400]" : "text-mist hover:text-gold"
-                }`}
-                onClick={() => act("screen.set", { mode: "puzzle" })}
-              >
-                Bảng mảnh
-              </button>
-            )}
-          </div>
+          <button
+            type="button"
+            className={`btn text-sm! py-0! h-10 w-[7rem]! justify-center text-center ${showing ? "btn-ghost" : ""}`}
+            title={showing ? "Quay lại bảng mảnh ghép" : "Chuyển màn hình lớn sang câu hỏi"}
+            onClick={() => act("screen.set", { mode: showing ? "puzzle" : "question" })}
+          >
+            {showing ? "Bảng mảnh" : "Câu hỏi"}
+          </button>
           {showing && !revealed && (
             <button type="button" className="btn btn-ghost text-sm! py-1.5!" onClick={() => act("question.reveal")}>
               Lật đáp án
@@ -53,79 +38,105 @@ export default function RoundVuotCnv({ ctx }) {
               Che đáp án
             </button>
           )}
-          <span className={`badge text-xs! ${status.cls === "warn" ? "badge-warn" : status.cls === "ok" ? "badge-ok" : ""}`}>
-            {status.text}
-          </span>
           <div className="ml-auto flex items-center gap-2">
-            {cnvRowPhase && p.rowPhase === "open" && (
+            {/* Đồng hồ của ô đang thi — gộp vào thanh điều khiển. KHÔNG hiện gì khi
+                chưa đếm giờ (chưa bấm "Bắt đầu giờ"); chỉ hiện khi đồng hồ đang chạy. */}
+            {running && (
+              <span
+                className={`inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1.5 timer-xl text-3xl ${
+                  remaining <= 5 ? "timer-danger" : "text-gold"
+                }`}
+              >
+                {formatTime(remaining)}
+              </span>
+            )}
+            {/* Nút bắt đầu giờ — CHỈ hiện khi đang chọn 1 câu (rowPhase === "open") và chưa chạy */}
+            {cnvRowPhase && p.rowPhase === "open" && !p.timingStarted && (
               <button
                 type="button"
-                className="btn text-sm! py-1.5! px-3!"
-                onClick={() => act("puzzle.close")}
+                className="btn btn-ok text-sm! py-1.5! px-3!"
+                onClick={() => act("puzzle.startTimer")}
               >
-                Đóng nhận bài
+                ▶ Bắt đầu giờ
+              </button>
+            )}
+            {/* Nút bỏ chọn — hoàn tác ô đang mở: không hiện câu hỏi nữa */}
+            {p.rowPhase === "open" && (
+              <button
+                type="button"
+                className="btn btn-ghost text-sm! py-1.5! px-3!"
+                title="Bỏ chọn ô hiện tại — quay về trạng thái chưa chọn câu hỏi nào"
+                onClick={() => act("puzzle.deselect")}
+              >
+                Bỏ chọn
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* ẢNH CHƯỚNG NGẠI VẬT — đồng bộ với màn hình khán giả, hiện ở chế độ Bảng mảnh */}
+      {/* ẢNH CHƯỚNG NGẠI VẬT — bảng chính, hiện ở chế độ Bảng mảnh */}
       {!showing && (
       <div className="rounded-lg border border-[rgba(255,214,10,0.2)] bg-[#2a3d63] px-3 py-2.5 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          {cnv?.media?.url &&
-            (cnv.media.type === "video" ? (
-              <video
-                src={cnv.media.url}
-                controls
-                className="max-h-[24vh] max-w-[42%] rounded-md border border-line object-contain"
-              />
-            ) : (
-              <img
-                src={cnv.media.url}
-                alt="Ảnh ghép"
-                className="max-h-[24vh] max-w-[42%] rounded-md border border-line object-contain"
-              />
-            ))}
-          <div className="relative w-[min(360px,78%)] aspect-[16/10] rounded-md overflow-hidden ring-1 ring-line shrink-0">
-            <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
-              {[0, 1, 2, 3].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => !solved[r] && act("puzzle.piece", { index: r })}
-                  title={!solved[r] ? "Mở mảnh ghép này (đồng bộ lên màn hình khán giả)" : "Mảnh ghép đã mở"}
-                  className={`relative grid place-items-center font-display font-bold text-2xl transition ${
-                    solved[r]
-                      ? "bg-[#ffd60a]/80 text-[#1a1400]"
-                      : locked[r]
-                        ? "bg-danger/10 text-danger/80 cursor-not-allowed"
-                        : "bg-[#1d2c4a] text-mist hover:bg-[#2a3d63] hover:text-gold cursor-pointer"
-                  }`}
-                >
-                  {solved[r] ? r + 1 : locked[r] ? "✕" : "?"}
-                </button>
-              ))}
+        <div className="flex flex-col items-center justify-center">
+          {/* Ảnh ghép: 5 mảnh CHÍNH LÀ 1 bức ảnh hoàn chỉnh bị cắt. Nền đặt sẵn ảnh;
+              mảnh MỞ → gỡ lớp che (hiện phần ảnh), mảnh chưa mở → phủ đục với "?".
+              Bấm từng mảnh để mở. */}
+          <div className="relative w-[min(420px,82%)] aspect-[16/10] rounded-md overflow-hidden ring-1 ring-line bg-night">
+            {cnv?.media?.url && cnv.media.type !== "video" && (
+              <img src={cnv.media.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            )}
+            {/* 4 mảnh góc (hàng 0-3) — bấm để mở, đồng bộ lên màn hình khán giả */}
+            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
+              {[0, 1, 2, 3].map((r) => {
+                const isImage = cnv?.media?.url && cnv.media.type !== "video";
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => !solved[r] && act("puzzle.piece", { index: r })}
+                    title={!solved[r] ? "Mở mảnh ghép này (đồng bộ lên màn hình khán giả)" : "Mảnh ghép đã mở"}
+                    disabled={locked[r] || p.keywordSolved}
+                    className={`relative grid place-items-center font-display font-bold text-xl transition ${
+                      isImage && solved[r]
+                        ? "pointer-events-none bg-transparent"
+                        : locked[r]
+                          ? "bg-danger/60 text-white cursor-not-allowed"
+                          : solved[r]
+                            ? "bg-[#ffd60a]/80 text-[#1a1400]"
+                            : "bg-[#0e1830] text-mist hover:bg-[#2a3d63] hover:text-gold cursor-pointer"
+                    }`}
+                  >
+                    {!isImage || !solved[r] ? (solved[r] ? r + 1 : locked[r] ? "✕" : "?") : ""}
+                  </button>
+                );
+              })}
             </div>
+            {/* Ô TRUNG TÂM (hàng 4) — nằm chồng lên điểm gặp nhau của 4 mảnh */}
+            <button
+              type="button"
+              onClick={() => !solved[4] && act("puzzle.piece", { index: 4 })}
+              title={!solved[4] ? "Mở ô trung tâm (hàng 5)" : "Ô trung tâm đã mở"}
+              disabled={locked[4] || p.keywordSolved}
+              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[38%] h-[46%] rounded border-2 grid place-items-center font-display font-bold text-xl transition ${
+                cnv?.media?.url && cnv.media.type !== "video" && solved[4]
+                  ? "pointer-events-none bg-transparent border-transparent"
+                  : locked[4]
+                    ? "bg-danger/70 text-white border-danger/70 cursor-not-allowed"
+                    : solved[4]
+                      ? "bg-[#ffd60a] text-[#1a1400] border-gold shadow-[0_0_26px_rgba(255,214,10,0.45)]"
+                      : "bg-[#0e1830] text-mist border-line hover:bg-[#2a3d63] hover:text-gold cursor-pointer"
+              }`}
+            >
+              {(!cnv?.media?.url || cnv.media.type === "video") ? (solved[4] ? 5 : locked[4] ? "✕" : "?") : (locked[4] ? "✕" : "?")}
+            </button>
+            {/* Đường chia mảnh ghép */}
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute left-1/2 top-0 bottom-0 w-px bg-line" />
               <div className="absolute top-1/2 left-0 right-0 h-px bg-line" />
             </div>
-            <div
-              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[38%] h-[46%] rounded border-2 grid place-items-center font-display font-bold text-xl ${
-                p.centerRevealed
-                  ? "bg-[#ffd60a] text-[#1a1400] border-gold"
-                  : "bg-night border-line text-mist"
-              }`}
-            >
-              {p.centerRevealed ? "★" : "?"}
-            </div>
           </div>
         </div>
-        {p.centerRevealed && cnv?.centerHint && (
-          <div className="text-mist text-xs mt-2 text-center">★ {cnv.centerHint}</div>
-        )}
       </div>
       )}
 
@@ -279,38 +290,12 @@ export default function RoundVuotCnv({ ctx }) {
               : Array.from({ length: cnv?.keywordLetterCount || 0 }, (_, j) => <span key={j} className="ltr" />)}
             {!!cnv?.keywordLetterCount && <span className="text-mist text-sm ml-1">{cnv.keywordLetterCount} chữ</span>}
           </div>
-          {p.centerRevealed && cnv?.centerHint && <span className="text-mist text-sm">★ {cnv.centerHint}</span>}
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-2.5">
-          <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-line px-2 py-1">
-            <span className="text-xs text-mist mr-1">★ Ô trung tâm +10:</span>
-            {state.teams.filter((t) => activeTeamIds(g, state.teams).includes(t.id)).map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                disabled={!cornersDone || p.centerRevealed}
-                className="flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-xs font-semibold text-mist transition hover:text-gold disabled:opacity-40 disabled:cursor-not-allowed"
-                title={`Đội ${t.name} trả lời đúng câu ô trung tâm → +10 và mở ô`}
-                onClick={() => act("puzzle.center", { teamId: t.id })}
-              >
-                <span className="inline-block w-2 h-2 rounded-full" style={{ background: t.color }} />
-                {t.id.toUpperCase()}. {t.name}
-              </button>
-            ))}
-            <button
-              type="button"
-              disabled={!cornersDone || p.centerRevealed}
-              className="ml-1 text-xs text-mist transition hover:text-gold disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Mở ô trung tâm không cộng điểm"
-              onClick={() => act("puzzle.center", {})}
-            >
-              mở (không điểm)
-            </button>
-          </div>
           <span className="text-mist text-xs">
             {p.keywordSolved
               ? "Đã có từ khóa."
-              : `Còn ${remain} ô chưa xử lý.`}
+              : `Còn ${remain} mảnh chưa xử lý.`}
           </span>
         </div>
       </div>

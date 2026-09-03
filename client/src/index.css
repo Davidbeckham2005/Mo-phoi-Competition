@@ -311,6 +311,12 @@
   .r2-rows .ltr:not(.ltr-open):not(.ltr-locked) {
     border-style: solid;
   }
+  /* Hàng ngang đang được hỏi: ô tròn nổi màu vàng */
+  .r2-rows .ltr.r2-current {
+    border-color: var(--color-gold);
+    background: rgba(255, 214, 10, 0.15);
+    color: var(--color-gold);
+  }
   .aside-col {
     min-width: 0;
     overflow: hidden;

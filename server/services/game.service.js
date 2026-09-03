@@ -335,8 +335,8 @@ export function resetKhoiDong(teamId = null) {
       // sau vòng 1). Giữ nguyên qua vòng 3/4 kể cả khi điểm giữa chừng thay đổi.
       game.qualifiedTeams = topTeamIds();
       // Không còn thứ tự chọn ô (pick-order): MC chọn trực tiếp ô nào cũng được.
-      // Mở vòng lập tức ở TAB CÂU HỎI (khi chưa chọn câu nào chỉ hiện khung hàng ngang).
-      game.display.mode = "question";
+      // Mở vòng ở màn hình BẢNG MẢNH GHÉP — chưa chọn/chiếu câu hỏi nào cả.
+      game.display.mode = "puzzle";
     }
     if (roundId === "tang_toc") {
       game.tangToc = freshTangToc();
@@ -369,14 +369,6 @@ export function resetKhoiDong(teamId = null) {
       return cluster[game.questionIndex] || null;
     }
     if (game.round === "vuot_cnv") {
-      if (game.puzzle.centerRevealed) {
-        return {
-          id: "cnv-keyword",
-          question: `Chướng ngại vật (${main.vuotCnv.letterCount} chữ cái, không tính dấu cách). Gợi ý: ${main.vuotCnv.hint}`,
-          answer: main.vuotCnv.keyword,
-          points: cnv.keywordPoints(),
-        };
-      }
       return main.vuotCnv.rows[game.puzzle.currentRow] || null;
     }
     if (game.round === "tang_toc") {
@@ -462,7 +454,9 @@ export function resetKhoiDong(teamId = null) {
 
   export function revealAnswer() {
     const game = g();
-    if (game.display.mode !== "question") {
+    // Vòng 2 dùng 1 màn hình duy nhất (bảng mảnh + câu hỏi), không có chế độ
+    // "question" riêng — cho phép lật đáp án trực tiếp trên màn hình chung.
+    if (game.round !== "vuot_cnv" && game.display.mode !== "question") {
       const err = new Error("Chưa hiện câu hỏi — bấm “Hiện câu hỏi” trước khi lật đáp án.");
       err.status = 400;
       throw err;
@@ -966,8 +960,9 @@ if (game.round === "khoi_dong") {
 
   export const revealPiece = (index, value = true) => cnv.revealPiece(index, value);
   export const selectRow = (rowIndex) => cnv.selectRow(rowIndex);
+  export const deselectRow = () => cnv.deselectRow();
+  export const startRowTimer = () => cnv.startRowTimer();
   export const revealRow = (rowIndex) => cnv.revealRow(rowIndex);
-  export const revealCenter = (teamId = null) => cnv.revealCenter(teamId);
   export const revealAllPuzzle = () => cnv.revealAllPuzzle();
   export const solveKeyword = (teamId, correct) => cnv.solveKeyword(teamId, correct);
   export const showPuzzle = () => cnv.showPuzzle();
@@ -1273,5 +1268,5 @@ if (game.round === "khoi_dong") {
   const keywordPoints = cnv.keywordPoints;
   export { currentQuestion, keywordPoints };
 
-  cnv.init({ emit, addScore, pauseTimer, resetDisplayToBoard, showQuestion, resetBuzzer });
+  cnv.init({ emit, addScore, pauseTimer, setTimer, resetDisplayToBoard, showQuestion, resetBuzzer });
   vedich.init({ emit });

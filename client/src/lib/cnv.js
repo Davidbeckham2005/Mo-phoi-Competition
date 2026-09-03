@@ -1,11 +1,14 @@
 // Gom toàn bộ logic phái sinh trạng thái Vòng 2 (Vượt chướng ngại vật).
 // Tất cả phép tính phái sinh từ game.puzzle đều được đặt ở đây để MC,
 // Khán giả và Thí sinh dùng chung — tránh lặp lại và lộn xộn.
+// Round 2 có 5 mảnh ghép = 5 HÀNG NGANG đều là câu hỏi. Từ khóa (chướng ngại vật)
+// chỉ nhận biết bằng cách NHÌN bức ảnh hoàn chỉnh khi mở đủ 5 mảnh — không có câu hỏi riêng.
 
-const EMPTY = [false, false, false, false];
+const ROW_COUNT = 5;
+const EMPTY = [false, false, false, false, false];
 
 function bools(arr, fallback = EMPTY) {
-  return Array.isArray(arr) && arr.length >= 4 ? arr : fallback;
+  return Array.isArray(arr) && arr.length >= ROW_COUNT ? arr : fallback;
 }
 
 // Trạng thái của một hàng ngang: "hidden" | "open" | "locked"
@@ -18,7 +21,7 @@ export function rowStatus(p, i) {
 }
 
 export function rowsStatus(p) {
-  return [0, 1, 2, 3].map((i) => rowStatus(p, i));
+  return [0, 1, 2, 3, 4].map((i) => rowStatus(p, i));
 }
 
 export const isOpen = (p, i) => rowStatus(p, i) === "open";
@@ -26,16 +29,16 @@ export const isLocked = (p, i) => rowStatus(p, i) === "locked";
 
 export const solvedCount = (p) => rowsStatus(p).filter((s) => s === "open").length;
 
-// Đã xử lý xong cả 4 góc (mở hoặc khóa)?
+// Đã xử lý xong cả 5 mảnh (mở hoặc khóa)?
 export function cornersDone(p) {
-  return [0, 1, 2, 3].every((i) => rowStatus(p, i) !== "hidden");
+  return [0, 1, 2, 3, 4].every((i) => rowStatus(p, i) !== "hidden");
 }
 
 // Giai đoạn của vòng 2:
 //   "rows"    – đang chơi hàng ngang (chưa có mốc nào)
 //   "window"  – cửa sổ ĐOÁN TỪ KHÓA giữa vòng (vừa xử lý xong một hàng ngang,
 //               chuông mở cho các đội giành quyền đoán với mức điểm theo mốc)
-//   "keyword" – đoán từ khóa (đã đủ 4 góc)
+//   "keyword" – đoán từ khóa (đã đủ 5 mảnh)
 //   "done"    – đã ra từ khóa
 export function cnvPhase(p) {
   if (p?.keywordSolved) return "done";
@@ -48,18 +51,17 @@ export const isRowPhase = (p) => cnvPhase(p) === "rows";
 export const isKeywordPhase = (p) => cnvPhase(p) === "keyword";
 export const isKeywordWindow = (p) => cnvPhase(p) === "window";
 
-// Đội có thể bấm chuông đoán TỪ KHÓA (cửa sổ giữa vòng hoặc giai đoạn đủ 4 góc)?
+// Đội có thể bấm chuông đoán TỪ KHÓA (cửa sổ giữa vòng hoặc giai đoạn đủ 5 mảnh)?
 export const keywordGuessOpen = (p) => cnvPhase(p) === "keyword" || cnvPhase(p) === "window";
 
-// Hàng đang chọn, ngăn giá trị ngoài 0..3
+// Hàng đang chọn, ngăn giá trị ngoài 0..4
 export function currentRow(p) {
   const r = Number(p?.currentRow);
-  return Number.isInteger(r) && r >= 0 && r <= 3 ? r : 0;
+  return Number.isInteger(r) && r >= 0 && r < ROW_COUNT ? r : 0;
 }
 
-// Trạng thái keyword từ góc nhìn đã gom: "hidden" | "center" | "all" | "solved"
+// Trạng thái keyword từ góc nhìn đã gom: "hidden" | "all" | "solved"
 export function keywordReveal(p) {
   if (p?.keywordSolved) return "solved";
-  if (p?.centerRevealed) return "center";
   return "hidden";
 }

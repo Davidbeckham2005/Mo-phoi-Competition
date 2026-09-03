@@ -400,7 +400,7 @@ function probeVideoDuration(src) {
 function normalizeMain(v) {
   const m = {
     khoiDong: v.khoiDong || {},
-    vuotCnv: v.vuotCnv || { keyword: "", hint: "", letterCount: "", rows: [] },
+    vuotCnv: v.vuotCnv || { keyword: "", hint: "", letterCount: "", media: { type: "image", url: "" }, rows: [] },
     tangToc: v.tangToc || [],
     veDich: v.veDich || {},
   };
@@ -600,12 +600,62 @@ function VuotCnvEditor({ draft, setDraft }) {
   function setRow(i, p) {
     setV({ rows: (v.rows || []).map((r, k) => (k === i ? { ...r, ...p } : r)) });
   }
+  const vMedia = v.media || { type: "image", url: "" };
+  const setVMedia = (p) => setV({ media: { ...vMedia, ...p } });
 
   return (
     <div>
+      {/* Ảnh chướng ngại vật — 5 mảnh ghép (4 góc + ô trung tâm) hợp thành 1 bức ảnh này */}
+      <div className="rounded-xl border border-line bg-night/40 p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <b className="text-gold">Ảnh chướng ngại vật</b>
+          <span className="text-mist text-xs">Bức ảnh hoàn chỉnh — 5 mảnh ghép (4 góc + ô trung tâm) sẽ cắt bức ảnh này.</span>
+        </div>
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          {vMedia.url ? (
+            vMedia.type === "video" ? (
+              <video src={vMedia.url} controls className="w-[220px] h-[138px] object-contain rounded bg-black" />
+            ) : (
+              <img src={vMedia.url} alt="CNV" className="w-[220px] h-[138px] object-cover rounded border border-line" />
+            )
+          ) : (
+            <div className="w-[220px] h-[138px] rounded border border-dashed border-line grid place-items-center text-mist text-xs">Chưa có ảnh</div>
+          )}
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="btn btn-ghost text-sm! py-1.5! cursor-pointer">
+                {vMedia.url ? "Đổi ảnh" : "Chọn ảnh"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    const r = await uploadFile(f);
+                    setVMedia({ url: r.url, type: "image" });
+                  }}
+                />
+              </label>
+              {vMedia.url && (
+                <button type="button" className="btn btn-ghost text-sm! py-1.5!" onClick={() => setVMedia({ url: "", type: "image" })}>Gỡ ảnh</button>
+              )}
+              <input
+                type="url"
+                className="w-56!"
+                value={vMedia.url || ""}
+                placeholder="…hoặc dán URL ảnh"
+                onChange={(e) => setVMedia({ url: e.target.value })}
+              />
+            </div>
+            <p className="text-mist text-xs">Ảnh nên tỉ lệ gần 16:10. Mảnh nào mở sẽ hiện đúng phần ảnh đó, mở đủ 5 mảnh → ảnh hoàn chỉnh.</p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-3 mb-4">
         <label className="label-grid">
-          Từ khóa chính
+          Đáp án CNV (từ khóa)
           <input value={v.keyword || ""} placeholder="VD: HỮU NGHỊ" onChange={(e) => setV({ keyword: e.target.value })} />
         </label>
         <label className="label-grid">
