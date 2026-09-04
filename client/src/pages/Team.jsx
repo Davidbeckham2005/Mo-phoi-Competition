@@ -55,27 +55,29 @@ export default function Team() {
     setAnswer("");
   }, [d.question, g.questionIndex]);
 
-  // Nhấn phím (SPACE/Enter) để giành quyền trả lời chướng ngại vật — bất kỳ lúc nào
-  // chuông đang mở (vòng 2 thí sinh). Bỏ qua khi thí sinh đang gõ vào ô nhập đáp án.
+  // Nhấn phím INSERT để giành quyền trả lời chướng ngại vật — bất kỳ lúc nào
+  // (không còn bị chặn khi MC đang hiển thị câu hỏi hàng ngang; server tự quyết
+  // thời điểm hợp lệ). Bỏ qua khi thí sinh đang gõ vào ô nhập đáp án.
   useEffect(() => {
     if (g.round !== "vuot_cnv") return undefined;
     const enabled =
       !g.puzzle?.keywordSolved &&
       !g.puzzle?.keywordClaim &&
-      !(g.puzzle?.keywordBlocked || []).includes(team?.id) &&
-      g.questionStatus !== "showing";
+      !(g.puzzle?.keywordBlocked || []).includes(team?.id);
     function onKey(e) {
       if (!enabled) return;
       const tag = (e.target && e.target.tagName) || "";
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (e.code === "Space" || e.code === "Enter") {
+      const c = e.code || "";
+      const k = e.key || "";
+      if (c === "Insert" || c === "NumpadInsert" || k === "Insert") {
         e.preventDefault();
         buzz("keyword");
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [g.round, g.puzzle?.keywordSolved, g.puzzle?.keywordClaim, g.puzzle?.keywordBlocked, g.questionStatus, team?.id, buzz]);
+  }, [g.round, g.puzzle?.keywordSolved, g.puzzle?.keywordClaim, g.puzzle?.keywordBlocked, team?.id, buzz]);
 
   function doLogin(e) {
     e.preventDefault();
@@ -201,17 +203,15 @@ export default function Team() {
   const canBuzz = !!g.buzzer?.open && !(g.buzzer.blocked || []).includes(team.id) && !g.buzzer.winner;
   const isKd = g.round === "khoi_dong";
 
-  // Chỉ 4 đội điểm cao được tham gia vòng 2/3/4; các đội còn lại không được vào.
-  const isRound234 = ["vuot_cnv", "tang_toc", "ve_dich"].includes(g.round);
-  const qualifiedTeams = g.qualifiedTeams || [];
-  const qualified = !isRound234 || (qualifiedTeams.length ? qualifiedTeams.includes(team.id) : true);
-  if (isRound234 && !qualified) {
+  // Đội bị MC loại vĩnh viễn (team.eliminated, nguồn sự thật duy nhất trên DB):
+  // MC tự tay khóa — hệ thống không tự loại ai cả.
+  if (team.eliminated) {
     return (
-      <TeamLayout team={team} remaining={remaining} running={running} onLogout={quit}>
+      <TeamLayout state={state} team={team} remaining={remaining} running={running} onLogout={quit}>
         <div className="flex flex-col items-center gap-4 text-center max-w-md">
-          <div className="round-badge">VÒNG {g.round === "vuot_cnv" ? 2 : g.round === "tang_toc" ? 3 : 4}</div>
-          <p className="text-3xl font-display font-bold text-mist">Đội bạn không đủ điều kiện vào vòng này</p>
-          <p className="text-mist">Chỉ 4 đội điểm cao nhất được tham gia các vòng 2, 3, 4. Quan sát diễn biến trên màn hình lớn.</p>
+          <div className="round-badge">ĐÃ BỊ LOẠI</div>
+          <p className="text-3xl font-display font-bold text-mist">Đội bạn đã bị loại</p>
+          <p className="text-mist">MC đã khóa đội bạn vĩnh viễn khỏi cuộc thi. Quan sát diễn biến trên màn hình lớn.</p>
           <ScoreList teams={state.teams} me={team.id} />
         </div>
       </TeamLayout>
@@ -287,6 +287,49 @@ export default function Team() {
         winnerId={g.buzzer?.winner}
       />
     );
+  } else if (g.round === "tie_break") {
+    const tb = g.tieBreak || {};
+    const isParticipant = (tb.teams || []).includes(team.id);
+    const hasBuzzer = g.buzzer?.open && !g.buzzer?.locked && !g.buzzer?.blocked?.includes(team.id) && !g.buzzer?.winner;
+    const isWinner = g.buzzer?.winner === team.id;
+    body = (
+      <div className="flex flex-col items-center gap-5 w-full max-w-lg">
+        <div className="round-badge">PHỤ PHUC</div>
+        {!isParticipant ? (
+          <p className="text-mist">Đội bạn không tham gia vòng phụ.</p>
+        ) : g.questionStatus !== "showing" ? (
+          <p className="text-mist">Chờ MC chiếu câu hỏi...</p>
+        ) : (
+          <>
+            <div className="panel w-full text-left">
+              <p className="text-ink text-lg">{g.display?.question}</p>
+              {g.display?.mediaUrl && (
+                <img src={g.display.mediaUrl} alt="" className="mt-2 max-h-48 object-contain" />
+              )}
+            </div>
+            {hasBuzzer && (
+              <button type="button" className="btn" onClick={() => buzz("row")}>
+                BAM CHUONG
+              </button>
+            )}
+            {isWinner && <p className="badge badge-ok">Ban da bam truoc — cho MC cham</p>}
+            {g.buzzer?.winner && !isWinner && (
+              <p className="text-mist">Doi <b style={{ color: state.teams.find((t) => t.id === g.buzzer.winner)?.color }}>{state.teams.find((t) => t.id === g.buzzer.winner)?.name}</b> da bam truoc.</p>
+            )}
+            {g.display?.answerRevealed && (
+              <div className="panel w-full">
+                <p className="text-mist text-sm">Dap an: <b className="text-gold">{g.display.answer}</b></p>
+              </div>
+            )}
+            {tb.winner && (
+              <div className="panel w-full">
+                <p className="text-mist text-sm">Thang: <b style={{ color: state.teams.find((t) => t.id === tb.winner)?.color }}>{state.teams.find((t) => t.id === tb.winner)?.name}</b></p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
   } else {
     body = (
       <>
@@ -303,7 +346,10 @@ export default function Team() {
   if (g.round === "vuot_cnv") {
     const waitingBetween = !g.puzzle?.keywordSolved && !!g.puzzle?.keywordWindow && g.questionStatus !== "showing";
     // Bắt đầu đếm giờ (MC bấm "Bắt đầu giờ") thì mới được nhập đáp án tự luận.
+    // Đội đoán từ khóa SAI (MC chấm Sai) đã mất quyền → không gõ được nữa.
+    const cnvBanned = (g.puzzle?.rowBanned || []).includes(team.id);
     const r2CanType =
+      !cnvBanned &&
       !g.puzzle?.keywordSolved &&
       g.questionStatus === "showing" &&
       g.puzzle?.rowPhase === "open" &&
@@ -313,8 +359,13 @@ export default function Team() {
       !g.puzzle?.keywordSolved &&
       !g.puzzle?.keywordClaim &&
       !(g.puzzle?.keywordBlocked || []).includes(team.id) &&
+      !cnvBanned &&
       g.questionStatus !== "showing";
-    const answerBar = (
+    const answerBar = cnvBanned ? (
+      <div className="rounded-2xl border border-danger/40 bg-danger/10 px-4 py-3 text-center">
+        <p className="text-sm font-semibold text-danger">Đoán từ khóa chưa đúng — đội bạn đã mất quyền trả lời hàng ngang.</p>
+      </div>
+    ) : (
       <div>
         <form onSubmit={submitCnv} className={`flex items-center gap-2 rounded-2xl border px-4 py-3 ${r2CanType ? "border-gold/40" : "border-line"}`}>
           <input
@@ -347,6 +398,9 @@ export default function Team() {
         onLogout={quit}
         answerBar={answerBar}
         cnvGuide={cnvClaimOpen}
+        currentTeamId={team.id}
+        onInsert={() => buzz("keyword")}
+        insertEnabled={cnvClaimOpen}
       >
         {body}
       </Round2Layout>
@@ -354,7 +408,7 @@ export default function Team() {
   }
 
   return (
-    <TeamLayout team={team} remaining={remaining} running={running} onLogout={quit}>
+    <TeamLayout state={state} team={team} remaining={remaining} running={running} onLogout={quit}>
       {body}
     </TeamLayout>
   );
@@ -362,72 +416,53 @@ export default function Team() {
 
 // Bố cục riêng Vòng 2 (thí sinh): KHÔNG header; nền cố định đồng bộ màn khán giả; đồng hồ
 // tối giản góc dưới trái; nội dung ở giữa; phía dưới khung báo + nút CHUÔNG giành quyền.
-function Round2Layout({ state, timerCaption, timerRunning, timerRemaining, onLogout, answerBar, cnvGuide, children }) {
-  const bg = state?.settings?.audienceBg || "dark";
-  const bgUrl = state?.settings?.audienceBgUrl || "";
-  const gu = state?.game || {};
-  const activeIds = activeTeamIds(gu, state?.teams || []);
-  const displayTeams = (state?.teams || []).filter((t) => activeIds.includes(t.id));
+function Round2Layout({ state, timerCaption, timerRunning, timerRemaining, onLogout, answerBar, cnvGuide, currentTeamId, onInsert, insertEnabled, children }) {
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
-      {/* Nền cố định Vòng 2 — đồng bộ màn khán giả (nền tối + ảnh mờ theo cài đặt) */}
-      <div className="fixed inset-0 z-0 bg-[#070b16]" />
-      {bg === "blur" && bgUrl && (
-        <div
-          className="fixed inset-0 z-0 bg-cover bg-center scale-110"
-          style={{ backgroundImage: `url(${bgUrl})`, filter: "blur(14px) brightness(0.5)" }}
-        />
-      )}
-      <div className="fixed inset-0 z-0 bg-[#070b16]/45" />
-
-      {/* Đăng xuất — góc trên trái */}
+      <TeamBackground settings={state?.settings} />
       <div className="absolute top-4 left-4 z-40">
         <button type="button" className="btn btn-ghost py-2! px-3! text-sm" onClick={onLogout}>
           ← Đăng xuất
         </button>
       </div>
-
-      {/* Đồng hồ tối giản — góc dưới TRÁI */}
       <div className="absolute bottom-4 left-4 z-40">
         <span className={`timer-xl leading-none ${timerRemaining <= 5 && timerRunning ? "timer-danger" : ""}`} style={{ fontSize: "clamp(32px,5vw,64px)" }}>
           {timerCaption}
         </span>
       </div>
-
-      {/* Nội dung chính giữa */}
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4">
         {children}
       </div>
-
-      {/* Ô nhập đáp án tự luận — luôn hiện, chỉ nhập được khi bắt đầu đếm giờ */}
       {answerBar && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 w-[min(560px,94vw)]">
           {answerBar}
         </div>
       )}
-
-      {/* Hướng dẫn nhấn phím giành quyền trả lời CNV — góc dưới PHẢI */}
       <div className="absolute bottom-4 right-4 z-40">
-        <div className="flex items-center gap-2.5 rounded-xl border border-gold/40 bg-[#0b1120]/85 px-3 py-2.5">
-          <span className="inline-grid h-8 w-8 place-items-center rounded-md border border-white/20 bg-gold text-sm font-bold text-[#1a1400] shadow-[0_0_14px_rgba(255,214,10,0.45)]">
-            SPACE
+        <button
+          type="button"
+          onClick={insertEnabled ? onInsert : undefined}
+          disabled={!insertEnabled}
+          title={insertEnabled ? "Giành quyền trả lời chướng ngại vật" : "Chưa thể giành quyền lúc này"}
+          className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition active:scale-95 ${
+            insertEnabled
+              ? "border-gold/60 bg-gold/15 cursor-pointer"
+              : "border-white/15 bg-[#0b1120]/85 cursor-not-allowed opacity-60"
+          }`}
+        >
+          <span className={`inline-grid h-8 w-8 place-items-center rounded-md border text-[11px] font-bold ${
+            insertEnabled
+              ? "border-white/25 bg-gold text-[#1a1400] shadow-[0_0_14px_rgba(255,214,10,0.45)]"
+              : "border-white/20 bg-[#13203a] text-white/60"
+          }`}>
+            INSERT
           </span>
-          <span className="text-sm font-semibold text-gold">Giành quyền trả lời</span>
-        </div>
+          <span className={`text-sm font-semibold ${insertEnabled ? "text-gold" : "text-white/60"}`}>Giành quyền trả lời</span>
+        </button>
       </div>
-
-      {/* Bảng đội + điểm — cạnh phải (chỉ 4 đội tham gia vòng 2) */}
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 z-40">
-        <div className="rounded-xl border border-line bg-[#0b1120]/80 px-3 py-2">
-          {displayTeams.map((t) => (
-            <div key={t.id} className="flex items-center gap-2 py-1 text-sm whitespace-nowrap">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.color }} />
-              <span className="font-semibold" style={{ color: t.color }}>{t.name}</span>
-              <span className="text-mist ml-auto tabular-nums">{t.score}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <TeamsSidebar teams={state?.teams || []} currentTeamId={currentTeamId} />
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
     </div>
   );
 }
@@ -447,7 +482,7 @@ function Round2BellFrame({ bell }) {
     hint = "Đã đoán chưa đúng nên không được giành quyền tiếp.";
   } else if (bell.enabled) {
     label = "ẤN NÚT CHUÔNG (HOẶC PHÍM CÁCH) ĐỂ GIÀNH QUYỀN TRẢ LỜI";
-    hint = "Khi đã nhìn rõ hình và biết đáp án chướng ngại vật, hãy bấm chuông hoặc phím SPACE thật nhanh.";
+    hint = "Khi đã nhìn rõ hình và biết đáp án chướng ngại vật, hãy bấm phím INSERT thật nhanh.";
   } else {
     label = "CHƯA MỞ QUYỀN TRẢ LỜI";
     hint = "Chờ MC mở chuông giành quyền trả lời chướng ngại vật.";
@@ -484,19 +519,79 @@ function Round2BellFrame({ bell }) {
   );
 }
 
-// Bố cục tổng thể thống nhất: nút đăng xuất + header + vùng nội dung
-function TeamLayout({ team, remaining, running, onLogout, children }) {
+// Nền cố định đồng bộ MÀN KHÁN GIẢ cho thí sinh (nền tối + ảnh mờ theo cài đặt) —
+// dùng chung cho mọi vòng để các màn thí sinh thống nhất.
+function TeamBackground({ settings }) {
+  const bg = settings?.audienceBg || "dark";
+  const bgUrl = settings?.audienceBgUrl || "";
+  return (
+    <>
+      <div className="fixed inset-0 z-0 bg-[#070b16]" />
+      {bg === "blur" && bgUrl && (
+        <div
+          className="fixed inset-0 z-0 bg-cover bg-center scale-110"
+          style={{ backgroundImage: `url(${bgUrl})`, filter: "blur(14px) brightness(0.5)" }}
+        />
+      )}
+      <div className="fixed inset-0 z-0 bg-[#070b16]/45" />
+    </>
+  );
+}
+
+// Bảng điểm cạnh phải DÙNG CHUNG cho mọi vòng: CHỈ hiện các đội ĐANG THI
+// (chưa bị MC khóa vĩnh viễn). Giao diện đen–trắng tối giản: đội mình là ô trắng
+// chữ đen, các đội còn lại mờ cùng tông, không màu mè.
+function TeamsSidebar({ teams, currentTeamId }) {
+  const live = (teams || []).filter((t) => !t.eliminated);
+  return (
+    <div className="absolute right-4 top-1/2 -translate-y-1/2 z-40 min-w-[130px] max-w-[180px]">
+      <div className="rounded-xl border border-white/20 bg-[#0b1120]/80 px-2.5 py-1.5">
+        {live.map((t) => {
+          const isMe = t.id === currentTeamId;
+          return (
+            <div
+              key={t.id}
+              className={`flex items-center gap-2 py-1.5 px-2 -mx-2 text-sm whitespace-nowrap rounded transition ${
+                isMe
+                  ? "bg-white text-black my-0.5"
+                  : "border-b border-white/10 last:border-b-0"
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full shrink-0 ${isMe ? "bg-black" : "bg-white/40"}`} />
+              <span className={`font-semibold truncate leading-tight ${isMe ? "text-black" : "text-white/85"}`}>
+                {t.name}
+              </span>
+              <span className={`ml-auto tabular-nums leading-tight ${isMe ? "text-black font-bold" : "text-white/65"}`}>
+                {t.score}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Bố cục tổng thể thống nhất: nút đăng xuất + header + vùng nội dung (có background
+// đồng bộ màn khán giả như Vòng 2 — áp dụng cho mọi vòng).
+function TeamLayout({ state, team, remaining, running, onLogout, children }) {
   return (
     <div className="relative min-h-screen flex flex-col items-center px-4 py-5 text-center">
-      <div className="absolute top-4 left-4">
+      <TeamBackground settings={state?.settings} />
+      <div className="absolute top-4 left-4 z-40">
         <button type="button" className="btn btn-ghost py-2! px-3! text-sm" onClick={onLogout}>
           ← Đăng xuất
         </button>
       </div>
-      <Header team={team} remaining={remaining} running={running} />
-      <div className="flex-1 flex flex-col items-center justify-center w-full min-w-0">
-        {children}
+      <div className="relative z-10 flex w-full flex-col items-center">
+        <Header team={team} remaining={remaining} running={running} />
+        <TeamsSidebar teams={state.teams || []} currentTeamId={team.id} />
+        <div className="flex-1 flex flex-col items-center justify-center w-full min-w-0">
+          {children}
+        </div>
       </div>
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
     </div>
   );
 }
@@ -545,7 +640,7 @@ function KhoiDongBody({ g, d, team }) {
   if (!myTurn) {
     return (
       <div className="text-center w-full">
-        {d.mediaUrl && d.mediaType === "image" ? (
+        {d.mediaUrl && d.mediaType !== "video" ? (
           <img src={d.mediaUrl} className="max-h-[40vh] mx-auto rounded-xl mb-4 opacity-50" />
         ) : (
           <div className="mx-auto w-[min(400px,80vw)] aspect-[4/3] rounded-xl bg-panel-solid border border-line grid place-items-center opacity-50 mb-4">
@@ -559,7 +654,7 @@ function KhoiDongBody({ g, d, team }) {
   }
   return (
     <div className="text-center w-full">
-      {d.mediaUrl && d.mediaType === "image" ? (
+      {d.mediaUrl && d.mediaType !== "video" ? (
         <img src={d.mediaUrl} className="max-h-[45vh] mx-auto rounded-xl mb-4" />
       ) : (
         <div className="mx-auto w-[min(400px,80vw)] aspect-[4/3] rounded-xl bg-panel-solid border border-line grid place-items-center mb-4">

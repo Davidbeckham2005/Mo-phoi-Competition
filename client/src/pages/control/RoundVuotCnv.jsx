@@ -107,7 +107,7 @@ export default function RoundVuotCnv({ ctx }) {
                             : "bg-[#0e1830] text-mist hover:bg-[#2a3d63] hover:text-gold cursor-pointer"
                     }`}
                   >
-                    {!isImage || !solved[r] ? (solved[r] ? r + 1 : locked[r] ? "✕" : "?") : ""}
+                    {isImage && solved[r] ? "" : locked[r] ? "✕" : r + 1}
                   </button>
                 );
               })}
@@ -118,7 +118,7 @@ export default function RoundVuotCnv({ ctx }) {
               onClick={() => !solved[4] && act("puzzle.piece", { index: 4 })}
               title={!solved[4] ? "Mở ô trung tâm (hàng 5)" : "Ô trung tâm đã mở"}
               disabled={locked[4] || p.keywordSolved}
-              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[38%] h-[46%] rounded border-2 grid place-items-center font-display font-bold text-xl transition ${
+              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[52%] h-[60%] rounded border-2 grid place-items-center font-display font-bold text-xl transition ${
                 cnv?.media?.url && cnv.media.type !== "video" && solved[4]
                   ? "pointer-events-none bg-transparent border-transparent"
                   : locked[4]
@@ -128,7 +128,7 @@ export default function RoundVuotCnv({ ctx }) {
                       : "bg-[#0e1830] text-mist border-line hover:bg-[#2a3d63] hover:text-gold cursor-pointer"
               }`}
             >
-              {(!cnv?.media?.url || cnv.media.type === "video") ? (solved[4] ? 5 : locked[4] ? "✕" : "?") : (locked[4] ? "✕" : "?")}
+              {locked[4] ? "✕" : cnv?.media?.url && cnv.media.type !== "video" && solved[4] ? "" : 5}
             </button>
             {/* Đường chia mảnh ghép */}
             <div className="absolute inset-0 pointer-events-none">
@@ -343,6 +343,12 @@ export default function RoundVuotCnv({ ctx }) {
             </button>
           </div>
         </div>
+        {(p.rowBanned || []).length > 0 && (
+          <div className="mt-2.5 border-t border-line/50 pt-2 text-mist text-xs flex flex-wrap items-center gap-1.5">
+            <span className="text-danger font-semibold">Mất quyền trả lời hàng ngang:</span>
+            {p.rowBanned.map((id) => findTeam(id)?.name || id).join(" • ")}
+          </div>
+        )}
       </div>
     </div>
   );

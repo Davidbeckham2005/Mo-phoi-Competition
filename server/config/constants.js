@@ -1,10 +1,10 @@
 export const TEAM_DEFS = [
-  { id: "a", name: "Đội A", color: "#ff4d6d", accent: "#ff8fa3", pass: "dragon" },
-  { id: "b", name: "Đội B", color: "#4cc9f0", accent: "#90e0ef", pass: "phoenix" },
-  { id: "c", name: "Đội C", color: "#80ed99", accent: "#b7efc5", pass: "tiger" },
-  { id: "d", name: "Đội D", color: "#ffd60a", accent: "#ffe566", pass: "turtle" },
-  { id: "e", name: "Đội E", color: "#c084fc", accent: "#e0aaff", pass: "eagle" },
-  { id: "f", name: "Đội F", color: "#f97316", accent: "#fdba74", pass: "falcon" },
+  { id: "a", name: "Đội A", color: "#ff4d6d", accent: "#ff8fa3", pass: "dragon", eliminated: false },
+  { id: "b", name: "Đội B", color: "#4cc9f0", accent: "#90e0ef", pass: "phoenix", eliminated: false },
+  { id: "c", name: "Đội C", color: "#80ed99", accent: "#b7efc5", pass: "tiger", eliminated: false },
+  { id: "d", name: "Đội D", color: "#ffd60a", accent: "#ffe566", pass: "turtle", eliminated: false },
+  { id: "e", name: "Đội E", color: "#c084fc", accent: "#e0aaff", pass: "eagle", eliminated: false },
+  { id: "f", name: "Đội F", color: "#f97316", accent: "#fdba74", pass: "falcon", eliminated: false },
 ];
 
 // Danh sách id đầy đủ (thứ tự lượt thi vòng 1); các vòng 2-4 dùng top 4 điểm cao.
@@ -15,6 +15,7 @@ export const ROUNDS = [
   { id: "vuot_cnv", name: "Vượt chướng ngại vật" },
   { id: "tang_toc", name: "Tăng tốc" },
   { id: "ve_dich", name: "Về đích" },
+  { id: "tie_break", name: "Phụ phuc" },
 ];
 
 export function emptyPuzzle() {
@@ -74,12 +75,10 @@ export function defaultGame() {
     veDich: { packagePoints: 20, star: false, answeringTeam: null, stealOpen: false, picked: { a: [], b: [], c: [], d: [], e: [], f: [] }, pickIndex: 0 },
     tangToc: { submissions: {}, ranked: [] },
     khoiDong: { submissions: {}, history: {}, timerSeconds: 60, answerSeconds: 4 },
+    tieBreak: { teams: [], questionIndex: 0, questions: [], phase: "setup", winner: null },
     roundStarted: false,
     finished: false,
     winnerTeamId: null,
-    // 4 đội được chọn vào các vòng 2–4 (đóng băng khi bắt đầu mỗi vòng: vòng 2 lấy
-    // top-4 theo điểm sau vòng 1; vòng 3/4 giữ nguyên bộ đội đã vào vòng 2).
-    qualifiedTeams: null,
   };
 }
 

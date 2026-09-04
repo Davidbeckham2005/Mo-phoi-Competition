@@ -104,6 +104,19 @@ const actions = {
     return r;
   },
   "tangtoc.reveal": (p) => game.tangTocReveal(p.step),
+  "tiebreak.teams": (p) => game.setTieBreakTeams(p.teams),
+  "tiebreak.questions": (p) => game.setTieBreakQuestions(p.questions),
+  "tiebreak.show": () => game.showTieBreakQuestion(),
+  "tiebreak.next": () => game.nextTieBreakQuestion(),
+  "tiebreak.mark": (p) => {
+    const r = game.markTieBreakAnswer(p.teamId, !!p.correct);
+    emitEvent("sound:play", { slot: p.correct ? "correct" : "wrong" });
+    return r;
+  },
+  "tiebreak.winner": (p) => game.setTieBreakWinner(p.teamId),
+  "tiebreak.reveal": () => game.revealTieBreakAnswer(),
+  "tiebreak.eliminate": (p) => game.eliminateTeam(p.teamId),
+  "tiebreak.restore": (p) => game.restoreTeam(p.teamId),
   "contest.finish": () => game.finishContest(),
   "contest.resetGame": () => game.resetGameKeepTeams(),
   "main.resetQuestions": (p) => {

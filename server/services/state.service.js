@@ -29,6 +29,7 @@ export function publicState() {
       color: t.color,
       accent: t.accent,
       score: t.score,
+      eliminated: !!t.eliminated,
       members: t.memberIds.map((id) => {
         const c = d.contestants.find((x) => x.id === id);
         return c ? { id: c.id, name: c.name } : null;

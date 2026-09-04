@@ -88,13 +88,6 @@ export function Round2Board({ state, g, minimal }) {
           </div>
         </div>
       )}
-      {!minimal && p.keywordWindow && !p.keywordSolved && (
-        <div className="flex justify-center pb-5">
-          <div className="badge badge-warn text-base! px-4 py-2 animate-pulse">
-            Đang chờ câu hỏi kế tiếp — bấm nút <b className="text-gold">TỪ KHÓA</b> để đoán chướng ngại vật
-          </div>
-        </div>
-      )}
       <div className="flex flex-col items-center justify-center gap-4">
         <div className="relative w-[clamp(300px,40vw,680px)] aspect-[16/10] rounded-2xl overflow-hidden ring-1 ring-line bg-night">
           {media?.url && media.type !== "video" && (
@@ -114,12 +107,12 @@ export function Round2Board({ state, g, minimal }) {
                       : "bg-[#0e1830] text-mist"
                 }`}
               >
-                {(!media?.url || media.type === "video") ? (solved[r] ? r + 1 : locked[r] ? "✕" : "?") : (locked[r] ? "✕" : "?")}
+                {locked[r] ? "✕" : solved[r] && media?.url && media.type !== "video" ? "" : r + 1}
               </div>
             ))}
           </div>
           <div
-            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[38%] h-[46%] rounded-xl border-2 grid place-items-center font-display font-bold text-[clamp(22px,2.6vw,38px)] ${
+            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[52%] h-[60%] rounded-xl border-2 grid place-items-center font-display font-bold text-[clamp(22px,2.6vw,38px)] ${
               solved[4]
                 ? (media?.url && media.type !== "video")
                   ? "pointer-events-none border-transparent"
@@ -129,7 +122,7 @@ export function Round2Board({ state, g, minimal }) {
                   : "bg-[#0e1830] text-mist border-line"
             }`}
           >
-            {(!media?.url || media.type === "video") ? (solved[4] ? 5 : locked[4] ? "✕" : "?") : (locked[4] ? "✕" : "?")}
+            {locked[4] ? "✕" : solved[4] && media?.url && media.type !== "video" ? "" : 5}
           </div>
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute left-1/2 top-0 bottom-0 w-px bg-line/80" />

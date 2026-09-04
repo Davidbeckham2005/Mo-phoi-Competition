@@ -18,6 +18,7 @@ import RoundKhoiDong from "./control/RoundKhoiDong.jsx";
 import RoundVuotCnv from "./control/RoundVuotCnv.jsx";
 import RoundTangToc from "./control/RoundTangToc.jsx";
 import RoundVeDich from "./control/RoundVeDich.jsx";
+import RoundTieBreak from "./control/RoundTieBreak.jsx";
 
 export default function Control() {
   const nav = useNavigate();
@@ -151,6 +152,16 @@ export default function Control() {
     return { memberIndex: 0, questionIndex: 0 };
   };
 
+  // Đội vượt quá 4 hạng (đồng điểm ở ranh giới top 4) — cần vòng phụ để loại.
+  const calcExcess = (() => {
+    const notEliminated = (state.teams || []).filter((t) => !t.eliminated);
+    const all = notEliminated.slice().sort((a, b) => b.score - a.score || 0);
+    if (all.length <= 4) return [];
+    const fourthScore = all[3]?.score ?? 0;
+    return all.filter((t, i) => i >= 4 && t.score >= fourthScore).map((t) => t.id);
+  })();
+  const excessTeams = calcExcess;
+
   let pts = q?.points || current?.keywordPoints || 10;
   const veStar = g.round === "ve_dich" && g.veDich?.starQuestion === (g.veDich?.pickIndex ?? 0);
   if (g.round === "ve_dich") {
@@ -247,6 +258,7 @@ export default function Control() {
             ["vuot_cnv", "Vượt CNV"],
             ["tang_toc", "Tăng tốc"],
             ["ve_dich", "Về đích"],
+            ["tie_break", "Phụ phuc"],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -264,18 +276,25 @@ export default function Control() {
           <button type="button" className="border border-[rgba(255,255,255,0.25)] bg-[#7d90b8] px-3 py-2.5 font-semibold text-sm text-black/90 hover:bg-white/20 transition" onClick={() => act("scores.show")}>Hiện bảng điểm</button>
           <button type="button" className="border border-[rgba(255,255,255,0.25)] bg-[#7d90b8] px-3 py-2.5 font-semibold text-sm text-black/90 hover:bg-white/20 transition" onClick={() => act("contest.finish")}>Kết quả cuối</button>
         </div>
-        {g.round !== "tang_toc" && (<>
+{
+          // "Đội đang thi" chỉ có nghĩa ở vòng có lượt đội riêng: Vòng 1 (jump câu đội)
+          // và Vòng 4 (chuyển lượt trả lời). Vòng 2 / Tăng tốc / Vòng phụ là vòng chung
+          // — ẩn hẳn danh sách nút để tránh bấm nhầm đổi currentTeam.
+          (isKd || g.round === "ve_dich") && (<>
         <hr className="my-4 border-line" />
         <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Đội đang thi</div>
         <div className="grid gap-2">
           {state.teams.map((t) => {
             const active = g.currentTeam === t.id;
             const eliminated = g.round !== "khoi_dong" && !activeTeamIds(g, state.teams).includes(t.id);
+            // Vòng 4: chỉ được chuyển đội khi đội đang ở màn soạn câu ("soan"); đang
+            // trình/trả lời (prep/countdown/answering) thì khóa các nút.
+            const lockedSwitch = g.round === "ve_dich" && !!g.veDich?.phase && g.veDich.phase !== "soan";
             return (
               <button
                 key={t.id}
                 type="button"
-                disabled={eliminated}
+                disabled={eliminated || lockedSwitch}
                 onClick={() =>
                   isKd
                     ? act("question.jump", { teamId: t.id, questionIndex: firstValidIndex(t.id).questionIndex, memberIndex: 0 })
@@ -284,20 +303,50 @@ export default function Control() {
                 className={`flex items-center gap-3 border border-[rgba(255,255,255,0.15)] px-3 py-2.5 text-left transition ${
                   eliminated
                     ? "bg-[#3a4356] opacity-55 cursor-not-allowed"
-                    : active
-                      ? "bg-white/25 ring-1 ring-white/50"
-                      : "bg-[#64769e] hover:bg-white/20"
+                    : lockedSwitch
+                      ? "bg-[#3a4356] opacity-70 cursor-not-allowed"
+                      : active
+                        ? "bg-white/25 ring-1 ring-white/50"
+                        : "bg-[#64769e] hover:bg-white/20"
                 }`}
               >
-                <span className={`flex-1 min-w-0 font-semibold text-sm truncate ${active ? "text-white" : "text-black/80"}`}>
+                <span className={`flex-1 min-w-0 font-semibold text-sm truncate ${active ? "text-white" : eliminated || lockedSwitch ? "text-black/40" : "text-black/80"}`}>
                   {t.name}
                 </span>
-                {eliminated && (
+                {t.eliminated && (
                   <span className="rounded border border-red-400/50 bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-red-200 uppercase">
                     Bị loại
                   </span>
                 )}
-                <span className={`font-display text-lg font-bold ${active ? "text-white" : eliminated ? "text-black/40" : "text-black/80"}`}>
+                {isKd && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      act(t.eliminated ? "tiebreak.restore" : "tiebreak.eliminate", { teamId: t.id });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                        act(t.eliminated ? "tiebreak.restore" : "tiebreak.eliminate", { teamId: t.id });
+                      }
+                    }}
+                    className={`rounded border px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase cursor-pointer select-none transition ${
+                      t.eliminated
+                        ? "border-gold/50 bg-gold/15 text-gold hover:bg-gold/30"
+                        : "border-red-400/50 bg-red-500/20 text-red-200 hover:bg-red-500/40"
+                    }`}
+                  >
+                    {t.eliminated ? "Mở khóa" : "Khóa"}
+                  </span>
+                )}
+                {lockedSwitch && !eliminated && (
+                  <span className="rounded border border-amber-400/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-amber-100 uppercase">
+                    Đang trả lời
+                  </span>
+                )}
+                <span className={`font-display text-lg font-bold ${active ? "text-white" : eliminated || lockedSwitch ? "text-black/40" : "text-black/80"}`}>
                   {t.score}
                 </span>
               </button>
@@ -312,6 +361,26 @@ export default function Control() {
 
       {/* CỘT GIỮA */}
       <main className="flex flex-col gap-3.5 min-w-0">
+        {/* Cảnh báo ngoại lệ đồng điểm top-4 */}
+        {excessTeams.length > 0 && (
+          <div className="panel border-l-4 border-danger/70 bg-danger/10">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-danger text-base">⚠️</span>
+                <div>
+                  <div className="text-sm font-semibold text-white">Đồng điểm ranh giới top 4 — cần vòng phụ</div>
+                  <div className="text-xs text-mist">
+                    Đội cần phân định: {excessTeams.map((id) => state.teams.find((t) => t.id === id)?.name).join(", ")}
+                  </div>
+                </div>
+              </div>
+              <button type="button" className="btn btn-ghost text-xs py-1!" onClick={() => requestRound("tie_break", "Phụ phuc")}>
+                Mở vòng phụ
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 1 · HIỂN THỊ CÂU HỎI — thời gian · đáp án · ảnh (Round 1) — trên đầu trang */}
         {g.round === "khoi_dong" && <QuestionScorePanel ctx={ctx} />}
 
@@ -340,6 +409,7 @@ export default function Control() {
         <RoundVeDich ctx={ctx} />
         <RoundKhoiDong ctx={ctx} />
         <RoundTangToc ctx={ctx} />
+        <RoundTieBreak ctx={ctx} />
 
         {/* 4 · CHẤM ĐIỂM — dưới cùng */}
         <KdScorePanel ctx={ctx} />
@@ -420,6 +490,7 @@ export default function Control() {
               })}
             </div>
           </>
+
       </aside>
 
       {confirmStart && (

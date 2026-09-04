@@ -45,12 +45,11 @@ function g() {
   return getDb().game;
 }
 
-// 4 đội điểm cao nhất (fallback khi chưa đóng băng qualifiedTeams).
-function topTeamsByScore() {
+// Các đội còn thi trong vòng 2: MC tự quyết định ai loại bằng nút Khóa (khóa vĩnh viễn,
+// team.eliminated trên DB) — hệ thống không tự loại/chọn ai.
+function activeOrder() {
   return getDb()
-    .teams.slice()
-    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
-    .slice(0, 4)
+    .teams.filter((t) => !t.eliminated)
     .map((t) => t.id);
 }
 
@@ -261,9 +260,7 @@ export function solveKeyword(teamId, correct) {
     // TỪ KHÓA riêng (puzzle.keywordClaim), chuông chính chỉ dành cho cướp quyền Về đích.
     resetBuzzer(false);
     // Cả 4 đội đã đoán sai → không còn ai được đoán: tự mở đáp án (không tính điểm)
-    const active = game.qualifiedTeams?.length
-      ? game.qualifiedTeams
-      : TEAM_ORDER.slice(0, 4);
+    const active = activeOrder();
     const allBlocked = active.every((id) =>
       game.puzzle.keywordBlocked.includes(id)
     );
@@ -307,8 +304,11 @@ export function submitRowAnswer(teamId, answer) {
   const game = g();
   const p = game.puzzle;
   if (game.round !== "vuot_cnv" || p.keywordSolved) return { ok: false, reason: "closed" };
-  // Chỉ 4 đội điểm cao (qualifiedTeams) được nộp đáp án hàng ngang vòng 2.
-  const active = game.qualifiedTeams?.length ? game.qualifiedTeams : topTeamsByScore();
+  // Đoán TỪ KHÓA sai (MC chấm Sai) → đội mất quyền trả lời các câu hỏi HÀNG NGANG
+  // còn lại trong vòng (rowBanned) — không được nộp đáp án tự luận nữa.
+  if ((p.rowBanned || []).includes(teamId)) return { ok: false, reason: "row-banned" };
+  // Các đội còn thi (chưa bị MC khóa vĩnh viễn) được nộp đáp án hàng ngang vòng 2.
+  const active = activeOrder();
   if (!active.includes(teamId)) return { ok: false, reason: "not-open" };
   if (p.rowPhase !== "open") return { ok: false, reason: "closed" };
   if (game.questionStatus !== "showing") return { ok: false, reason: "not-open" };

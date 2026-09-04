@@ -68,10 +68,8 @@ export default function Audience() {
     (g.tangToc?.phase || "video") === "video" &&
     d.mode === "question" &&
     !!d.mediaUrl;
-  // "Chờ giữa các câu hỏi" (vòng 2): vừa xử lý xong một hàng ngang, chưa chọn ô kế tiếp
+  // "Chờ giữa các câu hỏi" (vòng 2) — đồng hồ hiển thị chữ CHỜ khi không đếm giờ.
   const p = g.puzzle || {};
-  const waitingCnv = g.round === "vuot_cnv" && !p.keywordSolved && !!p.keywordWindow
-    && g.questionStatus !== "showing" && !g.buzzer?.winner;
 
   // Khi đang chiếu video round 3: màn hình chỉ còn MỖI video, chiếm trọn màn hình.
   if (ttVideoOnly) {
@@ -86,7 +84,43 @@ export default function Audience() {
     return <KhoiDongAudience state={state} timer={timer} flash={flash} />;
   }
 
-  // Vòng 2–4: chỉ giữ 4 đội tham gia (đã đóng băng qualifiedTeams / top-4 theo điểm).
+  if (g.round === "tie_break") {
+    const tb = g.tieBreak || {};
+    const tbTeams = (tb.teams || []).map((id) => state.teams.find((t) => t.id === id)).filter(Boolean);
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-4 gap-6">
+        <div className="round-badge">PHỤ PHUC</div>
+        {g.buzzer?.winner && (
+          <div className="round-badge">
+            Quyền trả lời: {state.teams.find((t) => t.id === g.buzzer.winner)?.name}
+          </div>
+        )}
+        {g.questionStatus === "showing" && g.display?.question && (
+          <div className="panel w-full max-w-3xl text-center">
+            <p className="text-ink text-2xl font-semibold">{g.display.question}</p>
+            {g.display?.mediaUrl ? (
+              <img src={g.display.mediaUrl} alt="" className="mt-4 max-h-64 mx-auto object-contain" />
+            ) : (
+              <NoMediaFallback className="w-[min(320px,54vw)] aspect-[4/3] mt-4" />
+            )}
+          </div>
+        )}
+        {g.display?.answerRevealed && (
+          <div className="panel w-full max-w-3xl text-center">
+            <p className="text-gold text-xl font-semibold">Dap an: {g.display.answer}</p>
+          </div>
+        )}
+        {tb.winner && (
+          <div className="panel w-full max-w-3xl text-center">
+            <p className="text-mist">Thang: <b style={{ color: state.teams.find((t) => t.id === tb.winner)?.color }}>{state.teams.find((t) => t.id === tb.winner)?.name}</b></p>
+          </div>
+        )}
+        <TeamsRow teams={tbTeams} state={state} flash={flash} currentTeam={g.buzzer?.winner} />
+      </div>
+    );
+  }
+
+  // Tạo đội hiển thị: trừ các đội bị MC khóa vĩnh viễn (hệ thống không tự loại ai).
   const top4Rounds = ["vuot_cnv", "tang_toc", "ve_dich"];
   const outTeams = top4Rounds.includes(g.round)
     ? (state.teams || []).filter((t) => activeTeamIds(g, state.teams || []).includes(t.id))
@@ -120,7 +154,7 @@ export default function Audience() {
         <div className="flex flex-col items-end">
           <div className={`timer-xl mt-2 ${remaining <= 5 && running ? "timer-danger" : ""}`}>
             {g.round === "vuot_cnv"
-              ? (waitingCnv ? "CHỜ" : (running ? formatTime(remaining) : ""))
+              ? (running ? formatTime(remaining) : "CHỜ")
               : formatTime(remaining)}
           </div>
         </div>
@@ -268,20 +302,21 @@ function Stage({ state, timer }) {
           <>
             {d.mediaUrl ? (
               <img src={d.mediaUrl} alt="" className="max-h-[30vh] max-w-[60vw] mx-auto rounded-2xl object-contain" />
-) : (
-              <div className="mx-auto w-[min(380px,60vw)] aspect-[4/3] rounded-2xl bg-panel-solid border border-line grid place-items-center">
-                <div className="text-4xl text-mist/40">?</div>
-              </div>
+            ) : (
+              <NoMediaFallback />
             )}
             {d.question && <div className="stage-q mt-3 text-[clamp(18px,2.4vw,30px)]">{d.question}</div>}
           </>
         ) : (
           <>
-            {d.mediaUrl && d.mediaType === "image" && (
-              <img src={d.mediaUrl} alt="" className="max-h-[220px] rounded-xl mb-4 inline-block" />
-            )}
-            {d.mediaUrl && d.mediaType === "video" && (
-              <video src={d.mediaUrl} autoPlay controls className="max-h-[260px] mb-4" />
+            {d.mediaUrl ? (
+              d.mediaType === "video" ? (
+                <video src={d.mediaUrl} autoPlay controls className="max-h-[260px] mb-4" />
+              ) : (
+                <img src={d.mediaUrl} alt="" className="max-h-[220px] rounded-xl mb-4 inline-block" />
+              )
+            ) : (
+              <NoMediaFallback className="w-[min(360px,60vw)] aspect-[4/3] mb-4" />
             )}
           </>
         )}
@@ -406,11 +441,14 @@ function Round4Stage({ state, g, timer }) {
   // ĐANG TRẢ LỜI: chỉ giữ tên đội + ngôi sao + câu hỏi + options + đáp án.
   return (
     <div className="text-center max-w-[1000px] mx-auto">
-      {d.mediaUrl && d.mediaType === "image" && (
-        <img src={d.mediaUrl} alt="" className="max-h-[26vh] mx-auto rounded-2xl object-contain border border-line" />
-      )}
-      {d.mediaUrl && d.mediaType === "video" && (
-        <video src={d.mediaUrl} autoPlay controls className="max-h-[26vh] mx-auto rounded-2xl" />
+      {d.mediaUrl ? (
+        d.mediaType === "video" ? (
+          <video src={d.mediaUrl} autoPlay controls className="max-h-[26vh] mx-auto rounded-2xl" />
+        ) : (
+          <img src={d.mediaUrl} alt="" className="max-h-[26vh] mx-auto rounded-2xl object-contain border border-line" />
+        )
+      ) : (
+        <NoMediaFallback className="w-[min(320px,54vw)] aspect-[4/3]" />
       )}
       <div className="flex items-center justify-center gap-3 mt-3">
         <div className="font-display font-bold text-[clamp(24px,3.6vw,46px)]" style={{ color: activeTeam?.color }}>
@@ -434,6 +472,16 @@ function Round4Stage({ state, g, timer }) {
         </div>
       )}
       {d.answerRevealed && <div className="stage-answer mt-6">Đáp án: {d.answer}</div>}
+    </div>
+  );
+}
+
+// Placeholder ĐỒNG BỘ khi câu hỏi đang chiếu nhưng không có ảnh (media) — dùng chung
+// cho mọi vòng để màn khán giả thống nhất thay vì mỗi vòng mỗi kiểu/để trống.
+function NoMediaFallback({ className = "w-[min(380px,60vw)] aspect-[4/3]" }) {
+  return (
+    <div className={`mx-auto rounded-2xl bg-panel-solid border border-line grid place-items-center ${className}`}>
+      <div className="text-4xl text-mist/40">?</div>
     </div>
   );
 }

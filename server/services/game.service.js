@@ -53,6 +53,7 @@
         color: t.color,
         accent: t.accent,
         score: t.score,
+        eliminated: !!t.eliminated,
         members: t.memberIds.map((id) => {
           const c = db.contestants.find((x) => x.id === id);
           return c ? { id: c.id, name: c.name } : null;
@@ -94,23 +95,10 @@
     return TEAM_ORDER;
   }
 
-  // 4 đội điểm cao nhất — dùng cho các vòng 2/3/4. Sort giảm dần theo điểm, hoà điểm
-  // ưu tiên id nhỏ hơn (thứ tự a→f). Nếu có hoà điểm ở ranh giới thứ 4, vẫn lấy thiếu
-  // chẵn 4 → MC tự quyết (xử lý sau). Trả về mảng id theo thứ tự điểm.
-  function topTeamIds() {
-    return getDb()
-      .teams.slice()
-      .sort((x, y) => y.score - x.score || x.id.localeCompare(y.id))
-      .slice(0, 4)
-      .map((t) => t.id);
-  }
-
-  // Bộ 4 đội tham gia các vòng 2–4. Nếu đã đóng băng (qualifiedTeams) thì dùng nó,
-  // nếu chưa thì tính top-4 theo điểm hiện tại.
+  // Đội còn thi (chưa bị MC khóa vĩnh viễn). MC tự quyết định loại đội bằng nút Khóa
+  // — hệ thống không tự loại ai. Nguồn sự thật duy nhất: team.eliminated trên DB.
   function activeTeamIds() {
-    const q = g().qualifiedTeams;
-    if (Array.isArray(q) && q.length) return q;
-    return topTeamIds();
+    return getDb().teams.filter((t) => !t.eliminated).map((t) => t.id);
   }
 
   function isTopTeam(id) {
@@ -332,9 +320,8 @@ export function resetKhoiDong(teamId = null) {
     setTimer(0, false);
     if (roundId === "vuot_cnv") {
       game.puzzle = emptyPuzzle();
-      // Đóng băng bộ 4 đội tham gia các vòng 2–4 ngay khi vào vòng 2 (top-4 theo điểm
-      // sau vòng 1). Giữ nguyên qua vòng 3/4 kể cả khi điểm giữa chừng thay đổi.
-      game.qualifiedTeams = topTeamIds();
+      // MC tự quyết định ai tiếp tục bằng nút Khóa (khóa vĩnh viễn) — hệ thống không
+      // tự loại/chọn đội nào cả.
       // Không còn thứ tự chọn ô (pick-order): MC chọn trực tiếp ô nào cũng được.
       // Mở vòng ở màn hình BẢNG MẢNH GHÉP — chưa chọn/chiếu câu hỏi nào cả.
       game.display.mode = "puzzle";
@@ -355,6 +342,9 @@ export function resetKhoiDong(teamId = null) {
       const first = top[0] || game.currentTeam;
       game.currentTeam = first;
       game.veDich.answeringTeam = first;
+    }
+    if (roundId === "tie_break") {
+      game.tieBreak = { teams: [], questionIndex: 0, questions: [], phase: "setup", winner: null };
     }
     saveDb();
     emit();
@@ -778,7 +768,7 @@ if (game.round === "khoi_dong") {
 
   export function setCurrentTeam(teamId) {
     const game = g();
-    // Các vòng 2–4 chỉ thi với 4 đội điểm cao nhất.
+    // Chỉ các đội còn thi (chưa bị MC khóa vĩnh viễn) được chọn làm đội đang thi.
     if (game.round && game.round !== "khoi_dong" && !isTopTeam(teamId)) {
       saveDb();
       emit();
@@ -905,9 +895,6 @@ if (game.round === "khoi_dong") {
     const kwIntent = intent === "keyword";
     if (kwIntent) {
       if (game.round !== "vuot_cnv" || game.puzzle?.keywordSolved) return { ignored: true };
-      // Cấm ghi danh/trả lời chướng ngại vật khi đang có đội khác trả lời câu hỏi
-      // hàng ngang (questionStatus === "showing") — chờ hết câu hỏi mới được đoán.
-      if (game.questionStatus === "showing") return { ignored: true, reason: "row-answering" };
       if (game.puzzle?.keywordClaim) return { ignored: true, reason: "already-claimed" };
       if (game.puzzle?.keywordBlocked?.includes(teamId)) return { ignored: true, blocked: true };
       game.puzzle.keywordClaim = teamId;
@@ -1265,6 +1252,116 @@ if (game.round === "khoi_dong") {
     game.puzzle = emptyPuzzle();
     game.veDich = vedich.defaultState();
     if (game.round === "vuot_cnv") game.display.mode = "puzzle";
+    saveDb();
+    emit();
+  }
+
+  // === TIE-BREAK ===
+  export function setTieBreakTeams(teamIds) {
+    const game = g();
+    if (game.round !== "tie_break") return { ignored: true };
+    game.tieBreak.teams = teamIds;
+    saveDb();
+    emit();
+  }
+
+  export function setTieBreakQuestions(questions) {
+    const game = g();
+    if (game.round !== "tie_break") return { ignored: true };
+    game.tieBreak.questions = questions;
+    saveDb();
+    emit();
+  }
+
+  export function showTieBreakQuestion() {
+    const game = g();
+    if (game.round !== "tie_break") return { ignored: true };
+    const q = game.tieBreak.questions[game.questionIndex];
+    if (!q) return { ignored: true, reason: "no-question" };
+    game.questionStatus = "showing";
+    game.display = {
+      mode: "question",
+      title: `Phụ phuc — Câu ${game.questionIndex + 1}`,
+      question: q.question || "",
+      options: q.options || [],
+      mediaUrl: q.mediaUrl || "",
+      mediaType: q.mediaType || "",
+      answer: "",
+      answerRevealed: false,
+      note: q.note || "",
+    };
+    resetBuzzer();
+    openBuzzer();
+    saveDb();
+    emit();
+  }
+
+  export function nextTieBreakQuestion() {
+    const game = g();
+    if (game.round !== "tie_break") return { ignored: true };
+    if (game.questionIndex + 1 < game.tieBreak.questions.length) {
+      game.questionIndex += 1;
+      showTieBreakQuestion();
+    }
+  }
+
+  export function markTieBreakAnswer(teamId, correct) {
+    const game = g();
+    if (game.round !== "tie_break") return { ignored: true };
+    if (correct) {
+      game.tieBreak.winner = teamId;
+      game.tieBreak.phase = "done";
+      game.display.answerRevealed = true;
+      game.display.answer = game.tieBreak.questions[game.questionIndex]?.answer || "";
+    }
+    saveDb();
+    emit();
+  }
+
+  export function setTieBreakWinner(teamId) {
+    const game = g();
+    if (game.round !== "tie_break") return { ignored: true };
+    game.tieBreak.winner = teamId;
+    game.tieBreak.phase = "done";
+    saveDb();
+    emit();
+  }
+
+  export function revealTieBreakAnswer() {
+    const game = g();
+    if (game.round !== "tie_break") return { ignored: true };
+    game.display.answerRevealed = true;
+    game.display.answer = game.tieBreak.questions[game.questionIndex]?.answer || "";
+    saveDb();
+    emit();
+  }
+
+  // Kiểm tra ngoại lệ: có >4 đội CHƯA BỊ LOẠI đồng điểm ở ranh giới top 4
+  export function getExcessTeams() {
+    const teams = getDb().teams.filter((t) => !t.eliminated).slice().sort((a, b) => b.score - a.score || 0);
+    if (teams.length <= 4) return [];
+    const fourthScore = teams[3]?.score ?? 0;
+    const excess = teams.filter((t) => t.score >= fourthScore && teams.indexOf(t) >= 4);
+    return excess.map((t) => t.id);
+  }
+
+  // MC loại đội VĨNH VIỄN: ghi eliminated=true trực tiếp vào team trong DB.
+  // MC có toàn quyền khóa bất kỳ đội nào chưa bị khóa.
+  export function eliminateTeam(teamId) {
+    const t = getDb().teams.find((x) => x.id === teamId);
+    if (!t) return { ignored: true, reason: "not-found" };
+    if (t.eliminated) return { ignored: true, reason: "already-eliminated" };
+    t.eliminated = true;
+    saveDb();
+    emit();
+    return { ok: true, teamId };
+  }
+
+  // MC mở khoá đội: ghi eliminated=false trực tiếp vào team trong DB (khôi phục đội đã loại).
+  export function restoreTeam(teamId) {
+    const t = getDb().teams.find((x) => x.id === teamId);
+    if (!t) return { ignored: true, reason: "not-found" };
+    t.eliminated = false;
     saveDb();
     emit();
   }

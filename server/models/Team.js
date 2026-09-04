@@ -10,6 +10,7 @@ export async function loadAll(conn) {
     score: r.score,
     memberIds: parseJson(r.member_ids, []),
     pass: r.pass || "",
+    eliminated: !!r.eliminated,
   }));
 }
 // fix sau...
@@ -17,8 +18,8 @@ export async function saveAll(conn, teams) {
   await conn.query("DELETE FROM teams");
   for (const t of teams) {
     await conn.query(
-      "INSERT INTO teams (id, name, color, accent, score, member_ids, pass) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [t.id, t.name, t.color, t.accent, t.score, JSON.stringify(t.memberIds || []), t.pass || ""]
+      "INSERT INTO teams (id, name, color, accent, score, member_ids, pass, eliminated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [t.id, t.name, t.color, t.accent, t.score, JSON.stringify(t.memberIds || []), t.pass || "", t.eliminated ? 1 : 0]
     );
   }
 }

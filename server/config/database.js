@@ -128,6 +128,13 @@ async function migrate() {
     } catch {
       /* cột đã tồn tại */
     }
+    // v3: trạng thái loại đội vĩnh viễn (MC tự bấm khóa)
+    try {
+      await conn.query("ALTER TABLE teams ADD COLUMN eliminated INTEGER NOT NULL DEFAULT 0");
+      console.log("Đã nâng cấp CSDL: thêm cột teams.eliminated");
+    } catch {
+      /* cột đã tồn tại */
+    }
     // Đội nào chưa có mật khẩu thì gán mặc định theo TEAM_DEFS
     for (const def of TEAM_DEFS) {
       if (!def.pass) continue;
