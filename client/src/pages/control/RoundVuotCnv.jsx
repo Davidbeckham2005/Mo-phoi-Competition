@@ -97,7 +97,7 @@ export default function RoundVuotCnv({ ctx }) {
                     onClick={() => !solved[r] && act("puzzle.piece", { index: r })}
                     title={!solved[r] ? "Mở mảnh ghép này (đồng bộ lên màn hình khán giả)" : "Mảnh ghép đã mở"}
                     disabled={locked[r] || p.keywordSolved}
-                    className={`relative grid place-items-center font-display font-bold text-xl transition ${
+                    className={`relative flex items-start ${r % 2 === 0 ? "justify-start" : "justify-end"} font-display font-bold text-xl transition ${
                       isImage && solved[r]
                         ? "pointer-events-none bg-transparent"
                         : locked[r]
@@ -107,7 +107,7 @@ export default function RoundVuotCnv({ ctx }) {
                             : "bg-[#0e1830] text-mist hover:bg-[#2a3d63] hover:text-gold cursor-pointer"
                     }`}
                   >
-                    {isImage && solved[r] ? "" : locked[r] ? "✕" : r + 1}
+                    {isImage && solved[r] ? "" : <span className={`px-3 ${r < 2 ? "pt-2" : "pb-2"}`}>{locked[r] ? "✕" : r + 1}</span>}
                   </button>
                 );
               })}
@@ -130,11 +130,6 @@ export default function RoundVuotCnv({ ctx }) {
             >
               {locked[4] ? "✕" : cnv?.media?.url && cnv.media.type !== "video" && solved[4] ? "" : 5}
             </button>
-            {/* Đường chia mảnh ghép */}
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute left-1/2 top-0 bottom-0 w-px bg-line" />
-              <div className="absolute top-1/2 left-0 right-0 h-px bg-line" />
-            </div>
           </div>
         </div>
       </div>

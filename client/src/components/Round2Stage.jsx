@@ -97,7 +97,7 @@ export function Round2Board({ state, g, minimal }) {
             {[0, 1, 2, 3].map((r) => (
               <div
                 key={r}
-                className={`relative grid place-items-center font-display font-bold text-[clamp(24px,3vw,44px)] transition-colors ${
+                className={`relative flex ${r % 2 === 0 ? "justify-start" : "justify-end"} ${r < 2 ? "items-start" : "items-end"} font-display font-black text-[clamp(26px,3.4vw,52px)] tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.7)] transition-colors ${
                   solved[r]
                     ? (media?.url && media.type !== "video")
                       ? "pointer-events-none"
@@ -107,12 +107,18 @@ export function Round2Board({ state, g, minimal }) {
                       : "bg-[#0e1830] text-mist"
                 }`}
               >
-                {locked[r] ? "✕" : solved[r] && media?.url && media.type !== "video" ? "" : r + 1}
+                {locked[r] ? (
+                  <span className={`px-3 ${r < 2 ? "pt-2" : "pb-2"}`}>✕</span>
+                ) : solved[r] && media?.url && media.type !== "video" ? (
+                  ""
+                ) : (
+                  <span className={`px-3 ${r < 2 ? "pt-2" : "pb-2"}`}>{r + 1}</span>
+                )}
               </div>
             ))}
           </div>
           <div
-            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[52%] h-[60%] rounded-xl border-2 grid place-items-center font-display font-bold text-[clamp(22px,2.6vw,38px)] ${
+            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[52%] h-[60%] rounded-xl border-2 grid place-items-center font-display font-black text-[clamp(26px,3.4vw,52px)] tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.7)] ${
               solved[4]
                 ? (media?.url && media.type !== "video")
                   ? "pointer-events-none border-transparent"
@@ -123,10 +129,6 @@ export function Round2Board({ state, g, minimal }) {
             }`}
           >
             {locked[4] ? "✕" : solved[4] && media?.url && media.type !== "video" ? "" : 5}
-          </div>
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-line/80" />
-            <div className="absolute top-1/2 left-0 right-0 h-px bg-line/80" />
           </div>
         </div>
       </div>

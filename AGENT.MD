@@ -509,8 +509,16 @@ DONE / PARTIAL / BLOCKED
 - <error>
 
 ### Git
-- Commit: <hash / N/A>
-- Push: SUCCESS / FAILED / N/A
+After every successfully completed task, automatically commit the changes.
+Do not ask for confirmation before committing.
+
+Before committing:
+- inspect git status
+- inspect git diff
+- run appropriate tests
+- commit only changes related to the current task
+
+Never push to remote automatically.
 
 ### Ghi chú
 <important information>
