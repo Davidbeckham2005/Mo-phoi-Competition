@@ -41,7 +41,7 @@ export function publicState() {
     // trạng thái game hiện tại
     game: d.game,
     media: d.media,
-    sounds: d.sounds || { correct: { url: "" }, wrong: { url: "" }, bg: { url: "" }, wait: { url: "" } },
+    sounds: d.sounds || { correct: { url: "" }, wrong: { url: "" }, bg: { url: "" }, wait: { url: "" }, buzz: { url: "" } },
     // định nghĩa cấu trúc vòng thi
     rounds: ROUNDS,
   };

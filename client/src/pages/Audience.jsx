@@ -1,10 +1,10 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAudienceAudio } from "../lib/useAudio.js";
 import { formatTime } from "../lib/format.js";
 import { on } from "../lib/socket.js";
 import { useGameState } from "../lib/useGame.js";
-import { isOpen, isLocked } from "../lib/cnv.js";
 import { activeTeamIds } from "../lib/teams.js";
+import { CnvRowsFrame, Round2Board, Round2Question } from "../components/Round2Stage.jsx";
 
 function playBuzz() {
   try {
@@ -86,11 +86,11 @@ export default function Audience() {
     return <KhoiDongAudience state={state} timer={timer} flash={flash} />;
   }
 
-  // Lấy 4 đội điểm cao nhất nếu vừa kết thúc vòng 1
+  // Vòng 2–4: chỉ giữ 4 đội tham gia (đã đóng băng qualifiedTeams / top-4 theo điểm).
   const top4Rounds = ["vuot_cnv", "tang_toc", "ve_dich"];
-  const outTeams =
-    (g.round === "khoi_dong" && (g.khoiDong?.phase === "done" || g.phase === "finished")) ||
-    top4Rounds.includes(g.round)
+  const outTeams = top4Rounds.includes(g.round)
+    ? (state.teams || []).filter((t) => activeTeamIds(g, state.teams || []).includes(t.id))
+    : g.round === "khoi_dong" && (g.khoiDong?.phase === "done" || g.phase === "finished")
       ? [...(state.teams || [])].sort((a, b) => b.score - a.score).slice(0, 4)
       : state.teams;
 
@@ -310,174 +310,6 @@ function Stage({ state, timer }) {
         <div className="text-mist mt-4">
           Dẫn đầu:{" "}
           {state.leaderboard.slice(0, 3).map((c) => `${c.rank}. ${c.name} (${c.score})`).join(" • ")}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Khung ô chữ Vòng 2: 2 cột — bên trái số thứ tự tương ứng mảnh ghép, bên phải các hàng ngang (ô chữ tròn, viền liền).
-// Đặt trên đầu màn câu hỏi khán giả. Không hiện dòng từ khóa.
-function CnvRowsFrame({ state, g }) {
-  const p = g.puzzle || {};
-  const cnv = state.cnv;
-  return (
-    <div className="grid grid-cols-[auto_2.5rem] gap-x-4 gap-y-2.5 w-fit mx-auto">
-      {/* Cột 1: các hàng ngang (ô chữ tròn); cột 2: số mảnh ghép thẳng hàng dọc */}
-      {(cnv?.rows || []).map((row, i) => (
-        <Fragment key={i}>
-          <div className="flex gap-1.5 self-center">
-            {row.status === "open"
-              ? row.word.replace(/\s/g, "").split("").map((ch, j) => (
-                  <span key={j} className="ltr ltr-open">{ch}</span>
-                ))
-              : row.status === "locked"
-                ? Array.from({ length: row.letterCount }, (_, j) => (
-                    <span key={j} className="ltr ltr-locked">✕</span>
-                  ))
-                : Array.from({ length: row.letterCount }, (_, j) => (
-                    <span key={j} className={`ltr ${i === p.currentRow ? "r2-current" : ""}`} />
-                  ))}
-          </div>
-          <span className="text-sm w-10 justify-self-start font-display font-bold tabular-nums text-gold self-center">
-            {i + 1}
-          </span>
-        </Fragment>
-      ))}
-    </div>
-  );
-}
-
-// MÀN 1 — CÂU HỎI (Round 2): KHUNG HÀNG NGANG trên cùng + câu hỏi hàng ngang hiện tại.
-// Câu hỏi hiện tại lấy từ cnv.question (server đẩy sẵn) — hiện ngay khi MC mở mảnh,
-// không phụ thuộc màn hình lớn đang chiếu bảng mảnh.
-function Round2Question({ state, d, g }) {
-  const p = g.puzzle || {};
-  const cnv = state.cnv || {};
-  const question = cnv.question || d.question || "";
-  return (
-    <div className="w-full max-w-[1200px] min-h-[68vh] mx-auto text-center flex flex-col items-center justify-center">
-      {/* Khung các hàng ngang (2 cột: số mảnh + ô chữ) */}
-      <div className="r2-rows mb-6">
-        <CnvRowsFrame state={state} g={g} />
-      </div>
-      {d.mediaUrl && d.mediaType === "image" && (
-        <img src={d.mediaUrl} alt="" className="max-h-[34vh] mx-auto rounded-2xl object-contain border border-line shadow-[0_10px_40px_rgba(0,0,0,0.4)]" />
-      )}
-      {d.mediaUrl && d.mediaType === "video" && (
-        <video src={d.mediaUrl} autoPlay controls className="max-h-[34vh] mx-auto rounded-2xl" />
-      )}
-      {question && <div className="stage-q mt-4">{question}</div>}
-      {d.options?.length > 0 && (
-        <div className="grid gap-2.5 mt-6 text-left w-[min(720px,90%)] mx-auto">
-          {d.options.map((o) => (
-            <div key={o} className="opt cursor-default">{o}</div>
-          ))}
-        </div>
-      )}
-      {d.note && <div className="stage-note">{d.note}</div>}
-      {d.answerRevealed && <div className="stage-answer">Đáp án: {d.answer}</div>}
-      {p.keywordWindow && !p.keywordSolved && (
-        <div className="badge badge-warn text-base! px-4 py-2 mt-6 animate-pulse">Đã xử lý xong hàng ngang — bấm nút <b className="text-gold">TỪ KHÓA</b> để đoán chướng ngại vật!</div>
-      )}
-    </div>
-  );
-}
-
-// MÀN HÌNH 2 — CHƯỚNG NGẠI VẬT (Round 2): CHỈ hiển thị bộ 5 hình (4 mảnh ghép + ô trung tâm)
-function Round2Board({ state, g }) {
-  const p = g.puzzle || {};
-  const cnv = state.cnv;
-  const solved = [0, 1, 2, 3, 4].map((i) => isOpen(p, i));
-  const locked = [0, 1, 2, 3, 4].map((i) => isLocked(p, i));
-  const media = cnv?.media;
-  const last = p.lastResult;
-  const lastTeam = last ? state.teams.find((t) => t.id === last.teamId) : null;
-  return (
-    <div className="w-full max-w-[1200px] min-h-[68vh] mx-auto flex flex-col items-center justify-center">
-      {/* Hiệu ứng phản hồi đúng/sai cho hàng ngang vừa xử lý xong */}
-      {last && (
-        <div
-          key={`${last.row}-${last.correct}`}
-          className={`flex justify-center pb-5 r2-feedback ${last.correct ? "r2-correct" : "r2-wrong"}`}
-        >
-          <div className={`r2-feedback-pill ${last.correct ? "r2-pill-ok" : "r2-pill-no"}`}>
-            <span className="text-2xl font-display font-black tracking-wide">
-              {last.correct ? "ĐÚNG!" : "SAI"}
-            </span>
-            <span className="text-sm opacity-80">
-              {last.correct
-                ? `+${last.pts} • Hàng ${last.row + 1} đã mở`
-                : `−${Math.abs(last.pts || 0)} • Hàng ${last.row + 1} đã khóa`}
-            </span>
-            {lastTeam && <span className="text-sm" style={{ color: lastTeam.color }}>{lastTeam.name}</span>}
-          </div>
-        </div>
-      )}
-      {p.keywordWindow && !p.keywordSolved && (
-        <div className="flex justify-center pb-5">
-          <div className="badge badge-warn text-base! px-4 py-2 animate-pulse">
-            Đang chờ câu hỏi kế tiếp — bấm nút <b className="text-gold">TỪ KHÓA</b> để đoán chướng ngại vật
-          </div>
-        </div>
-      )}
-      <div className="flex flex-col items-center justify-center gap-4">
-        {/* Ảnh ghép: 5 mảnh = 4 GÓC + 1 TRUNG TÂM, CHÍNH LÀ 1 bức ảnh hoàn chỉnh bị cắt.
-            Nền đặt sẵn toàn bộ ảnh; mảnh nào MỞ thì gỡ lớp che → hiện đúng phần ảnh đó,
-            mảnh nào chưa mở thì phủ KÍN (che hẳn, không mờ). Mở đủ 5 mảnh → ảnh hoàn
-            chỉnh; từ khóa chỉ nhận biết bằng cách NHÌN bức ảnh này. */}
-        <div className="relative w-[clamp(300px,40vw,680px)] aspect-[16/10] rounded-2xl overflow-hidden ring-1 ring-line bg-night">
-          {/* Nền — toàn bộ bức ảnh hoàn chỉnh (chỉ khi là ảnh) */}
-          {media?.url && media.type !== "video" && (
-            <img src={media.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          )}
-
-          {/* 4 mảnh góc (hàng 0-3) — mở ra thì gỡ lớp che */}
-          <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
-            {[0, 1, 2, 3].map((r) => (
-              <div
-                key={r}
-                className={`relative grid place-items-center font-display font-bold text-[clamp(24px,3vw,44px)] transition-colors ${
-                  solved[r]
-                    ? (media?.url && media.type !== "video")
-                      ? "pointer-events-none"
-                      : "bg-gold/90 text-[#1a1400]"
-                    : locked[r]
-                      ? "bg-danger/60 text-white"
-                      : "bg-[#0e1830] text-mist"
-                }`}
-              >
-                {(!media?.url || media.type === "video") ? (solved[r] ? r + 1 : locked[r] ? "✕" : "?") : (locked[r] ? "✕" : "?")}
-              </div>
-            ))}
-          </div>
-
-          {/* Ô TRUNG TÂM (hàng 4) — nằm chồng lên điểm gặp nhau của 4 mảnh */}
-          <div
-            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[38%] h-[46%] rounded-xl border-2 grid place-items-center font-display font-bold text-[clamp(22px,2.6vw,38px)] ${
-              solved[4]
-                ? (media?.url && media.type !== "video")
-                  ? "pointer-events-none border-transparent"
-                  : "bg-gold text-[#1a1400] border-gold shadow-[0_0_26px_rgba(255,214,10,0.45)]"
-                : locked[4]
-                  ? "bg-danger/70 text-white border-danger/70"
-                  : "bg-[#0e1830] text-mist border-line"
-            }`}
-          >
-            {(!media?.url || media.type === "video") ? (solved[4] ? 5 : locked[4] ? "✕" : "?") : (locked[4] ? "✕" : "?")}
-          </div>
-
-          {/* Đường chia mảnh ghép */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-line/80" />
-            <div className="absolute top-1/2 left-0 right-0 h-px bg-line/80" />
-          </div>
-        </div>
-      </div>
-
-      {p.keywordClaim && !p.keywordSolved && (
-        <div className="badge badge-warn text-base! px-4 py-2 mt-4">
-          {state.teams.find((t) => t.id === p.keywordClaim)?.name} đang giành quyền đoán từ khóa!
         </div>
       )}
     </div>

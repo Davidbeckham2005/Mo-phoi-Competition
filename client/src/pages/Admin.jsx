@@ -870,6 +870,7 @@ function SoundsTab({ state, reload, setMsg }) {
     ["wrong", "Sai", "Phát khi MC chấm sai"],
     ["bg", "Nhạc nền", "Lặp khi đang thi"],
     ["wait", "Nhạc chờ", "Lặp khi màn hình chờ"],
+    ["buzz", "Chuông giành quyền CNV", "Phát khi thí sinh ấn phím trả lời chướng ngại vật"],
   ];
   const sounds = state.sounds || {};
 

@@ -270,25 +270,34 @@ export default function Control() {
         <div className="grid gap-2">
           {state.teams.map((t) => {
             const active = g.currentTeam === t.id;
+            const eliminated = g.round !== "khoi_dong" && !activeTeamIds(g, state.teams).includes(t.id);
             return (
               <button
                 key={t.id}
                 type="button"
+                disabled={eliminated}
                 onClick={() =>
                   isKd
                     ? act("question.jump", { teamId: t.id, questionIndex: firstValidIndex(t.id).questionIndex, memberIndex: 0 })
                     : act("team.set", { teamId: t.id })
                 }
                 className={`flex items-center gap-3 border border-[rgba(255,255,255,0.15)] px-3 py-2.5 text-left transition ${
-                  active
-                    ? "bg-white/25 ring-1 ring-white/50"
-                    : "bg-[#64769e] hover:bg-white/20"
+                  eliminated
+                    ? "bg-[#3a4356] opacity-55 cursor-not-allowed"
+                    : active
+                      ? "bg-white/25 ring-1 ring-white/50"
+                      : "bg-[#64769e] hover:bg-white/20"
                 }`}
               >
                 <span className={`flex-1 min-w-0 font-semibold text-sm truncate ${active ? "text-white" : "text-black/80"}`}>
                   {t.name}
                 </span>
-                <span className={`font-display text-lg font-bold ${active ? "text-white" : "text-black/80"}`}>
+                {eliminated && (
+                  <span className="rounded border border-red-400/50 bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-red-200 uppercase">
+                    Bị loại
+                  </span>
+                )}
+                <span className={`font-display text-lg font-bold ${active ? "text-white" : eliminated ? "text-black/40" : "text-black/80"}`}>
                   {t.score}
                 </span>
               </button>

@@ -1,4 +1,4 @@
-export const SOUND_SLOTS = ["correct", "wrong", "bg", "wait"];
+export const SOUND_SLOTS = ["correct", "wrong", "bg", "wait", "buzz"];
 
 export function emptySounds() {
   return {
@@ -6,6 +6,7 @@ export function emptySounds() {
     wrong: { url: "", name: "" },
     bg: { url: "", name: "" },
     wait: { url: "", name: "" },
+    buzz: { url: "", name: "" },
   };
 }
 
@@ -34,3 +35,4 @@ export async function saveAll(conn, sounds) {
     ]);
   }
 }
+

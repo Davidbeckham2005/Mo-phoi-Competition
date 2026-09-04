@@ -70,6 +70,7 @@
         audienceBg: db.settings.audienceBg || "dark",
         audienceBgUrl: db.settings.audienceBgUrl || "",
       },
+      sounds: db.sounds || { buzz: { url: "", name: "" } },
       rounds: ROUNDS,
     };
     if (db.game.round === "vuot_cnv") {
@@ -587,6 +588,9 @@ export function resetKhoiDong(teamId = null) {
       const mi = game.khoiDong.memberIndex ?? 0;
       game.khoiDong.history[tid][mi] = game.khoiDong.history[tid][mi] || {};
       game.khoiDong.history[tid][mi][game.questionIndex] = !!correct;
+      // Vòng 1: câu ĐÚNG được cộng điểm (10 điểm/ảnh); câu SAI không trừ.
+      // Guard chống cộng trùng đã xử lý ở đầu branch, nên mỗi ảnh chỉ cộng đúng 1 lần.
+      if (correct) addScore(tid, points);
       // Chấm xong → chuyển NGAY sang ảnh kế. Không hiện/giữ màn hình đáp án
       // (thí sinh có tổng 1 phút cho cả 5 ảnh, không chờ đáp án).
       const before = `${game.currentTeam}:${game.questionIndex}`;

@@ -45,6 +45,15 @@ function g() {
   return getDb().game;
 }
 
+// 4 đội điểm cao nhất (fallback khi chưa đóng băng qualifiedTeams).
+function topTeamsByScore() {
+  return getDb()
+    .teams.slice()
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+    .slice(0, 4)
+    .map((t) => t.id);
+}
+
 // === HELPER NỘI BỘ ============================================================
 
 // Góc nhìn Vòng 2 cho thí sinh/khán giả: số ô chữ mỗi hàng + từ chỉ khi đã mở
@@ -298,12 +307,15 @@ export function submitRowAnswer(teamId, answer) {
   const game = g();
   const p = game.puzzle;
   if (game.round !== "vuot_cnv" || p.keywordSolved) return { ok: false, reason: "closed" };
+  // Chỉ 4 đội điểm cao (qualifiedTeams) được nộp đáp án hàng ngang vòng 2.
+  const active = game.qualifiedTeams?.length ? game.qualifiedTeams : topTeamsByScore();
+  if (!active.includes(teamId)) return { ok: false, reason: "not-open" };
   if (p.rowPhase !== "open") return { ok: false, reason: "closed" };
   if (game.questionStatus !== "showing") return { ok: false, reason: "not-open" };
   // Chỉ được nộp đáp án sau khi MC đã bấm "Bắt đầu giờ" (timingStarted).
   if (!p.timingStarted) return { ok: false, reason: "not-started" };
-  const prev = p.submissions[teamId];
-  if (prev) return { ok: false, reason: "already" };
+  // Cho phép gửi NHIỀU lần: nếu đội đã nộp trước đó thì ghi đè bằng đáp án mới nhất
+  // (thí sinh có thể sửa/làm rõ đáp án nhiều lần trong cửa sổ trả lời).
   p.submissions[teamId] = {
     answer: String(answer || "").trim(),
     elapsed: rowElapsed(),
