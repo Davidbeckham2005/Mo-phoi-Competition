@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { isOpen, isLocked } from "../lib/cnv.js";
 
 // Khung ô chữ Vòng 2: bên trái các hàng ngang (ô chữ tròn), bên phải số mảnh ghép dọc.
@@ -28,6 +28,80 @@ export function CnvRowsFrame({ state, g }) {
           </span>
         </Fragment>
       ))}
+    </div>
+  );
+}
+
+// MÀN KẾT QUẢ TRẢ LỜI — Vòng 2: danh sách đáp án các đội xếp theo thời gian nộp bài
+// (nhanh nhất trước), hiện LẦN LƯỢT từng câu trả lời (stagger), màu theo nhận định
+// Đúng/Sai của MC (corrections). Dùng chung cho giai đoạn chấm (closed) và chốt (scored).
+export function RowResults({ state, g }) {
+  const p = g.puzzle || {};
+  const teams = state.teams || [];
+  const corr = p.corrections || {};
+  const own = Object.entries(p.submissions || {}).map(([teamId, s]) => ({
+    teamId,
+    answer: s.answer,
+    elapsed: s.elapsed,
+  }));
+  const ordered = [...(p.ranked?.length ? p.ranked : own)].sort((a, b) => a.elapsed - b.elapsed);
+  const [shown, setShown] = useState(0);
+
+  useEffect(() => {
+    setShown(1);
+    if (ordered.length <= 1) return;
+    const t = setInterval(() => {
+      setShown((n) => (n >= ordered.length ? n : n + 1));
+    }, 750);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.currentRow]);
+
+  return (
+    <div className="w-full max-w-[1100px] mx-auto">
+      <div className="kicker text-center mb-6">
+        KẾT QUẢ TRẢ LỜI — HÀNG {p.currentRow + 1}
+      </div>
+      <div className="flex flex-col gap-3 mx-auto w-[min(780px,94%)]">
+        {ordered.length === 0 && (
+          <div className="text-center text-mist">Không có đội nào nộp đáp án cho hàng này.</div>
+        )}
+        {ordered.slice(0, shown).map((s, i) => {
+          const t = teams.find((x) => x.id === s.teamId);
+          const ok = corr[s.teamId] === true;
+          const ng = corr[s.teamId] === false;
+          return (
+            <div
+              key={`${s.teamId}-${i}`}
+              className={`flex items-center gap-4 rounded-xl border px-4 py-3 ${
+                ok
+                  ? "border-[rgba(128,237,153,0.55)] bg-[rgba(128,237,153,0.12)]"
+                  : ng
+                    ? "border-[rgba(255,77,109,0.55)] bg-[rgba(255,77,109,0.14)]"
+                    : "border-line bg-panel/70"
+              }`}
+              style={{ animation: "r2FeedbackIn 0.5s ease both" }}
+            >
+              <span className="w-7 text-center font-display font-black text-2xl text-gold">
+                {i + 1}
+              </span>
+              <span className="w-36 font-bold truncate" style={{ color: t?.color }}>
+                {t?.name || `Đội ${s.teamId}`}
+              </span>
+              <span className="flex-1 font-semibold text-[clamp(15px,1.8vw,22px)] text-white text-center truncate">
+                {s.answer}
+              </span>
+              <span
+                className={`text-sm font-bold shrink-0 ${
+                  ok ? "text-[#80ed99]" : ng ? "text-[#ffb3c1]" : "text-mist"
+                }`}
+              >
+                {ok ? "ĐÚNG" : ng ? "SAI" : "Đang chờ…"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

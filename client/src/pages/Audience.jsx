@@ -4,7 +4,7 @@ import { formatTime } from "../lib/format.js";
 import { on } from "../lib/socket.js";
 import { useGameState } from "../lib/useGame.js";
 import { activeTeamIds } from "../lib/teams.js";
-import { CnvRowsFrame, Round2Board, Round2Question } from "../components/Round2Stage.jsx";
+import { CnvRowsFrame, Round2Board, Round2Question, RowResults } from "../components/Round2Stage.jsx";
 
 function playBuzz() {
   try {
@@ -292,6 +292,10 @@ function Stage({ state, timer }) {
   //   - "puzzle"/khác → màn bảng mảnh ghép (bộ 5 mảnh: 4 góc + ô trung tâm mở cuối)
   // Chọn ô (selectRow) giữ nguyên màn đang xem — không tự nhảy sang bảng mảnh.
   if (g.round === "vuot_cnv") {
+    const rp = g.puzzle?.rowPhase;
+    if ((rp === "closed" || rp === "scored") && !g.puzzle?.keywordSolved) {
+      return <RowResults state={state} g={g} />;
+    }
     return d.mode === "question"
       ? <Round2Question state={state} d={d} g={g} />
       : <Round2Board state={state} g={g} />;
