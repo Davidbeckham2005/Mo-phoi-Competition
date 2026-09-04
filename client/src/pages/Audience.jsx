@@ -183,12 +183,12 @@ function BuzzOverlay({ state, flash }) {
   const team = (state.teams || []).find((t) => t.id === flash);
   if (!team) return null;
   return (
-    <div className="absolute right-6 top-1/2 -translate-y-1/2 z-30">
-      <div className="animate-pulse rounded-xl border-2 border-white bg-white px-5 py-3.5 text-center">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.25em] text-black/60">
+    <div className="absolute right-0 top-1/2 -translate-y-1/2 z-30">
+      <div className="animate-pulse rounded-l-lg border-2 border-r-0 border-white bg-white px-3 py-2 text-center">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-black/60">
           Giành quyền
         </div>
-        <div className="mt-1 font-display font-black text-[clamp(30px,3.6vw,58px)] leading-none text-black">
+        <div className="mt-0.5 font-display font-black text-[clamp(20px,2.2vw,34px)] leading-none text-black">
           {team.name}
         </div>
       </div>

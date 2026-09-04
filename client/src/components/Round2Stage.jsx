@@ -69,7 +69,16 @@ export function Round2Board({ state, g, minimal }) {
   const last = p.lastResult;
   const lastTeam = last ? state.teams.find((t) => t.id === last.teamId) : null;
   return (
-    <div className="w-full max-w-[1200px] min-h-[60vh] mx-auto flex flex-col items-center justify-center">
+    <div className="relative w-full max-w-[1200px] min-h-[60vh] mx-auto flex flex-col items-center justify-center">
+      {!minimal && p.keywordClaim && !p.keywordSolved && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 z-30">
+          <div className="animate-pulse rounded-r-lg border-2 border-l-0 border-red-500 bg-red-600/90 px-3 py-2 text-center">
+            <div className="font-display font-black text-[clamp(20px,2.2vw,34px)] leading-none text-white">
+              {state.teams.find((t) => t.id === p.keywordClaim)?.name}
+            </div>
+          </div>
+        </div>
+      )}
       {!minimal && last && (
         <div
           key={`${last.row}-${last.correct}`}
@@ -132,11 +141,6 @@ export function Round2Board({ state, g, minimal }) {
           </div>
         </div>
       </div>
-      {!minimal && p.keywordClaim && !p.keywordSolved && (
-        <div className="badge badge-warn text-base! px-4 py-2 mt-4">
-          {state.teams.find((t) => t.id === p.keywordClaim)?.name} đang giành quyền đoán từ khóa!
-        </div>
-      )}
     </div>
   );
 }
