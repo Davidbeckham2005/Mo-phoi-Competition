@@ -478,14 +478,16 @@ export function resetKhoiDong(teamId = null) {
     emit();
   }
 
-  // Bật/tắt màn hình hiển thị trên màn hình lớn (chỉ dùng cho Vòng 2):
+  // Bật/tắt màn hình hiển thị trên màn hình lớn (chỉ dùng cho Vòng 2) — 3 màn hình
+  // riêng biệt do MC điều khiển, đồng bộ cả Khán giả lẫn Thí sinh:
   //   mode === "question" → MÀN HÌNH CÂU HỎI
-  //   còn lại            → MÀN HÌNH ẢNH GHÉP + HÀNG NGANG
+  //   mode === "answers"  → MÀN HÌNH ĐÁP ÁN CÁC ĐỘI GỬI VỀ (MC mở dần từng đáp án)
+  //   còn lại             → MÀN HÌNH ẢNH GHÉP + HÀNG NGANG
   // Giữ nguyên dữ liệu câu hỏi (display.question/answer...) để MC chuyển qua lại thoải mái.
   export function setScreenMode(mode) {
     const game = g();
     if (game.round !== "vuot_cnv") return;
-    game.display.mode = mode === "question" ? "question" : "puzzle";
+    game.display.mode = mode === "question" || mode === "answers" ? mode : "puzzle";
     saveDb();
     emit();
   }

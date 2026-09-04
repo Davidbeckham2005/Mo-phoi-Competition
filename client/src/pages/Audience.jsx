@@ -287,13 +287,13 @@ function Stage({ state, timer }) {
     return <TangTocStage state={state} g={g} timer={timer} />;
   }
 
-  // Vòng 2 (Vượt CNV): 2 màn hình khán giả chuyển bằng nút trên bàn MC (display.mode):
+  // Vòng 2 (Vượt CNV): 3 màn hình riêng biệt, MC điều khiển bằng nút trên bàn MC (display.mode):
   //   - "question" → màn câu hỏi: khung hàng ngang + câu hỏi hiện tại
+  //   - "answers"  → màn đáp án các đội gửi về (MC mở dần từng đáp án qua revealedRows)
   //   - "puzzle"/khác → màn bảng mảnh ghép (bộ 5 mảnh: 4 góc + ô trung tâm mở cuối)
   // Chọn ô (selectRow) giữ nguyên màn đang xem — không tự nhảy sang bảng mảnh.
   if (g.round === "vuot_cnv") {
-    const rp = g.puzzle?.rowPhase;
-    if ((rp === "closed" || rp === "scored") && !g.puzzle?.keywordSolved) {
+    if (d.mode === "answers" && !g.puzzle?.keywordSolved) {
       return <RowResults state={state} g={g} />;
     }
     return d.mode === "question"

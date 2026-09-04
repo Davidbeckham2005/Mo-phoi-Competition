@@ -151,6 +151,7 @@ export function selectRow(rowIndex) {
   p.submissions = {};
   p.corrections = {};
   p.ranked = [];
+  p.revealedRows = 0;
   p.timingStarted = false;
   game.buzzer = { open: false, locked: false, winner: null, order: [], blocked: [] };
   game.questionStatus = "idle";
@@ -162,7 +163,8 @@ export function selectRow(rowIndex) {
   // câu hỏi). Đồng hồ được tạm dừng: MC bấm "Bắt đầu giờ" thì mới chạy.
   showQuestion();
   pauseTimer();
-  game.display.mode = prevMode || "puzzle";
+  // Ô mới bắt đầu → không ở lại màn ĐÁP ÁN của ô trước (quay về bảng mảnh).
+  game.display.mode = prevMode === "answers" ? "puzzle" : prevMode || "puzzle";
   saveDb();
   emit();
 }
@@ -182,11 +184,12 @@ export function deselectRow() {
   p.submissions = {};
   p.corrections = {};
   p.ranked = [];
+  p.revealedRows = 0;
   p.timingStarted = false;
   game.buzzer = { open: false, locked: false, winner: null, order: [], blocked: [] };
   setTimer(0, false);
   resetDisplayToBoard();
-  game.display.mode = prevMode || "puzzle";
+  game.display.mode = prevMode === "answers" ? "puzzle" : prevMode || "puzzle";
   saveDb();
   emit();
 }
@@ -340,6 +343,9 @@ export function closeRowSubmissions() {
   const p = game.puzzle;
   if (p.rowPhase !== "open") return;
   p.rowPhase = "closed";
+  // Đóng nhận bài → tự chuyển màn hình lớn + thí sinh sang MÀN ĐÁP ÁN để MC chấm
+  // và mở dần từng đáp án (MC vẫn chuyển tay sang Câu hỏi/Bảng mảnh được).
+  game.display.mode = "answers";
   saveDb();
   emit();
 }
@@ -373,6 +379,32 @@ export function computeRowRanked() {
   });
 }
 
+// MC điều khiển MÀN KẾT QUẢ TRẢ LỜI trên khán giả: mở LẦN LƯỢT từng câu trả lời
+// (revealedRows đếm số đáp án đã hiện, 0 = chưa mở gì). Chỉ có hiệu lực trong giai đoạn
+// chấm (closed) hoặc đã chốt (scored).
+export function revealNextRowAnswer() {
+  const game = g();
+  const p = game.puzzle;
+  if (game.round !== "vuot_cnv") return;
+  if (p.rowPhase !== "closed" && p.rowPhase !== "scored") return;
+  const total = Object.keys(p.submissions || {}).length;
+  const cur = p.revealedRows || 0;
+  p.revealedRows = Math.min(cur + 1, Math.max(total, 1));
+  saveDb();
+  emit();
+}
+
+// MC mở TẤT CẢ các câu trả lời cùng lúc (rút gọn khi không cần hồi hộp).
+export function revealAllRowAnswers() {
+  const game = g();
+  const p = game.puzzle;
+  if (game.round !== "vuot_cnv") return;
+  if (p.rowPhase !== "closed" && p.rowPhase !== "scored") return;
+  p.revealedRows = Object.keys(p.submissions || {}).length;
+  saveDb();
+  emit();
+}
+
 // MC "Chốt điểm" cho ô hiện tại: cộng điểm theo tốc độ, mở/khóa mảnh, sang đội kế.
 export function settleRow() {
   const game = g();
@@ -398,6 +430,8 @@ export function settleRow() {
     lockRow(p.currentRow);
   }
   resetDisplayToBoard();
+  // Sau khi chốt điểm vẫn giữ MÀN ĐÁP ÁN (kèm điểm/xếp hạng) cho đến khi MC chuyển.
+  game.display.mode = "answers";
   saveDb();
   emit();
 }

@@ -5,7 +5,7 @@ import { loginTeam } from "../lib/api/team.js";
 import { formatTime } from "../lib/format.js";
 import { useGameState } from "../lib/useGame.js";
 import { activeTeamIds } from "../lib/teams.js";
-import { Round2Board, Round2Question } from "../components/Round2Stage.jsx";
+import { Round2Board, Round2Question, RowResults } from "../components/Round2Stage.jsx";
 
 const SESSION_KEY = "team_session";
 
@@ -669,18 +669,22 @@ function KhoiDongBody({ g, d, team }) {
 // Vòng 2 (Vượt CNV): trả lời HÀNG NGANG dạng TỰ LUẬN — mọi đội cùng gõ đáp án gửi
 // về MC trong thời gian cho phép (ghi nhận thời gian nộp). Chuông cướp, giành quyền
 // cho hàng ngang đã bỏ. Đoán TỪ KHÓA vẫn dùng nút vàng TỪ KHÓA + MC chấm như cũ.
-// Giao diện đồng bộ với màn hình Khán giả: bảng mảnh ghép (puzzle) hoặc màn câu hỏi
-// (khung hàng ngang + câu hỏi) tùy theo d.mode — thí sinh còn kèm ô nhập đáp án.
+// Giao diện đồng bộ với màn hình Khán giả — 3 màn hình riêng biệt do MC điều khiển
+// qua d.mode: câu hỏi (question) / bảng mảnh ghép (puzzle) / đáp án các đội gửi về
+// (answers) — thí sinh còn kèm ô nhập đáp án.
 function Round2Status({ state, g, d }) {
   const keywordDone = !!g.puzzle?.keywordSolved;
 
-  // Màn hình giống Khán giả: câu hỏi nếu d.mode === "question", ngược lại bảng mảnh ghép.
+  // Màn hình giống Khán giả, theo d.mode do MC chọn.
   const questionMode = d.mode === "question" && !keywordDone;
+  const answersMode = d.mode === "answers" && !keywordDone;
 
   return (
     <div className="flex flex-col items-center gap-5 w-full min-w-0">
       {questionMode ? (
         <Round2Question state={state} d={d} g={g} />
+      ) : answersMode ? (
+        <RowResults state={state} g={g} />
       ) : (
         <Round2Board state={state} g={g} minimal />
       )}

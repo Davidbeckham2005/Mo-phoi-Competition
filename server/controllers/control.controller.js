@@ -79,6 +79,8 @@ const actions = {
   "puzzle.close": () => game.closeRowSubmissions(),
   "puzzle.mark": (p) => game.markRowAnswer(p.teamId, !!p.correct),
   "puzzle.settle": () => game.settleRow(),
+  "puzzle.nextAnswer": () => game.revealNextRowAnswer(),
+  "puzzle.allAnswers": () => game.revealAllRowAnswers(),
   "keyword.solve": (p) => {
     const r = game.solveKeyword(p.teamId, !!p.correct);
     emitEvent("sound:play", { slot: p.correct ? "correct" : "wrong" });

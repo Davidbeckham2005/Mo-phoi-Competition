@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment } from "react";
 import { isOpen, isLocked } from "../lib/cnv.js";
 
 // Khung ô chữ Vòng 2: bên trái các hàng ngang (ô chữ tròn), bên phải số mảnh ghép dọc.
@@ -33,8 +33,8 @@ export function CnvRowsFrame({ state, g }) {
 }
 
 // MÀN KẾT QUẢ TRẢ LỜI — Vòng 2: danh sách đáp án các đội xếp theo thời gian nộp bài
-// (nhanh nhất trước), hiện LẦN LƯỢT từng câu trả lời (stagger), màu theo nhận định
-// Đúng/Sai của MC (corrections). Dùng chung cho giai đoạn chấm (closed) và chốt (scored).
+// (nhanh nhất trước). MC ĐIỀU KHIỂN hiển thị từng câu trả lời qua puzzle.revealedRows
+// (action puzzle.nextAnswer / puzzle.allAnswers) — chưa mở thì hiện ô "?" bí ẩn.
 export function RowResults({ state, g }) {
   const p = g.puzzle || {};
   const teams = state.teams || [];
@@ -45,17 +45,7 @@ export function RowResults({ state, g }) {
     elapsed: s.elapsed,
   }));
   const ordered = [...(p.ranked?.length ? p.ranked : own)].sort((a, b) => a.elapsed - b.elapsed);
-  const [shown, setShown] = useState(0);
-
-  useEffect(() => {
-    setShown(1);
-    if (ordered.length <= 1) return;
-    const t = setInterval(() => {
-      setShown((n) => (n >= ordered.length ? n : n + 1));
-    }, 750);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.currentRow]);
+  const revealed = p.revealedRows || 0;
 
   return (
     <div className="w-full max-w-[1100px] mx-auto">
@@ -66,8 +56,27 @@ export function RowResults({ state, g }) {
         {ordered.length === 0 && (
           <div className="text-center text-mist">Không có đội nào nộp đáp án cho hàng này.</div>
         )}
-        {ordered.slice(0, shown).map((s, i) => {
+        {ordered.map((s, i) => {
           const t = teams.find((x) => x.id === s.teamId);
+          if (i >= revealed) {
+            return (
+              <div
+                key={`${s.teamId}-${i}`}
+                className="flex items-center gap-4 rounded-xl border border-line bg-panel/60 px-4 py-3"
+              >
+                <span className="w-7 text-center font-display font-black text-2xl text-gold">
+                  {i + 1}
+                </span>
+                <span className="w-36" />
+                <span className="flex-1 text-center">
+                  <span className="text-3xl text-mist animate-pulse">?</span>
+                </span>
+                <span className="w-20 text-center text-[11px] uppercase tracking-widest text-mist">
+                  Chờ…
+                </span>
+              </div>
+            );
+          }
           const ok = corr[s.teamId] === true;
           const ng = corr[s.teamId] === false;
           return (

@@ -1,8 +1,14 @@
 import { formatTime } from "../../lib/format.js";
 
+// 3 màn hình riêng biệt của vòng 2 (Khán giả + Thí sinh đồng bộ), MC bấm nút để xoay vòng.
+const SCREEN_LABEL = { question: "Câu hỏi", puzzle: "Bảng mảnh", answers: "Đáp án" };
+const NEXT_SCREEN = { question: "puzzle", puzzle: "answers", answers: "question" };
+
 export default function RoundVuotCnv({ ctx }) {
-  const { g, p, cnv, state, solved, locked, cnvRowPhase, revealed, showing, remaining, running, act } = ctx;
+  const { g, d, p, cnv, state, solved, locked, cnvRowPhase, revealed, showing, remaining, running, act } = ctx;
   if (g.round !== "vuot_cnv") return null;
+
+  const screenMode = showing ? "question" : d.mode === "answers" ? "answers" : "puzzle";
 
   const rows = state.questions?.main?.vuotCnv?.rows || [];
   const remain = [0, 1, 2, 3, 4].filter((r) => !solved[r] && !locked[r]).length;
@@ -17,17 +23,21 @@ export default function RoundVuotCnv({ ctx }) {
 
   return (
     <div className="grid gap-3.5">
-      {/* ĐIỀU KHIỂN — toggle 2 màn hình khán giả (Câu hỏi / Bảng mảnh) gộp với đồng hồ */}
+      {/* ĐIỀU KHIỂN — xoay vòng 3 màn hình (Câu hỏi → Bảng mảnh → Đáp án) gộp với đồng hồ.
+          Đồng bộ cả màn Khán giả lẫn Thí sinh. */}
       <div className="panel">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             className={`btn text-sm! py-0! h-10 w-[7rem]! justify-center text-center ${showing ? "btn-ghost" : ""}`}
-            title={showing ? "Quay lại bảng mảnh ghép" : "Chuyển màn hình lớn sang câu hỏi"}
-            onClick={() => act("screen.set", { mode: showing ? "puzzle" : "question" })}
+            title={`Màn hình đang hiện: ${SCREEN_LABEL[screenMode]} — bấm để chuyển sang: ${SCREEN_LABEL[NEXT_SCREEN[screenMode]]}`}
+            onClick={() => act("screen.set", { mode: NEXT_SCREEN[screenMode] })}
           >
-            {showing ? "Bảng mảnh" : "Câu hỏi"}
+            {SCREEN_LABEL[NEXT_SCREEN[screenMode]]}
           </button>
+          <span className="text-mist text-xs">
+            Đang hiện: <b className="text-gold">{SCREEN_LABEL[screenMode]}</b>
+          </span>
           {showing && !revealed && (
             <button type="button" className="btn btn-ghost text-sm! py-1.5!" onClick={() => act("question.reveal")}>
               Lật đáp án
@@ -75,8 +85,8 @@ export default function RoundVuotCnv({ ctx }) {
         </div>
       </div>
 
-      {/* ẢNH CHƯỚNG NGẠI VẬT — bảng chính, hiện ở chế độ Bảng mảnh */}
-      {!showing && (
+      {/* ẢNH CHƯỚNG NGẠI VẬT — bảng chính, chỉ hiện ở chế độ Bảng mảnh */}
+      {screenMode === "puzzle" && (
       <div className="rounded-lg border border-[rgba(255,214,10,0.2)] bg-[#2a3d63] px-3 py-2.5 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
         <div className="flex flex-col items-center justify-center">
           {/* Ảnh ghép: 5 mảnh CHÍNH LÀ 1 bức ảnh hoàn chỉnh bị cắt. Nền đặt sẵn ảnh;
@@ -207,6 +217,17 @@ export default function RoundVuotCnv({ ctx }) {
               <span className="badge badge-ok text-xs!">Đã chốt điểm ô này</span>
             )}
             {p.rowPhase === "open" && <span className="text-mist text-xs ml-auto">Đã nộp: {Object.keys(p.submissions || {}).length}</span>}
+            {(p.rowPhase === "closed" || p.rowPhase === "scored") && (
+              <span className="ml-auto flex items-center gap-1.5">
+                <span className="text-mist text-xs">Màn Đáp án: {Math.min(p.revealedRows || 0, Object.keys(p.submissions || {}).length)}/{Object.keys(p.submissions || {}).length}</span>
+                <button type="button" className="btn btn-ghost text-xs! py-1!" onClick={() => act("puzzle.nextAnswer")}>
+                  Mở đáp án tiếp
+                </button>
+                <button type="button" className="btn btn-ghost text-xs! py-1!" onClick={() => act("puzzle.allAnswers")}>
+                  Mở tất cả
+                </button>
+              </span>
+            )}
           </div>
 
           {p.rowPhase !== "open" && (
