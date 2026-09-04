@@ -88,7 +88,7 @@ export default function Audience() {
     const tb = g.tieBreak || {};
     const tbTeams = (tb.teams || []).map((id) => state.teams.find((t) => t.id === id)).filter(Boolean);
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-4 gap-6">
+      <div className="relative min-h-screen flex flex-col items-center justify-center px-6 py-4 gap-6">
         <div className="round-badge">PHỤ PHUC</div>
         {g.buzzer?.winner && (
           <div className="round-badge">
@@ -116,6 +116,7 @@ export default function Audience() {
           </div>
         )}
         <TeamsRow teams={tbTeams} state={state} flash={flash} currentTeam={g.buzzer?.winner} />
+        <BuzzOverlay state={state} flash={flash} />
       </div>
     );
   }
@@ -171,6 +172,25 @@ export default function Audience() {
 
       <div className="relative z-10">
         <TeamsRow teams={outTeams} state={state} flash={flash} currentTeam={g.currentTeam} />
+      </div>
+      <BuzzOverlay state={state} flash={flash} />
+    </div>
+  );
+}
+
+function BuzzOverlay({ state, flash }) {
+  if (!flash) return null;
+  const team = (state.teams || []).find((t) => t.id === flash);
+  if (!team) return null;
+  return (
+    <div className="absolute right-6 top-1/2 -translate-y-1/2 z-30">
+      <div className="animate-pulse rounded-xl border-2 border-white bg-white px-5 py-3.5 text-center">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.25em] text-black/60">
+          Giành quyền
+        </div>
+        <div className="mt-1 font-display font-black text-[clamp(30px,3.6vw,58px)] leading-none text-black">
+          {team.name}
+        </div>
       </div>
     </div>
   );
