@@ -41,6 +41,10 @@ export function publicState() {
     submittedCount: d.contestants.filter((c) => c.submittedAt).length,
     // trạng thái game hiện tại
     game: d.game,
+    // danh sách câu hỏi các vòng — BẮT BUỘC gửi cùng lúc game:state để bàn MC hiện NGAY
+    // danh mục câu hỏi (vd Tăng tốc 1·2·3·4) khi mở lần đầu, không cần đợi click để có
+    // sự kiện game:state. (Cùng dữ liệu socket game:state đã gửi từ trước.)
+    questions: d.questions,
     media: d.media,
     sounds: d.sounds || { correct: { url: "" }, wrong: { url: "" }, bg: { url: "" }, wait: { url: "" }, buzz: { url: "" }, answers: { url: "" } },
     // định nghĩa cấu trúc vòng thi
