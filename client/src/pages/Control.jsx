@@ -415,82 +415,58 @@ export default function Control() {
         <KdScorePanel ctx={ctx} />
       </main>
 
-      {/* CỘT PHẢI — Bảng điểm */}
+      {/* CỘT PHẢI — Bảng điểm (gọn, tham khảo cột vòng thi bên trái) */}
       <aside className="aside-col panel">
-        <b>Bảng điểm</b>
-          <>
-            <div className="flex flex-col gap-3 mt-3">
-{state.teams
+        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Bảng điểm</div>
+        <div className="grid gap-1.5">
+          {state.teams
             .filter((t) => (isKd ? true : activeTeamIds(g, state.teams).includes(t.id)))
             .map((t) => {
-                const rank = rankedById[t.id];
-                const top = rank <= 3;
-                return (
-                  <div
-                    key={t.id}
-                    className={`rounded-xl border bg-panel-solid p-3 transition ${
-                      g.currentTeam === t.id ? "ring-1 ring-gold/70" : ""
-                    } ${
-                      top
-                        ? rank === 1
-                          ? "border-gold shadow-[0_0_16px_rgba(255,214,10,0.35)]"
-                          : rank === 2
-                            ? "border-gold/60 shadow-[0_0_12px_rgba(255,214,10,0.2)]"
-                            : "border-gold/40"
-                        : "border-line"
-                    }`}
-                    style={{ borderLeft: `6px solid ${t.color}` }}
-                  >
-                    <div className="flex justify-between items-center gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className={`shrink-0 font-display font-bold ${top ? (rank === 1 ? "text-gold text-lg" : "text-gold/90 text-base") : "text-mist text-sm"}`}>
-                          {rankBadge(rank)}
-                        </span>
-                        <b style={{ color: t.color }} className="truncate">{t.name}</b>
-                      </div>
-                      <span
-                        className={`font-display text-xl font-bold ${top ? (rank === 1 ? "text-gold" : rank === 2 ? "text-gold/90" : "") : ""}`}
-                      >
-                        {t.score}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-2">
-                      <button
-                        type="button"
-                        className="btn btn-danger flex-1! py-1! text-base!"
-                        onClick={() => act("score.add", { teamId: t.id, points: -(Number(customScore[t.id] ?? 10) || 0) })}
-                      >
-                        −
-                      </button>
-                      <input
-                        type="number"
-                        className="w-full text-center!"
-                        value={customScore[t.id] ?? 10}
-                        onChange={(e) => setCustomScore({ ...customScore, [t.id]: e.target.value })}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-ok flex-1! py-1! text-base!"
-                        onClick={() => act("score.add", { teamId: t.id, points: Number(customScore[t.id] ?? 10) || 0 })}
-                      >
-                        +
-                      </button>
-                    </div>
-                    {g.buzzer?.winner === t.id && <div className="badge badge-ok mt-2">Đang giữ chuông</div>}
-                    {top && (
-                      <div className="mt-1.5 h-1 rounded-full bg-line overflow-hidden">
-                        <div
-                          className={`h-full ${rank === 1 ? "bg-gold" : rank === 2 ? "bg-gold/70" : "bg-gold/40"}`}
-                          style={{ width: `${Math.max(5, (t.score / maxScore) * 100)}%` }}
-                        />
-                      </div>
-                    )}
+              const rank = rankedById[t.id];
+              const top = rank <= 3;
+              const isBuzzer = g.buzzer?.winner === t.id;
+              return (
+                <div
+                  key={t.id}
+                  className={`flex items-center gap-2 border border-[rgba(255,255,255,0.15)] px-2.5 py-1.5 transition ${
+                    g.currentTeam === t.id ? "ring-1 ring-white/40" : ""
+                  } ${top ? "bg-gold/10 border-gold/40" : "bg-[#7d90b8]/30"}`}
+                >
+                  <span className={`w-6 shrink-0 text-center font-display font-bold text-sm ${top ? "text-gold" : "text-mist"}`}>
+                    {rankBadge(rank)}
+                  </span>
+                  <span className="w-2.5 h-2.5 shrink-0 rounded-full" style={{ background: t.color }} />
+                  <b className={`min-w-0 flex-1 truncate text-sm ${top ? "text-white" : "text-white/85"}`}>{t.name}</b>
+                  <span className={`shrink-0 font-display font-bold text-base tabular-nums ${top ? "text-gold" : "text-white/90"}`}>
+                    {t.score}
+                  </span>
+                  {isBuzzer && <span className="badge badge-ok shrink-0 px-1.5! py-0! text-[10px]!">chuông</span>}
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      className="btn btn-danger px-1.5! py-0.5! text-xs!"
+                      onClick={() => act("score.add", { teamId: t.id, points: -(Number(customScore[t.id] ?? 10) || 0) })}
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      className="w-11! rounded border border-line bg-panel-solid px-1 py-0.5! text-center text-xs! tabular-nums"
+                      value={customScore[t.id] ?? 10}
+                      onChange={(e) => setCustomScore({ ...customScore, [t.id]: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-ok px-1.5! py-0.5! text-xs!"
+                      onClick={() => act("score.add", { teamId: t.id, points: Number(customScore[t.id] ?? 10) || 0 })}
+                    >
+                      +
+                    </button>
                   </div>
-                );
-              })}
-            </div>
-          </>
-
+                </div>
+              );
+            })}
+        </div>
       </aside>
 
       {confirmStart && (
