@@ -179,12 +179,12 @@ export function Round2Board({ state, g, minimal }) {
                       ? "pointer-events-none"
                       : "bg-gold/90 text-[#1a1400]"
                     : locked[r]
-                      ? "bg-danger/60 text-white"
+                      ? "bg-black pointer-events-none"
                       : "bg-[#0e1830] text-mist"
                 }`}
               >
                 {locked[r] ? (
-                  <span className={`px-3 ${r < 2 ? "pt-2" : "pb-2"}`}>✕</span>
+                  ""
                 ) : solved[r] && media?.url && media.type !== "video" ? (
                   ""
                 ) : (
@@ -200,11 +200,11 @@ export function Round2Board({ state, g, minimal }) {
                   ? "pointer-events-none border-transparent"
                   : "bg-gold text-[#1a1400] border-gold shadow-[0_0_26px_rgba(255,214,10,0.45)]"
                 : locked[4]
-                  ? "bg-danger/70 text-white border-danger/70"
+                  ? "bg-black pointer-events-none border-transparent"
                   : "bg-[#0e1830] text-mist border-line"
             }`}
           >
-            {locked[4] ? "✕" : solved[4] && media?.url && media.type !== "video" ? "" : 5}
+            {locked[4] ? "" : solved[4] && media?.url && media.type !== "video" ? "" : 5}
           </div>
         </div>
       </div>

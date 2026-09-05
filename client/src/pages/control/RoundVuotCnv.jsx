@@ -117,13 +117,13 @@ export default function RoundVuotCnv({ ctx }) {
                       isImage && solved[r]
                         ? "pointer-events-none bg-transparent"
                         : locked[r]
-                          ? "bg-danger/60 text-white cursor-not-allowed"
+                          ? "bg-black pointer-events-none cursor-not-allowed"
                           : solved[r]
                             ? "bg-[#ffd60a]/80 text-[#1a1400]"
                             : "bg-[#0e1830] text-mist hover:bg-[#2a3d63] hover:text-gold cursor-pointer"
                     }`}
                   >
-                    {isImage && solved[r] ? "" : <span className={`px-3 ${r < 2 ? "pt-2" : "pb-2"}`}>{locked[r] ? "✕" : r + 1}</span>}
+                    {isImage && solved[r] ? "" : <span className={`px-3 ${r < 2 ? "pt-2" : "pb-2"}`}>{locked[r] ? "" : r + 1}</span>}
                   </button>
                 );
               })}
@@ -138,13 +138,13 @@ export default function RoundVuotCnv({ ctx }) {
                 cnv?.media?.url && cnv.media.type !== "video" && solved[4]
                   ? "pointer-events-none bg-transparent border-transparent"
                   : locked[4]
-                    ? "bg-danger/70 text-white border-danger/70 cursor-not-allowed"
+                    ? "bg-black pointer-events-none border-transparent cursor-not-allowed"
                     : solved[4]
                       ? "bg-[#ffd60a] text-[#1a1400] border-gold shadow-[0_0_26px_rgba(255,214,10,0.45)]"
                       : "bg-[#0e1830] text-mist border-line hover:bg-[#2a3d63] hover:text-gold cursor-pointer"
               }`}
             >
-              {locked[4] ? "✕" : cnv?.media?.url && cnv.media.type !== "video" && solved[4] ? "" : 5}
+              {locked[4] ? "" : cnv?.media?.url && cnv.media.type !== "video" && solved[4] ? "" : 5}
             </button>
           </div>
         </div>
