@@ -811,19 +811,17 @@ function TangTocStage({ state, g, timer }) {
           v.removeEventListener("playing", unmute);
         };
       }, [phase, timerRunning, timerDuration, timerRemaining, d.mediaUrl, d.mode, tt.elapsedBase]);
-  // MC điều khiển 2 trạng thái màn khán giả (giống Round 2): d.mode === "question" →
-  // chiếu video; d.mode === "answers" → hiện đáp án các đội. Phase "answers" (tự động
-  // sau khi hết thời gian chiếu) vẫn kéo màn hình về hiển thị đáp án như cũ.
-  const showResults = phase === "answers" || d.mode === "answers";
-  // MC chủ động bấm "Đáp án các đội" (d.mode === "answers") → hiện DANH SÁCH ĐÁP ÁN
-  // ngay (giống RowResults của Round 2), không nằm trong màn chờ "HẾT GIỜ ?!".
-  const mcRequestedAnswers = d.mode === "answers";
-  const showPrep = phase === "preparing";
+  // MÀN KHÁN GIẢ chỉ theo d.mode (MC điều khiển, giống Round 2):
+  //   • d.mode === "question" → CHIẾU VIDEO
+  //   • d.mode === "answers"  → ĐÁP ÁN CÁC ĐỘI
+  //   • còn lại               → màn chờ
+  const showAnswers = d.mode === "answers";
+  const showPrep = phase === "preparing" && d.mode === "question";
+  const mcShown = d.mode === "question";
   const submissions = tt.submissions || {};
   const ranked = tt.ranked || [];
   const teams = state.teams || [];
   const hasVideo = !!d.mediaUrl && d.mediaType === "video";
-  const mcShown = d.mode === "question";
 
   // Danh sách đáp án sắp theo thời gian thấp → cao; ưu tiên ranked (đã có nhận định của MC).
   const ordered = ranked.length
@@ -832,46 +830,16 @@ function TangTocStage({ state, g, timer }) {
         .map(([teamId, s]) => ({ teamId, answer: s.answer, elapsed: s.elapsed, correct: null, points: 0, place: null }))
         .sort((a, b) => a.elapsed - b.elapsed);
 
-  // Giai đoạn chấm điểm — 2 BƯỚC TẠO HỒI HỘP:
-  //   1) reveal=""   → MÀN CHỜ "HẾT GIỜ": dấu "?" đầy bí ẩn, chờ MC mở.
-  //   2) "scores"    → HIỆN KẾT QUẢ CHẤM ĐIỂM: đúng/sai + +40/30/20/10 + đáp án chính xác.
-  const reveal = tt.reveal || "";
-  if (showResults) {
-    if (reveal === "scores" || mcRequestedAnswers) {
-      return (
-        <div className="w-full">
-          <TangTocList items={ordered} teams={teams} settled={tt.settled} judge={true} />
-          {tt.settled && d.answer && (
-            <div className="kicker text-center mt-6">
-              ĐÁP ÁN: <span className="text-white text-[clamp(22px,3vw,36px)]">{d.answer}</span>
-            </div>
-          )}
-          {d.question && <div className="stage-note text-center mt-4">{d.question}</div>}
-        </div>
-      );
-    }
-    // reveal === "" → MÀN CHỜ KỊCH TÍNH (MC chưa mở kết quả chấm điểm)
+  if (showAnswers) {
     return (
-      <div className="w-full flex flex-col items-center justify-center gap-6 min-h-[55vh]">
-        <div className="kicker text-gold">HẾT GIỜ NỘP BÀI</div>
-        <div className="font-display font-black text-[clamp(60px,11vw,140px)] text-gold drop-shadow-[0_0_30px_rgba(255,214,10,0.3)]">
-          ?!
-        </div>
-        <div className="text-mist text-[clamp(16px,2.2vw,26px)] text-center max-w-[900px]">
-          Các đội đã gửi đáp án — video vừa dừng lại!
-        </div>
-        <div className="flex gap-6 mt-2">
-          {teams.filter((t) => activeTeamIds(g, teams).includes(t.id)).map((t) => (
-            <div
-              key={t.id}
-              className="rounded-xl bg-panel/60 border border-line w-[160px] aspect-[4/3] grid place-items-center gap-2"
-            >
-              <div className="font-bold" style={{ color: t.color }}>{t.name}</div>
-              <span className="text-5xl animate-pulse" style={{ color: t.color }}>?</span>
-            </div>
-          ))}
-        </div>
-        <div className="kicker text-mist mt-2">Đang chờ MC mở kết quả chấm điểm…</div>
+      <div className="w-full">
+        <TangTocList items={ordered} teams={teams} settled={tt.settled} judge={true} />
+        {tt.settled && d.answer && (
+          <div className="kicker text-center mt-6">
+            ĐÁP ÁN: <span className="text-white text-[clamp(22px,3vw,36px)]">{d.answer}</span>
+          </div>
+        )}
+        {d.question && <div className="stage-note text-center mt-4">{d.question}</div>}
       </div>
     );
   }
@@ -887,6 +855,19 @@ function TangTocStage({ state, g, timer }) {
         </div>
         <div className="text-mist text-[clamp(16px,2.4vw,28px)] text-center">
           Đếm ngược rồi video sẽ được chiếu — hãy sẵn sàng! Hết video, các đội nộp đáp án theo độ nhanh.
+        </div>
+      </div>
+    );
+  }
+
+  // Video đã chiếu xong (phase tự chuyển "answers", nhưng màn khán giả vẫn chưa được MC
+  // mở bảng đáp án): hiện MÀN CHỜ chứ KHÔNG tự nhảy sang đáp án.
+  if (phase === "answers") {
+    return (
+      <div className="w-full flex flex-col items-center justify-center gap-5 min-h-[50vh]">
+        <div className="kicker text-gold">HẾT GIỜ NỘP BÀI</div>
+        <div className="text-mist text-[clamp(16px,2.2vw,26px)] text-center">
+          Các đội đã gửi đáp án — chờ MC mở kết quả chấm điểm.
         </div>
       </div>
     );

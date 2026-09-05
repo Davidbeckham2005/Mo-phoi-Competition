@@ -321,7 +321,7 @@ export default function RoundTangToc({ ctx }) {
             title="Màn hình khán giả: chiếu video"
             onClick={() => act("screen.set", { mode: "question" })}
           >
-            ▶ Chiếu video
+            📺 Chiếu video
           </button>
           <button
             type="button"
@@ -331,15 +331,7 @@ export default function RoundTangToc({ ctx }) {
           >
             📋 Đáp án các đội
           </button>
-          <button
-            type="button"
-            className={`btn py-1! px-3! text-xs ${tt.reveal === "scores" ? "btn-ok" : ""}`}
-            disabled={phase !== "answers"}
-            onClick={() => act("tangtoc.reveal", { step: "scores" })}
-          >
-            🏆 Hiện kết quả chấm điểm {tt.reveal === "scores" ? "✓" : ""}
-          </button>
-          <span className="text-mist text-xs">Chuyển video / đáp án các đội lên màn hình khán giả.</span>
+          <span className="text-mist text-xs">Bấm để chuyển video / đáp án các đội lên màn hình khán giả.</span>
         </div>
         <div className="flex items-center gap-3 mt-3">
           <button
