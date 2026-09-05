@@ -293,7 +293,9 @@ function Stage({ state, timer }) {
   //   - "puzzle"/khác → màn bảng mảnh ghép (bộ 5 mảnh: 4 góc + ô trung tâm mở cuối)
   // Chọn ô (selectRow) giữ nguyên màn đang xem — không tự nhảy sang bảng mảnh.
   if (g.round === "vuot_cnv") {
-    if (d.mode === "answers" && !g.puzzle?.keywordSolved) {
+    // Màn Đáp án hiển thị BẤT KỲ lúc nào MC muốn (không phụ thuộc keywordSolved).
+    // Nếu chưa có đáp án cho hàng nào, RowResults tự hiển thị trạng thái trống.
+    if (d.mode === "answers") {
       return <RowResults state={state} g={g} />;
     }
     return d.mode === "question"
