@@ -234,32 +234,67 @@ export default function Team() {
 } else if (g.round === "tang_toc") {
     const tt = g.tangToc || {};
     const phase = tt.phase || "video";
-    body = (
-      <div className="flex flex-col items-center gap-5 w-full max-w-lg">
-        <div className="round-badge">
-          {phase === "video"
-            ? "TĂNG TỐC — ĐANG CHIẾU VIDEO"
-            : phase === "answers"
-              ? "TĂNG TỐC — CHỐT ĐÁP ÁN"
-              : "TĂNG TỐC — CHUẨN BỊ CHIẾU"}
-        </div>
-        {phase === "preparing" ? (
+    // THÍ SINH đồng bộ với KHÁN GIẢ theo ĐÚNG display.mode do MC điều khiển (cộng phase):
+    //   1. d.mode "answers" → màn đáp án các đội (hàng so le 4 đội) — giống khán giả
+    //   2. phase "preparing" (d.mode question) → đếm ngược 3·2·1
+    //   3. phase "answers" → hết giờ nộp bài, chờ MC chốt
+    //   4. d.mode khác "question" → chờ MC chiếu
+    //   5. còn lại (phase video, d.mode question) → video + danh sách nộp
+    const ttAnswers = d.mode === "answers";
+    const ttPrep = phase === "preparing" && d.mode === "question";
+    const ttGotime = phase === "answers"; // hết video, chờ MC mở kết quả
+    const ttWaiting = d.mode !== "question";
+    let t3;
+    if (ttAnswers) {
+      t3 = (
+        <>
+          <div className="round-badge">TĂNG TỐC — ĐÁP ÁN CÁC ĐỘI</div>
+          <TeamTangTocAnswers state={state} g={g} />
+        </>
+      );
+    } else if (ttPrep) {
+      t3 = (
+        <div className="flex flex-col items-center gap-4">
+          <div className="round-badge">TĂNG TỐC — CHUẨN BỊ CHIẾU</div>
+          <div className="font-display font-black leading-none text-gold text-[clamp(80px,16vw,160px)]">
+            {Math.max(0, remaining)}
+          </div>
           <p className="text-mist max-w-md">
-            Đang đếm ngược chuẩn bị — video sắp được chiếu trên màn hình lớn. Quan sát thật kỹ, ghi đáp án rồi gửi khi video bắt đầu.
+            Đếm ngược rồi video sẽ được chiếu trên màn hình lớn. Quan sát thật kỹ, ghi đáp án rồi gửi khi video bắt đầu.
           </p>
-        ) : phase === "video" ? (
-          <>
-            <p className="text-mist max-w-md">
-              Quan sát video trên màn hình lớn, ghi đáp án (dạng tự luận) rồi gửi. Nộp nhanh sẽ được cộng nhiều điểm hơn.
-            </p>
-            <TeamVideo d={d} g={g} timer={timer} />
-            <TeamTangTocAnswers state={state} g={g} />
-          </>
-        ) : (
-          <p className="text-mist">Video đã chiếu xong — chờ MC chốt điểm từng đội trên màn hình lớn.</p>
-        )}
-      </div>
-    );
+        </div>
+      );
+    } else if (ttGotime) {
+      t3 = (
+        <>
+          <div className="round-badge">TĂNG TỐC — HẾT GIỜ NỘP BÀI</div>
+          <p className="text-mist max-w-md">
+            Các đội đã gửi đáp án — chờ MC chốt điểm từng đội trên màn hình lớn.
+          </p>
+        </>
+      );
+    } else if (ttWaiting) {
+      t3 = (
+        <>
+          <div className="round-badge">TĂNG TỐC</div>
+          <p className="text-mist max-w-md">
+            Đang chờ MC mở câu hỏi và chiếu video…
+          </p>
+        </>
+      );
+    } else {
+      t3 = (
+        <>
+          <div className="round-badge">TĂNG TỐC — ĐANG CHIẾU VIDEO</div>
+          <p className="text-mist max-w-md">
+            Quan sát video trên màn hình lớn, ghi đáp án (dạng tự luận) rồi gửi. Nộp nhanh sẽ được cộng nhiều điểm hơn.
+          </p>
+          <TeamVideo d={d} g={g} timer={timer} />
+          <TeamTangTocAnswers state={state} g={g} />
+        </>
+      );
+    }
+    body = <div className="flex flex-col items-center gap-5 w-full max-w-lg">{t3}</div>;
   } else if (g.round === "ve_dich") {
     body = (
       <VeDichBody
