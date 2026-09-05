@@ -385,8 +385,8 @@ export default function Control() {
         {g.round === "khoi_dong" && <QuestionScorePanel ctx={ctx} />}
 
         {/* 2 · TRẠNG THÁI (không phải Round 1 — Round 1 gộp đồng hồ vào ô Câu hỏi & đáp án).
-           Vòng 2 đã gộp đồng hồ + trạng thái vào thanh điều khiển riêng (không hiện panel này). */}
-        {g.round !== "khoi_dong" && g.round !== "vuot_cnv" && (
+           Vòng 2 và Vòng 3 đã gộp đồng hồ + trạng thái vào thanh điều khiển riêng (không hiện panel này). */}
+        {g.round !== "khoi_dong" && g.round !== "vuot_cnv" && g.round !== "tang_toc" && (
           <div className="panel flex flex-wrap items-center gap-3 py-3">
             <span className="round-badge">{g.round || "setup"}</span>
             <span className={`badge ${status.cls === "ok" ? "badge-ok" : status.cls === "warn" ? "badge-warn" : ""}`}>
