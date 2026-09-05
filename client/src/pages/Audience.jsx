@@ -153,11 +153,11 @@ export default function Audience() {
       )}
       <div className="relative flex items-start justify-end gap-4 z-10">
         <div className="flex flex-col items-end">
-          <div className={`timer-xl mt-2 ${remaining <= 5 && running ? "timer-danger" : ""}`}>
-            {g.round === "vuot_cnv"
-              ? (running ? formatTime(remaining) : "CHỜ")
-              : formatTime(remaining)}
-          </div>
+          {!(g.round === "vuot_cnv" && !running) && (
+            <div className={`timer-xl mt-2 ${remaining <= 5 && running ? "timer-danger" : ""}`}>
+              {formatTime(remaining)}
+            </div>
+          )}
         </div>
       </div>
 
