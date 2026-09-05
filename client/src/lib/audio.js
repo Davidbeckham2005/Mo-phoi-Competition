@@ -1,4 +1,4 @@
-let pack = { correct: { url: "" }, wrong: { url: "" }, bg: { url: "" }, wait: { url: "" } };
+let pack = { correct: { url: "" }, wrong: { url: "" }, bg: { url: "" }, wait: { url: "" }, buzz: { url: "" }, answers: { url: "" } };
 let unlocked = false;
 let bedKind = null;
 let sfxEl = null;

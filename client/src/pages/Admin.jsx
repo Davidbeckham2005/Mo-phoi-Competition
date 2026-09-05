@@ -871,6 +871,7 @@ function SoundsTab({ state, reload, setMsg }) {
     ["bg", "Nhạc nền", "Lặp khi đang thi"],
     ["wait", "Nhạc chờ", "Lặp khi màn hình chờ"],
     ["buzz", "Chuông giành quyền CNV", "Phát khi thí sinh ấn phím trả lời chướng ngại vật"],
+    ["answers", "Chuyển màn Đáp án", "Phát khi MC chuyển khán giả sang màn Đáp án vòng 2"],
   ];
   const sounds = state.sounds || {};
 
