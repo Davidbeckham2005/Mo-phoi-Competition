@@ -47,6 +47,7 @@ export default function RoundTangToc({ ctx }) {
   const timer = ctx.timer || {};
   const running = !!timer.running;
   const shown = (g.display?.mode === "question") && (g.display?.mediaType === "video" || phase === "video");
+  const screenMode = g.display?.mode === "answers" ? "answers" : "question";
   const duration = timer.duration || curQ?.duration || 0;
   const remaining = timer.remaining ?? 0;
   const subCount = Object.keys(subs).length;
@@ -309,10 +310,27 @@ export default function RoundTangToc({ ctx }) {
             );
           })}
         </div>
-        {/* Điều khiển màn hình khán giả: mở KẾT QUẢ CHẤM ĐIỂM (kèm đáp án đúng) để tạo
-            kịch tính — không hiện bước "đáp án" trung gian. Chỉ ở giai đoạn liệt kê. */}
+        {/* Điều khiển màn hình khán giả: 2 nút chuyển màn hình giữa CHIẾU VIDEO
+            và ĐÁP ÁN CÁC ĐỘI (giống Round 2 dùng screen.set → display.mode). MC bấm
+            chuyển bất cứ lúc nào — khán giả & thí sinh đồng bộ theo d.mode. */}
         <div className="flex flex-wrap items-center gap-3 mt-3 border-t border-line/50 pt-3">
           <div className="text-xs tracking-[0.18em] text-mist uppercase mr-1">Màn hình khán giả</div>
+          <button
+            type="button"
+            className={`btn py-1! px-3! text-xs ${screenMode === "question" ? "bg-white/20 ring-1 ring-white/40 text-white" : ""}`}
+            title="Màn hình khán giả: chiếu video"
+            onClick={() => act("screen.set", { mode: "question" })}
+          >
+            ▶ Chiếu video
+          </button>
+          <button
+            type="button"
+            className={`btn py-1! px-3! text-xs ${screenMode === "answers" ? "bg-white/20 ring-1 ring-white/40 text-white" : ""}`}
+            title="Màn hình khán giả: hiện đáp án các đội"
+            onClick={() => act("screen.set", { mode: "answers" })}
+          >
+            📋 Đáp án các đội
+          </button>
           <button
             type="button"
             className={`btn py-1! px-3! text-xs ${tt.reveal === "scores" ? "btn-ok" : ""}`}
@@ -321,7 +339,7 @@ export default function RoundTangToc({ ctx }) {
           >
             🏆 Hiện kết quả chấm điểm {tt.reveal === "scores" ? "✓" : ""}
           </button>
-          <span className="text-mist text-xs">Lộ điểm đúng/sai của từng đội lên màn hình khán giả.</span>
+          <span className="text-mist text-xs">Chuyển video / đáp án các đội lên màn hình khán giả.</span>
         </div>
         <div className="flex items-center gap-3 mt-3">
           <button

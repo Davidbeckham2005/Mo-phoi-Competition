@@ -811,7 +811,13 @@ function TangTocStage({ state, g, timer }) {
           v.removeEventListener("playing", unmute);
         };
       }, [phase, timerRunning, timerDuration, timerRemaining, d.mediaUrl, d.mode, tt.elapsedBase]);
-  const showResults = phase === "answers";
+  // MC điều khiển 2 trạng thái màn khán giả (giống Round 2): d.mode === "question" →
+  // chiếu video; d.mode === "answers" → hiện đáp án các đội. Phase "answers" (tự động
+  // sau khi hết thời gian chiếu) vẫn kéo màn hình về hiển thị đáp án như cũ.
+  const showResults = phase === "answers" || d.mode === "answers";
+  // MC chủ động bấm "Đáp án các đội" (d.mode === "answers") → hiện DANH SÁCH ĐÁP ÁN
+  // ngay (giống RowResults của Round 2), không nằm trong màn chờ "HẾT GIỜ ?!".
+  const mcRequestedAnswers = d.mode === "answers";
   const showPrep = phase === "preparing";
   const submissions = tt.submissions || {};
   const ranked = tt.ranked || [];
@@ -831,7 +837,7 @@ function TangTocStage({ state, g, timer }) {
   //   2) "scores"    → HIỆN KẾT QUẢ CHẤM ĐIỂM: đúng/sai + +40/30/20/10 + đáp án chính xác.
   const reveal = tt.reveal || "";
   if (showResults) {
-    if (reveal === "scores") {
+    if (reveal === "scores" || mcRequestedAnswers) {
       return (
         <div className="w-full">
           <TangTocList items={ordered} teams={teams} settled={tt.settled} judge={true} />
