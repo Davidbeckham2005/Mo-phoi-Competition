@@ -60,38 +60,38 @@ export function RowResults({ state, g }) {
       <div className="kicker text-center mb-6">
         KẾT QUẢ TRẢ LỜI — HÀNG {p.currentRow + 1}
       </div>
-      <div className="grid gap-x-4 gap-y-6 mx-auto w-[min(980px,94%)]" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+      <div className="mx-auto w-[min(900px,94%)]">
+        <div className="flex items-center px-4 pb-2 text-[11px] uppercase tracking-[0.25em] text-mist/70">
+          <span className="w-40 shrink-0">Đội</span>
+          <span className="flex-1 text-center">Đáp án</span>
+          <span className="w-24 shrink-0 text-right">Thời gian</span>
+          <span className="w-20 shrink-0 text-right">Kết quả</span>
+        </div>
         {cards.map((c) => (
-          <div key={c.teamId} className="flex flex-col items-center text-center gap-2">
+          <div key={c.teamId} className="flex items-center px-4 py-3.5">
             <span
-              className="font-bold text-[clamp(16px,1.6vw,22px)] truncate max-w-full"
+              className="w-40 shrink-0 font-bold text-[clamp(16px,1.6vw,22px)] truncate"
               style={{ color: c.team?.color }}
             >
               {c.team?.name || `Đội ${c.teamId}`}
             </span>
-            {c.answer != null && c.answer !== "" ? (
-              <>
-                <span className="text-mist text-sm font-mono tabular-nums">
-                  {c.elapsed != null ? c.elapsed.toFixed(2) + "s" : "—"}
-                </span>
-                <span
-                  className={`font-semibold text-[clamp(14px,1.5vw,20px)] leading-snug max-w-full ${
-                    c.ok ? "text-[#80ed99]" : c.ng ? "text-[#ffb3c1]" : "text-white"
-                  }`}
-                >
-                  “{c.answer}”
-                </span>
-                <span
-                  className={`text-xs font-bold uppercase tracking-widest ${
-                    c.ok ? "text-[#80ed99]" : c.ng ? "text-[#ffb3c1]" : "text-mist"
-                  }`}
-                >
-                  {c.ok ? "Đúng" : c.ng ? "Sai" : "Đang chờ…"}
-                </span>
-              </>
-            ) : (
-              <span className="text-lg text-mist/40">—</span>
-            )}
+            <span
+              className={`flex-1 text-center font-semibold text-[clamp(15px,1.8vw,22px)] leading-snug px-2 ${
+                c.ok ? "text-[#80ed99]" : c.ng ? "text-[#ffb3c1]" : c.answer ? "text-white" : "text-mist/40"
+              }`}
+            >
+              {c.answer && c.answer !== "" ? `“${c.answer}”` : "—"}
+            </span>
+            <span className="w-24 shrink-0 text-right text-mist font-mono tabular-nums text-sm">
+              {c.answer && c.answer !== "" && c.elapsed != null ? c.elapsed.toFixed(2) + "s" : ""}
+            </span>
+            <span
+              className={`w-20 shrink-0 text-right text-sm font-bold uppercase tracking-widest ${
+                c.ok ? "text-[#80ed99]" : c.ng ? "text-[#ffb3c1]" : "text-mist/50"
+              }`}
+            >
+              {c.answer && c.answer !== "" ? (c.ok ? "Đúng" : c.ng ? "Sai" : "Chờ…") : ""}
+            </span>
           </div>
         ))}
       </div>
