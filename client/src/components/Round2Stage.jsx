@@ -133,8 +133,6 @@ export function Round2Board({ state, g, minimal }) {
   const solved = [0, 1, 2, 3, 4].map((i) => isOpen(p, i));
   const locked = [0, 1, 2, 3, 4].map((i) => isLocked(p, i));
   const media = cnv?.media;
-  const last = p.lastResult;
-  const lastTeam = last ? state.teams.find((t) => t.id === last.teamId) : null;
   return (
     <div className="relative w-full max-w-[1200px] min-h-[60vh] mx-auto flex flex-col items-center justify-center">
       {!minimal && p.keywordClaim && !p.keywordSolved && (
@@ -143,24 +141,6 @@ export function Round2Board({ state, g, minimal }) {
             <div className="font-display font-black text-[clamp(20px,2.2vw,34px)] leading-none text-white">
               {state.teams.find((t) => t.id === p.keywordClaim)?.name}
             </div>
-          </div>
-        </div>
-      )}
-      {!minimal && last && (
-        <div
-          key={`${last.row}-${last.correct}`}
-          className={`flex justify-center pb-5 r2-feedback ${last.correct ? "r2-correct" : "r2-wrong"}`}
-        >
-          <div className={`r2-feedback-pill ${last.correct ? "r2-pill-ok" : "r2-pill-no"}`}>
-            <span className="text-2xl font-display font-black tracking-wide">
-              {last.correct ? "ĐÚNG!" : "SAI"}
-            </span>
-            <span className="text-sm opacity-80">
-              {last.correct
-                ? `+${last.pts} • Hàng ${last.row + 1} đã mở`
-                : `−${Math.abs(last.pts || 0)} • Hàng ${last.row + 1} đã khóa`}
-            </span>
-            {lastTeam && <span className="text-sm" style={{ color: lastTeam.color }}>{lastTeam.name}</span>}
           </div>
         </div>
       )}
