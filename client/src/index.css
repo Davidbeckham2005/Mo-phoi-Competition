@@ -156,6 +156,14 @@
     60% { transform: scale(1.12) translateY(0); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
   }
+  .r2-row-in {
+    opacity: 0;
+    animation: r2RowIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  @keyframes r2RowIn {
+    0% { transform: translateY(18px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
   .round-badge {
     display: inline-block;
     font-weight: 800;

@@ -67,8 +67,12 @@ export function RowResults({ state, g }) {
           <span className="w-24 shrink-0 text-right">Thời gian</span>
           <span className="w-20 shrink-0 text-right">Kết quả</span>
         </div>
-        {cards.map((c) => (
-          <div key={c.teamId} className="flex items-center px-4 py-3.5">
+        {cards.map((c, i) => (
+          <div
+            key={c.teamId}
+            className="r2-row-in flex items-center px-4 py-3.5"
+            style={{ animationDelay: `${i * 280}ms` }}
+          >
             <span
               className="w-40 shrink-0 font-bold text-[clamp(16px,1.6vw,22px)] truncate"
               style={{ color: c.team?.color }}
