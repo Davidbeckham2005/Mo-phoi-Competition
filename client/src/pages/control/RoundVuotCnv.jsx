@@ -176,9 +176,17 @@ export default function RoundVuotCnv({ ctx }) {
                         : "border-[rgba(255,214,10,0.2)] bg-[#1d2c4a] hover:border-gold hover:bg-gold/10"
                 } disabled:opacity-40 disabled:cursor-not-allowed`}
               >
-                <div className="flex items-baseline gap-1.5 min-w-0">
-                  <span className="font-display font-bold text-xl leading-none text-white">{count}</span>
-                  <span className="text-mist text-xs whitespace-nowrap">kí tự</span>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="font-display font-bold text-xl leading-none text-white">{count}</span>
+                    <span className="text-mist text-xs whitespace-nowrap">kí tự</span>
+                  </div>
+                  {isCurrent && (
+                    <div className="flex items-baseline gap-1.5 mt-1">
+                      <span className="text-xs text-mist whitespace-nowrap">Đáp án:</span>
+                      <span className="text-sm font-bold text-gold">{row.answer || "—"}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span
