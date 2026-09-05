@@ -484,10 +484,17 @@ export function resetKhoiDong(teamId = null) {
   //   mode === "answers"  → MÀN HÌNH ĐÁP ÁN CÁC ĐỘI GỬI VỀ (MC mở dần từng đáp án)
   //   còn lại             → MÀN HÌNH ẢNH GHÉP + HÀNG NGANG
   // Giữ nguyên dữ liệu câu hỏi (display.question/answer...) để MC chuyển qua lại thoải mái.
+  // ✓ Vòng 3 (Tăng tốc) dùng CHUNG cơ chế này: "question" → chiếu video, "answers" → đáp án
+  //   các đội (2 màn riêng, tab trên bàn MC).
   export function setScreenMode(mode) {
     const game = g();
-    if (game.round !== "vuot_cnv") return;
-    game.display.mode = mode === "question" || mode === "answers" ? mode : "puzzle";
+    if (game.round !== "vuot_cnv" && game.round !== "tang_toc") return;
+    game.display.mode =
+      mode === "question" || mode === "answers"
+        ? mode
+        : game.round === "tang_toc"
+          ? "question"
+          : "puzzle";
     saveDb();
     emit();
   }
