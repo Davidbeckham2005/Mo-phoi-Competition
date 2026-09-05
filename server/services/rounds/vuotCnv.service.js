@@ -14,6 +14,7 @@
 
 import { getDb, saveDb } from "../../models/store.js";
 import { TEAM_ORDER } from "../../config/constants.js";
+import { emitEvent } from "../../config/io.js";
 
 // Team hợp lệ = có trong TEAM_ORDER (round 2 chỉ chạy với top-4, nhưng đội "e"/"f"
 // cũng là team hợp lệ khi đạt top-4).
@@ -346,6 +347,7 @@ export function closeRowSubmissions() {
   // Đóng nhận bài → tự chuyển màn hình lớn + thí sinh sang MÀN ĐÁP ÁN để MC chấm
   // và mở dần từng đáp án (MC vẫn chuyển tay sang Câu hỏi/Bảng mảnh được).
   game.display.mode = "answers";
+  emitEvent("sound:play", { slot: "answers" });
   saveDb();
   emit();
 }

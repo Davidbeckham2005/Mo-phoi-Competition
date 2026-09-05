@@ -80,11 +80,7 @@ const actions = {
   "puzzle.row": (p) => game.revealRow(p.row),
   "puzzle.all": () => game.revealAllPuzzle(),
   "puzzle.show": () => game.showPuzzle(),
-  "puzzle.close": () => {
-    const r = game.closeRowSubmissions();
-    emitEvent("sound:play", { slot: "answers" });
-    return r;
-  },
+  "puzzle.close": () => game.closeRowSubmissions(),
   "puzzle.mark": (p) => game.markRowAnswer(p.teamId, !!p.correct),
   "puzzle.settle": () => game.settleRow(),
   "puzzle.nextAnswer": () => game.revealNextRowAnswer(),
