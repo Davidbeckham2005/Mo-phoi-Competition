@@ -42,7 +42,6 @@ export default function RoundTangToc({ ctx }) {
   }
   const qs = state.questions?.main?.tangToc || [];
   const curIdx = g.questionIndex || 0;
-  const curQ = qs[curIdx];
   const subs = tt.submissions || {};
   const ranked = tt.ranked || [];
   const corrections = tt.corrections || {};
@@ -53,7 +52,6 @@ export default function RoundTangToc({ ctx }) {
   const running = !!timer.running;
   const shown = (g.display?.mode === "question") && (g.display?.mediaType === "video" || phase === "video");
   const screenMode = g.display?.mode === "answers" ? "answers" : "question";
-  const duration = timer.duration || curQ?.duration || 0;
   const remaining = timer.remaining ?? 0;
   const subCount = Object.keys(subs).length;
   // ĐỒNG BỘ VIDEO + THỜI GIAN với màn hình khán giả: mọi màn hình SnAP video theo cùng
@@ -101,13 +99,6 @@ export default function RoundTangToc({ ctx }) {
 
   if (g.round !== "tang_toc") return null;
 
-  let status = { label: "Chưa chọn câu", tone: "badge" };
-  if (settled) status = { label: "Đã kết thúc (đã chốt điểm)", tone: "badge-ok" };
-  else if (phase === "preparing") status = { label: `Đang chuẩn bị chiếu — đếm ngược ${Math.max(0, remaining)}s`, tone: "badge-warn" };
-  else if (phase === "answers") status = { label: "Đang chấm đáp án", tone: "badge-warn" };
-  else if (shown && running) status = { label: "Đang chiếu video — các đội đang nộp đáp án", tone: "badge-ok" };
-  else if (shown && !running) status = { label: "Sẵn sàng chiếu — bấm “▶ Chiếu video”", tone: "badge" };
-
   const rows = teams
     .filter((t) => activeTeamIds(g, teams).includes(t.id))
     .map((t) => {
@@ -136,74 +127,67 @@ export default function RoundTangToc({ ctx }) {
 
   return (
     <div className="grid gap-3.5">
-      {/* ĐIỀU KHIỂN MÀN HÌNH — 2 nút chuyển màn khán giả + "Đang hiện" + nút hành động + đồng hồ (như Vòng 2) */}
+      {/* ĐIỀU KHIỂN — TAB chuyển màn khán giả (2 màn RIÊNG) + nút hành động + đồng hồ */}
       <div className="panel">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="text-xs tracking-[0.18em] text-mist uppercase mr-1">Màn hình khán giả</div>
+        <div className="grid grid-cols-2 gap-1.5 mb-3">
           <button
             type="button"
-            className={`btn text-sm! py-0! h-10 w-[9.5rem]! justify-center text-center ${
-              screenMode === "question" ? "bg-white/20 ring-1 ring-white/40 text-white" : "btn-ghost"
+            className={`flex items-center justify-center gap-2 h-12 rounded-xl border text-sm font-semibold transition ${
+              screenMode === "question"
+                ? "border-gold bg-gold/15 text-gold"
+                : "border-line bg-night/40 text-mist hover:border-gold/40 hover:text-white"
             }`}
-            title="Màn khán giả: chiếu video (đồng bộ thí sinh)"
             onClick={() => act("screen.set", { mode: "question" })}
           >
             📺 Chiếu video
           </button>
           <button
             type="button"
-            className={`btn text-sm! py-0! h-10 w-[9.5rem]! justify-center text-center ${
-              screenMode === "answers" ? "bg-white/20 ring-1 ring-white/40 text-white" : "btn-ghost"
+            className={`flex items-center justify-center gap-2 h-12 rounded-xl border text-sm font-semibold transition ${
+              screenMode === "answers"
+                ? "border-gold bg-gold/15 text-gold"
+                : "border-line bg-night/40 text-mist hover:border-gold/40 hover:text-white"
             }`}
-            title="Màn khán giả: hiện đáp án các đội (đồng bộ thí sinh)"
             onClick={() => act("screen.set", { mode: "answers" })}
           >
             📋 Đáp án các đội
           </button>
-          <span className="text-mist text-xs">
-            Đang hiện: <b className="text-gold">{screenMode === "answers" ? "Đáp án các đội" : "Chiếu video"}</b>
-          </span>
-          <div className="ml-auto flex items-center gap-2">
-            {phase === "preparing" ? (
-              <button type="button" className="btn btn-ok disabled:opacity-60" disabled>
-                Chuẩn bị chiếu… {Math.max(0, remaining)}s
-              </button>
-            ) : phase === "video" && running ? (
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={() => setPrompt({ kind: "stop" })}
-                title="Cần mật khẩu admin"
-              >
-                ⏸ Dừng video
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-ok disabled:opacity-45"
-                disabled={settled || phase === "answers"}
-                onClick={() => act("tangtoc.play")}
-              >
-                ▶ Chiếu video (Câu {curIdx + 1})
-              </button>
-            )}
-            {running && (
-              <span
-                className={`inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1.5 timer-xl text-3xl ${
-                  remaining <= 5 ? "timer-danger" : "text-gold"
-                }`}
-              >
-                {remaining}s
-              </span>
-            )}
-          </div>
         </div>
-        <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-line/50 pt-2.5">
-          <span className={`${status.tone} text-sm px-3 py-1`}>{status.label}</span>
-          <span className="text-mist text-sm">
-            Đã nộp <b className="text-white">{subCount}</b>/4 • Đồng hồ{" "}
-            {running ? <b className="text-gold">{remaining}s</b> : <b className="text-mist">{remaining}s (dừng)</b>} / {Math.round(duration)}s
+        <div className="flex flex-wrap items-center gap-2">
+          {phase === "preparing" ? (
+            <button type="button" className="btn btn-ok disabled:opacity-60" disabled>
+              Chuẩn bị chiếu… {Math.max(0, remaining)}s
+            </button>
+          ) : phase === "video" && running ? (
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => setPrompt({ kind: "stop" })}
+            >
+              ⏸ Dừng video
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-ok disabled:opacity-45"
+              disabled={settled || phase === "answers"}
+              onClick={() => act("tangtoc.play")}
+            >
+              ▶ Chiếu video (Câu {curIdx + 1})
+            </button>
+          )}
+          <span className="text-mist text-sm ml-2">
+            Đã nộp <b className="text-white">{subCount}</b>/4
           </span>
+          {running && (
+            <span
+              className={`ml-auto inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1.5 timer-xl text-3xl ${
+                remaining <= 5 ? "timer-danger" : "text-gold"
+              }`}
+            >
+              {remaining}s
+            </span>
+          )}
         </div>
       </div>
 
@@ -246,9 +230,6 @@ export default function RoundTangToc({ ctx }) {
           preload="auto"
           className="w-full max-h-[38vh] rounded-xl border border-line bg-black object-contain"
         />
-        {!g.display?.mediaUrl && (
-          <div className="text-mist text-xs mt-2 text-center">Chưa cài video cho câu này.</div>
-        )}
       </div>
 
       {/* BÀI NỘP — chấm Đúng/Sai từng đội + điểm dự kiến + Chốt điểm (như "Bài nộp" Vòng 2) */}
@@ -256,10 +237,10 @@ export default function RoundTangToc({ ctx }) {
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <span className="text-xs tracking-[0.18em] text-mist uppercase">Bài nộp Tăng tốc</span>
           {!settled && phase === "video" && running && (
-            <span className="badge badge-warn text-xs!">Đang nhận bài — các đội gõ đáp án gửi về</span>
+            <span className="badge badge-warn text-xs!">Đang nhận bài</span>
           )}
           {!settled && phase !== "video" && (
-            <span className="badge badge-warn text-xs!">Đã hết giờ — hãy chấm từng đội rồi Chốt</span>
+            <span className="badge badge-warn text-xs!">Hết giờ — chờ Chốt</span>
           )}
           {settled && <span className="badge badge-ok text-xs!">Đã chốt điểm ✓</span>}
           <span className="text-mist text-xs ml-auto">Đã nộp: {subCount}</span>
@@ -311,9 +292,6 @@ export default function RoundTangToc({ ctx }) {
           >
             {settled ? "Đã chốt điểm ✓" : "Chốt điểm Tăng tốc"}
           </button>
-          <span className="text-mist text-xs">
-            Chỉ đội ĐÚNG được điểm theo độ nhanh: nhất 40 · nhì 30 · ba 20 · tư 10. Sai = 0, không trừ.
-          </span>
         </div>
       </div>
 
