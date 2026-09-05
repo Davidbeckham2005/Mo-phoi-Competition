@@ -111,6 +111,9 @@
     const db = getDb();
     db.questions.main = normalizeMainKhoiDong(req.body.main || db.questions.main);
     saveDb();
+    // Đẩy game:state đi để mọi màn hình (đặc biệt bàn MC — danh sách câu hỏi
+    // Tăng tốc 1·2·3·4) cập nhật NGAY sau khi lưu/upload câu hỏi, không cần click lại.
+    game.emit();
     return db.questions.main;
   }
 
