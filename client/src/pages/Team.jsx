@@ -283,6 +283,8 @@ export default function Team() {
         </>
       );
     } else {
+      // MÀN 1 — CHIẾU VIDEO: chỉ video (đồng bộ khán giả). Đáp án các đội là MÀN RIÊNG
+      // (d.mode "answers", MC bấm "Đáp án các đội") — không hiện cùng lúc với video.
       t3 = (
         <>
           <div className="round-badge">TĂNG TỐC — ĐANG CHIẾU VIDEO</div>
@@ -290,7 +292,6 @@ export default function Team() {
             Quan sát video trên màn hình lớn, ghi đáp án (dạng tự luận) rồi gửi. Nộp nhanh sẽ được cộng nhiều điểm hơn.
           </p>
           <TeamVideo d={d} g={g} timer={timer} />
-          <TeamTangTocAnswers state={state} g={g} />
         </>
       );
     }
