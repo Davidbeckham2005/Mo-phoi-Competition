@@ -432,8 +432,8 @@ export function settleRow() {
     lockRow(p.currentRow);
   }
   resetDisplayToBoard();
-  // Sau khi chốt điểm vẫn giữ MÀN ĐÁP ÁN (kèm điểm/xếp hạng) cho đến khi MC chuyển.
-  game.display.mode = "answers";
+  // Sau khi chốt điểm → quay về tab CÂU HỎI để MC xử lý / mở ô kế tiếp.
+  game.display.mode = "question";
   saveDb();
   emit();
 }
