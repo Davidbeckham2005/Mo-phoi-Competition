@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { socket, on } from "../lib/socket.js";
 import { loginTeam } from "../lib/api/team.js";
@@ -256,9 +256,12 @@ export default function Team() {
             Đang đếm ngược chuẩn bị — video sắp được chiếu trên màn hình lớn. Quan sát thật kỹ, ghi đáp án rồi gửi khi video bắt đầu.
           </p>
         ) : phase === "video" ? (
-          <p className="text-mist max-w-md">
-            Quan sát video trên màn hình lớn, ghi đáp án (dạng tự luận) rồi gửi. Nộp nhanh sẽ được cộng nhiều điểm hơn.
-          </p>
+          <>
+            <p className="text-mist max-w-md">
+              Quan sát video trên màn hình lớn, ghi đáp án (dạng tự luận) rồi gửi. Nộp nhanh sẽ được cộng nhiều điểm hơn.
+            </p>
+            <TeamVideo d={d} g={g} timer={timer} />
+          </>
         ) : (
           <p className="text-mist">Video đã chiếu xong — chờ MC chốt điểm từng đội trên màn hình lớn.</p>
         )}
@@ -829,6 +832,65 @@ function ScoreList({ teams, me }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// Video Tăng tốc trên màn hình thí sinh: đồng bộ vị trí theo đồng hồ server (giống màn
+// khán giả) để thí sinh xem được video trong khi MC chiếu. Muted để không trùng âm thanh
+// với màn hình lớn.
+function TeamVideo({ d, g, timer }) {
+  const ref = useRef(null);
+  const tt = g.tangToc || {};
+  const running = !!timer?.running;
+  const duration = timer?.duration || 0;
+  const remaining = timer?.remaining ?? 0;
+  const src = d.mediaUrl;
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    const apply = () => {
+      if (g.tangToc?.phase !== "video" || d.mode !== "question") {
+        v.pause();
+        return;
+      }
+      if (!running || !duration) {
+        v.pause();
+        return;
+      }
+      const elapsed = Math.max(0, duration - remaining) + (tt.elapsedBase || 0);
+      const finiteDur = v.duration && isFinite(v.duration) && v.duration > 0;
+      const target = Math.min(elapsed, finiteDur ? v.duration : duration);
+      if (v.readyState >= 1 && Math.abs(v.currentTime - target) > 1.2) {
+        v.currentTime = target;
+        v.pause();
+        return;
+      }
+      v.play().catch(() => {});
+    };
+    apply();
+    v.addEventListener("loadedmetadata", apply);
+    v.addEventListener("durationchange", apply);
+    v.addEventListener("canplay", apply);
+    v.addEventListener("seeked", apply);
+    return () => {
+      v.removeEventListener("loadedmetadata", apply);
+      v.removeEventListener("durationchange", apply);
+      v.removeEventListener("canplay", apply);
+      v.removeEventListener("seeked", apply);
+    };
+  }, [src, g.tangToc?.phase, d.mode, running, duration, remaining, tt.elapsedBase]);
+
+  if (!src || d.mediaType !== "video") return null;
+  return (
+    <video
+      ref={ref}
+      src={src}
+      muted
+      playsInline
+      preload="auto"
+      className="w-full max-w-2xl rounded-2xl border border-line bg-black object-contain shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
+    />
   );
 }
 
