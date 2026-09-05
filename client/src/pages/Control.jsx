@@ -27,6 +27,7 @@ export default function Control() {
   const [customScore, setCustomScore] = useState({});
   const [confirmStart, setConfirmStart] = useState(null);
   const [roundPin, setRoundPin] = useState("");
+  const [sortScore, setSortScore] = useState(false);
 
   async function refreshQ() {
     try {
@@ -417,10 +418,25 @@ export default function Control() {
 
       {/* CỘT PHẢI — Bảng điểm (gọn, tham khảo cột vòng thi bên trái) */}
       <aside className="aside-col panel">
-        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-2">Bảng điểm</div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="text-xs tracking-[0.18em] text-mist uppercase">Bảng điểm</div>
+          <button
+            type="button"
+            onClick={() => setSortScore((v) => !v)}
+            className={`px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider border transition ${
+              sortScore
+                ? "border-gold/60 text-gold bg-gold/10"
+                : "border-[rgba(255,255,255,0.15)] text-mist hover:text-white hover:border-white/30"
+            }`}
+          >
+            Sort
+          </button>
+        </div>
         <div className="grid gap-1.5">
           {state.teams
             .filter((t) => (isKd ? true : activeTeamIds(g, state.teams).includes(t.id)))
+            .slice()
+            .sort((a, b) => (sortScore ? b.score - a.score : 0))
             .map((t) => {
               const rank = rankedById[t.id];
               const top = rank <= 3;
