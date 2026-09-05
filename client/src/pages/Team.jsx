@@ -234,7 +234,6 @@ export default function Team() {
 } else if (g.round === "tang_toc") {
     const tt = g.tangToc || {};
     const phase = tt.phase || "video";
-    const submitted = !!tt.submissions?.[team.id];
     body = (
       <div className="flex flex-col items-center gap-5 w-full max-w-lg">
         <div className="round-badge">
@@ -244,14 +243,7 @@ export default function Team() {
               ? "TĂNG TỐC — CHỐT ĐÁP ÁN"
               : "TĂNG TỐC — CHUẨN BỊ CHIẾU"}
         </div>
-        {submitted ? (
-          <div className="panel w-full text-left">
-            <div className="badge badge-ok inline-block mb-2">Đã gửi đáp án</div>
-            <p className="text-mist">
-              Đáp án của đội bạn: <b className="text-ink">“{tt.submissions[team.id].answer}”</b>. Chờ MC chốt điểm.
-            </p>
-          </div>
-        ) : phase === "preparing" ? (
+        {phase === "preparing" ? (
           <p className="text-mist max-w-md">
             Đang đếm ngược chuẩn bị — video sắp được chiếu trên màn hình lớn. Quan sát thật kỹ, ghi đáp án rồi gửi khi video bắt đầu.
           </p>
