@@ -80,7 +80,7 @@ export function bedKindFromGame(g) {
   if (!g) return "wait";
   if (
     g.round === "tang_toc" &&
-    (g.tangToc?.phase || "video") === "video" &&
+    (g.tangToc?.phase === "preparing" || g.tangToc?.phase === "video") &&
     g.display?.mode === "question" &&
     g.display?.mediaUrl
   ) {
