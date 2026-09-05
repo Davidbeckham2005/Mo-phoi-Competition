@@ -77,7 +77,7 @@ export function RowResults({ state, g }) {
             </span>
             <span
               className={`flex-1 text-center font-semibold text-[clamp(15px,1.8vw,22px)] leading-snug px-2 ${
-                c.ok ? "text-[#80ed99]" : c.ng ? "text-[#ffb3c1]" : c.answer ? "text-white" : "text-mist/40"
+                c.answer ? "text-white" : "text-mist/40"
               }`}
             >
               {c.answer && c.answer !== "" ? `“${c.answer}”` : "—"}
@@ -87,7 +87,7 @@ export function RowResults({ state, g }) {
             </span>
             <span
               className={`w-20 shrink-0 text-right text-sm font-bold uppercase tracking-widest ${
-                c.ok ? "text-[#80ed99]" : c.ng ? "text-[#ffb3c1]" : "text-mist/50"
+                c.ok ? "text-white/90" : c.ng ? "text-white/60" : "text-mist/50"
               }`}
             >
               {c.answer && c.answer !== "" ? (c.ok ? "Đúng" : c.ng ? "Sai" : "Chờ…") : ""}
