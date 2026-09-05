@@ -1,8 +1,7 @@
 import { formatTime } from "../../lib/format.js";
 
-// 3 màn hình riêng biệt của vòng 2 (Khán giả + Thí sinh đồng bộ), MC bấm nút để xoay vòng.
+// 3 màn hình riêng biệt của vòng 2 (Khán giả + Thí sinh đồng bộ), MC bấm nút để chuyển.
 const SCREEN_LABEL = { question: "Câu hỏi", puzzle: "Bảng mảnh", answers: "Đáp án" };
-const NEXT_SCREEN = { question: "puzzle", puzzle: "answers", answers: "question" };
 
 export default function RoundVuotCnv({ ctx }) {
   const { g, d, p, cnv, state, solved, locked, cnvRowPhase, revealed, showing, remaining, running, act } = ctx;
@@ -23,18 +22,25 @@ export default function RoundVuotCnv({ ctx }) {
 
   return (
     <div className="grid gap-3.5">
-      {/* ĐIỀU KHIỂN — xoay vòng 3 màn hình (Câu hỏi → Bảng mảnh → Đáp án) gộp với đồng hồ.
+      {/* ĐIỀU KHIỂN — 3 nút chuyển màn hình (Câu hỏi / Bảng mảnh / Đáp án) gộp với đồng hồ.
           Đồng bộ cả màn Khán giả lẫn Thí sinh. */}
       <div className="panel">
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={`btn text-sm! py-0! h-10 w-[7rem]! justify-center text-center ${showing ? "btn-ghost" : ""}`}
-            title={`Màn hình đang hiện: ${SCREEN_LABEL[screenMode]} — bấm để chuyển sang: ${SCREEN_LABEL[NEXT_SCREEN[screenMode]]}`}
-            onClick={() => act("screen.set", { mode: NEXT_SCREEN[screenMode] })}
-          >
-            {SCREEN_LABEL[NEXT_SCREEN[screenMode]]}
-          </button>
+          {/* 3 nút riêng: Câu hỏi / Bảng mảnh / Đáp án — bấm trực tiếp để chuyển màn hình.
+              Nút đang hiển thị được tô sáng để MC dễ quản lý. */}
+          {["question", "puzzle", "answers"].map((m) => (
+            <button
+              key={m}
+              type="button"
+              className={`btn text-sm! py-0! h-10 w-[7rem]! justify-center text-center ${
+                screenMode === m ? "bg-white/20 ring-1 ring-white/40 text-white" : "btn-ghost"
+              }`}
+              title={`Màn hình: ${SCREEN_LABEL[m]}`}
+              onClick={() => act("screen.set", { mode: m })}
+            >
+              {SCREEN_LABEL[m]}
+            </button>
+          ))}
           <span className="text-mist text-xs">
             Đang hiện: <b className="text-gold">{SCREEN_LABEL[screenMode]}</b>
           </span>
