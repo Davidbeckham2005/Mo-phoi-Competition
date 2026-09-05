@@ -129,10 +129,10 @@ export default function RoundTangToc({ ctx }) {
     <div className="grid gap-3.5">
       {/* ĐIỀU KHIỂN — TAB chuyển màn khán giả (2 màn RIÊNG) + nút hành động + đồng hồ */}
       <div className="panel">
-        <div className="grid grid-cols-2 gap-1.5 mb-3">
+        <div className="grid grid-cols-2 gap-1.5 mb-2.5">
           <button
             type="button"
-            className={`flex items-center justify-center gap-2 h-12 rounded-xl border text-sm font-semibold transition ${
+            className={`flex items-center justify-center h-10 rounded-lg border text-sm font-semibold transition ${
               screenMode === "question"
                 ? "border-gold bg-gold/15 text-gold"
                 : "border-line bg-night/40 text-mist hover:border-gold/40 hover:text-white"
@@ -143,7 +143,7 @@ export default function RoundTangToc({ ctx }) {
           </button>
           <button
             type="button"
-            className={`flex items-center justify-center gap-2 h-12 rounded-xl border text-sm font-semibold transition ${
+            className={`flex items-center justify-center h-10 rounded-lg border text-sm font-semibold transition ${
               screenMode === "answers"
                 ? "border-gold bg-gold/15 text-gold"
                 : "border-line bg-night/40 text-mist hover:border-gold/40 hover:text-white"
@@ -155,13 +155,13 @@ export default function RoundTangToc({ ctx }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {phase === "preparing" ? (
-            <button type="button" className="btn btn-ok disabled:opacity-60" disabled>
+            <button type="button" className="btn btn-ok text-sm! py-1.5! disabled:opacity-60" disabled>
               Chuẩn bị chiếu… {Math.max(0, remaining)}s
             </button>
           ) : phase === "video" && running ? (
             <button
               type="button"
-              className="btn btn-danger"
+              className="btn btn-danger text-sm! py-1.5!"
               onClick={() => setPrompt({ kind: "stop" })}
             >
               ⏸ Dừng video
@@ -169,7 +169,7 @@ export default function RoundTangToc({ ctx }) {
           ) : (
             <button
               type="button"
-              className="btn btn-ok disabled:opacity-45"
+              className="btn btn-ok text-sm! py-1.5! disabled:opacity-45"
               disabled={settled || phase === "answers"}
               onClick={() => act("tangtoc.play")}
             >
@@ -181,7 +181,7 @@ export default function RoundTangToc({ ctx }) {
           </span>
           {running && (
             <span
-              className={`ml-auto inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1.5 timer-xl text-3xl ${
+              className={`ml-auto inline-flex items-center justify-center rounded-lg border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-3 py-1 timer-xl text-2xl ${
                 remaining <= 5 ? "timer-danger" : "text-gold"
               }`}
             >
@@ -208,7 +208,7 @@ export default function RoundTangToc({ ctx }) {
                 key={qd.id}
                 type="button"
                 onClick={() => selectQuestion(i)}
-                className={`rounded-xl border-2 px-3 py-2 text-left transition ${
+                className={`rounded-lg border px-2.5 py-1.5 text-left transition ${
                   isCurrent ? "border-gold bg-gold/10 text-gold" : "border-line text-mist hover:border-gold/50"
                 }`}
               >
@@ -286,7 +286,7 @@ export default function RoundTangToc({ ctx }) {
         <div className="flex flex-wrap items-center gap-3 mt-3 border-t border-line/50 pt-3">
           <button
             type="button"
-            className="btn btn-ok text-sm!"
+            className="btn btn-ok text-sm! py-1.5!"
             disabled={settled || Object.keys(corrections).length === 0}
             onClick={() => act("tangtoc.settle")}
           >
