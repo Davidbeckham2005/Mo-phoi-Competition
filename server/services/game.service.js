@@ -1016,9 +1016,8 @@ if (game.round === "khoi_dong") {
     if (game.tangToc?.settled) {
       return { ok: false, reason: "closed" };
     }
-    if (game.tangToc.submissions[teamId]) {
-      return { ok: false, reason: "already" };
-    }
+    // Cho phép gửi NHIỀU lần: nếu đội đã nộp trước đó thì ghi đè bằng đáp án mới nhất
+    // (thí sinh có thể sửa/làm rõ đáp án nhiều lần trong cửa sổ trả lời — cùng cơ chế Vòng 2).
     // Ghi nhận đáp án theo đồng hồ riêng đếm TỪ 0S (giây thập phân, tuyệt đối chính xác):
     //   elapsed = elapsedBase (đã tích lũy trước những lần MC dừng) + (Date.now() - startedAt)/1000
     // Không dùng timer.remaining (số nguyên, chỉ cập nhật mỗi 250ms) nên không bao giờ lệch tới ~1s.

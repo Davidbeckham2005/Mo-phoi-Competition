@@ -403,9 +403,11 @@ export default function Team() {
   if (g.round === "tang_toc") {
     const tt = g.tangToc || {};
     const phase = tt.phase || "video";
-    const submitted = !!tt.submissions?.[team.id];
+    const ttSub = tt.submissions?.[team.id];
     // Ô nhập đáp án Tăng tốc — khu vực nộp bài dưới màn hình, giống Vòng 2.
-    const r3CanType = !submitted && phase === "video" && !!running;
+    // Cho phép gửi NHIỀU lần: mỗi lần gửi ghi đè đáp án mới nhất (thí sinh có thể
+    // sửa/làm rõ trong cửa sổ trả lời), chỉ chặn khi không còn chiếu video.
+    const r3CanType = phase === "video" && !!running;
     const answerBar = (
       <div>
         <form
@@ -416,11 +418,9 @@ export default function Team() {
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
             placeholder={
-              submitted
-                ? "Đã gửi đáp án — chờ MC chốt điểm"
-                : r3CanType
-                  ? "Gõ đáp án Tăng tốc… (Enter để gửi)"
-                  : "Chờ MC chiếu video…"
+              r3CanType
+                ? "Gõ đáp án Tăng tốc… (Enter để gửi)"
+                : "Chờ MC chiếu video…"
             }
             readOnly={!r3CanType}
             disabled={!r3CanType}
@@ -430,6 +430,11 @@ export default function Team() {
             Gửi
           </button>
         </form>
+        {ttSub && (
+          <div className="text-center text-mist text-sm mt-2">
+            Đã gửi: <span className="text-gold">{ttSub.answer}</span>
+          </div>
+        )}
       </div>
     );
     return (
