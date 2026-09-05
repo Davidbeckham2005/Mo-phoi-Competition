@@ -256,19 +256,9 @@ export default function Team() {
             Đang đếm ngược chuẩn bị — video sắp được chiếu trên màn hình lớn. Quan sát thật kỹ, ghi đáp án rồi gửi khi video bắt đầu.
           </p>
         ) : phase === "video" ? (
-          <>
-            <p className="text-mist max-w-md">
-              Quan sát video trên màn hình lớn, ghi đáp án (dạng tự luận) rồi gửi. Nộp nhanh sẽ được cộng nhiều điểm hơn.
-            </p>
-            {running ? (
-              <form onSubmit={submitTt} className="flex gap-2 justify-center w-full">
-                <input value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Nhập đáp án tăng tốc…" className="flex-1" />
-                <button className="btn" type="submit" disabled={!answer.trim()}>Gửi đáp án</button>
-              </form>
-            ) : (
-              <p className="badge badge-warn">Video chưa phát hoặc MC đã dừng — chờ MC bấm Chiếu video.</p>
-            )}
-          </>
+          <p className="text-mist max-w-md">
+            Quan sát video trên màn hình lớn, ghi đáp án (dạng tự luận) rồi gửi. Nộp nhanh sẽ được cộng nhiều điểm hơn.
+          </p>
         ) : (
           <p className="text-mist">Video đã chiếu xong — chờ MC chốt điểm từng đội trên màn hình lớn.</p>
         )}
@@ -407,6 +397,53 @@ export default function Team() {
     );
   }
 
+  if (g.round === "tang_toc") {
+    const tt = g.tangToc || {};
+    const phase = tt.phase || "video";
+    const submitted = !!tt.submissions?.[team.id];
+    // Ô nhập đáp án Tăng tốc — khu vực nộp bài dưới màn hình, giống Vòng 2.
+    const r3CanType = !submitted && phase === "video" && !!running;
+    const answerBar = (
+      <div>
+        <form
+          onSubmit={submitTt}
+          className={`flex items-center gap-2 rounded-2xl border px-4 py-3 ${r3CanType ? "border-gold/40" : "border-line"}`}
+        >
+          <input
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder={
+              submitted
+                ? "Đã gửi đáp án — chờ MC chốt điểm"
+                : r3CanType
+                  ? "Gõ đáp án Tăng tốc… (Enter để gửi)"
+                  : "Chờ MC chiếu video…"
+            }
+            readOnly={!r3CanType}
+            disabled={!r3CanType}
+            className="flex-1"
+          />
+          <button className="btn" type="submit" disabled={!r3CanType || !answer.trim()}>
+            Gửi
+          </button>
+        </form>
+      </div>
+    );
+    return (
+      <Round2Layout
+        state={state}
+        timerCaption={running ? formatTime(remaining) : "CHỜ"}
+        timerRunning={running}
+        timerRemaining={remaining}
+        onLogout={quit}
+        answerBar={answerBar}
+        currentTeamId={team.id}
+      >
+        {body}
+      </Round2Layout>
+    );
+  }
+
   return (
     <TeamLayout state={state} team={team} remaining={remaining} running={running} onLogout={quit}>
       {body}
@@ -438,28 +475,30 @@ function Round2Layout({ state, timerCaption, timerRunning, timerRemaining, onLog
           {answerBar}
         </div>
       )}
-      <div className="absolute bottom-4 right-4 z-40">
-        <button
-          type="button"
-          onClick={insertEnabled ? onInsert : undefined}
-          disabled={!insertEnabled}
-          title={insertEnabled ? "Giành quyền trả lời chướng ngại vật" : "Chưa thể giành quyền lúc này"}
-          className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition active:scale-95 ${
-            insertEnabled
-              ? "border-gold/60 bg-gold/15 cursor-pointer"
-              : "border-white/15 bg-[#0b1120]/85 cursor-not-allowed opacity-60"
-          }`}
-        >
-          <span className={`inline-grid h-8 w-8 place-items-center rounded-md border text-[11px] font-bold ${
-            insertEnabled
-              ? "border-white/25 bg-gold text-[#1a1400] shadow-[0_0_14px_rgba(255,214,10,0.45)]"
-              : "border-white/20 bg-[#13203a] text-white/60"
-          }`}>
-            INSERT
-          </span>
-          <span className={`text-sm font-semibold ${insertEnabled ? "text-gold" : "text-white/60"}`}>Giành quyền trả lời</span>
-        </button>
-      </div>
+      {onInsert && (
+        <div className="absolute bottom-4 right-4 z-40">
+          <button
+            type="button"
+            onClick={insertEnabled ? onInsert : undefined}
+            disabled={!insertEnabled}
+            title={insertEnabled ? "Giành quyền trả lời chướng ngại vật" : "Chưa thể giành quyền lúc này"}
+            className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition active:scale-95 ${
+              insertEnabled
+                ? "border-gold/60 bg-gold/15 cursor-pointer"
+                : "border-white/15 bg-[#0b1120]/85 cursor-not-allowed opacity-60"
+            }`}
+          >
+            <span className={`inline-grid h-8 w-8 place-items-center rounded-md border text-[11px] font-bold ${
+              insertEnabled
+                ? "border-white/25 bg-gold text-[#1a1400] shadow-[0_0_14px_rgba(255,214,10,0.45)]"
+                : "border-white/20 bg-[#13203a] text-white/60"
+            }`}>
+              INSERT
+            </span>
+            <span className={`text-sm font-semibold ${insertEnabled ? "text-gold" : "text-white/60"}`}>Giành quyền trả lời</span>
+          </button>
+        </div>
+      )}
       <TeamsSidebar teams={state?.teams || []} currentTeamId={currentTeamId} />
       <div className="pointer-events-none absolute inset-y-0 left-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 right-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
