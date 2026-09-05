@@ -10,7 +10,6 @@ export default function RoundVuotCnv({ ctx }) {
   const screenMode = showing ? "question" : d.mode === "answers" ? "answers" : "puzzle";
 
   const rows = state.questions?.main?.vuotCnv?.rows || [];
-  const remain = [0, 1, 2, 3, 4].filter((r) => !solved[r] && !locked[r]).length;
   // Được đánh giá "Đoán từ khóa": CHỈ khi có đội GHI DANH qua nút TỪ KHÓA
   // (puzzle.keywordClaim). Tách hoàn toàn khỏi chuông trả lời hàng ngang
   // (buzzer.winner) để không lẫn 2 chuông — tránh chấm nhầm điểm từ khóa cho
@@ -286,30 +285,6 @@ export default function RoundVuotCnv({ ctx }) {
           )}
         </div>
       )}
-
-      {/* TỪ KHÓA */}
-      <div className="panel">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs tracking-[0.18em] text-mist uppercase">Từ khóa</span>
-          <div className="flex gap-1.5 ltr-row">
-            {p.keywordSolved && cnv?.keyword
-              ? cnv.keyword.split("").map((ch, j) => (
-                  <span key={j} className={`ltr ${/\s/.test(ch) ? "" : "!border-line bg-panel-solid text-mist"}`}>
-                    {/\s/.test(ch) ? "" : ch}
-                  </span>
-                ))
-              : Array.from({ length: cnv?.keywordLetterCount || 0 }, (_, j) => <span key={j} className="ltr" />)}
-            {!!cnv?.keywordLetterCount && <span className="text-mist text-sm ml-1">{cnv.keywordLetterCount} chữ</span>}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 mt-2.5">
-          <span className="text-mist text-xs">
-            {p.keywordSolved
-              ? "Đã có từ khóa."
-              : `Còn ${remain} mảnh chưa xử lý.`}
-          </span>
-        </div>
-      </div>
 
       {/* ĐOÁN TỪ KHÓA — đơn giản: ai đã giải / ai giữ quyền + nút Đúng/Sai */}
       <div className="panel">
