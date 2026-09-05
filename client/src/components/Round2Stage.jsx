@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { isOpen, isLocked } from "../lib/cnv.js";
+import { activeTeamIds } from "../lib/teams.js";
 
 // Khung ô chữ Vòng 2: bên trái các hàng ngang (ô chữ tròn), bên phải số mảnh ghép dọc.
 // Dùng chung cho màn hình Khán giả và Thí sinh.
@@ -32,84 +33,67 @@ export function CnvRowsFrame({ state, g }) {
   );
 }
 
-// MÀN KẾT QUẢ TRẢ LỜI — Vòng 2: danh sách đáp án các đội xếp theo thời gian nộp bài
-// (nhanh nhất trước). MC ĐIỀU KHIỂN hiển thị từng câu trả lời qua puzzle.revealedRows
-// (action puzzle.nextAnswer / puzzle.allAnswers) — chưa mở thì hiện ô "?" bí ẩn.
+// MÀN KẾT QUẢ TRẢ LỜI — Vòng 2: luôn hiện đủ các đội đang thi (top 4). Mỗi đội 1 hàng,
+// không bọc trong border; đội đã nộp hiện đáp án + thời gian nộp, đội chưa nộp để trống.
+// Không còn duyệt qua revealedRows — MC mở màn này là thấy hết luôn.
 export function RowResults({ state, g }) {
   const p = g.puzzle || {};
   const teams = state.teams || [];
+  const active = activeTeamIds(g, teams);
+  const subs = p.submissions || {};
   const corr = p.corrections || {};
-  const own = Object.entries(p.submissions || {}).map(([teamId, s]) => ({
-    teamId,
-    answer: s.answer,
-    elapsed: s.elapsed,
-  }));
-  const ordered = [...(p.ranked?.length ? p.ranked : own)].sort((a, b) => a.elapsed - b.elapsed);
-  const revealed = p.revealedRows || 0;
+  const cards = active.map((id) => {
+    const t = teams.find((x) => x.id === id);
+    const s = subs[id];
+    return {
+      teamId: id,
+      team: t,
+      answer: s?.answer,
+      elapsed: s?.elapsed,
+      ok: corr[id] === true,
+      ng: corr[id] === false,
+    };
+  });
 
   return (
     <div className="w-full max-w-[1100px] mx-auto">
       <div className="kicker text-center mb-6">
         KẾT QUẢ TRẢ LỜI — HÀNG {p.currentRow + 1}
       </div>
-      <div className="flex flex-col gap-3 mx-auto w-[min(780px,94%)]">
-        {ordered.length === 0 && (
-          <div className="text-center text-mist">Không có đội nào nộp đáp án cho hàng này.</div>
-        )}
-        {ordered.map((s, i) => {
-          const t = teams.find((x) => x.id === s.teamId);
-          if (i >= revealed) {
-            return (
-              <div
-                key={`${s.teamId}-${i}`}
-                className="flex items-center gap-4 rounded-xl border border-line bg-panel/60 px-4 py-3"
-              >
-                <span className="w-7 text-center font-display font-black text-2xl text-gold">
-                  {i + 1}
-                </span>
-                <span className="w-36" />
-                <span className="flex-1 text-center">
-                  <span className="text-3xl text-mist animate-pulse">?</span>
-                </span>
-                <span className="w-20 text-center text-[11px] uppercase tracking-widest text-mist">
-                  Chờ…
-                </span>
-              </div>
-            );
-          }
-          const ok = corr[s.teamId] === true;
-          const ng = corr[s.teamId] === false;
-          return (
-            <div
-              key={`${s.teamId}-${i}`}
-              className={`flex items-center gap-4 rounded-xl border px-4 py-3 ${
-                ok
-                  ? "border-[rgba(128,237,153,0.55)] bg-[rgba(128,237,153,0.12)]"
-                  : ng
-                    ? "border-[rgba(255,77,109,0.55)] bg-[rgba(255,77,109,0.14)]"
-                    : "border-line bg-panel/70"
-              }`}
-              style={{ animation: "r2FeedbackIn 0.5s ease both" }}
+      <div className="grid gap-x-4 gap-y-6 mx-auto w-[min(980px,94%)]" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+        {cards.map((c) => (
+          <div key={c.teamId} className="flex flex-col items-center text-center gap-2">
+            <span
+              className="font-bold text-[clamp(16px,1.6vw,22px)] truncate max-w-full"
+              style={{ color: c.team?.color }}
             >
-              <span className="w-7 text-center font-display font-black text-2xl text-gold">
-                {i + 1}
-              </span>
-              <span className="w-36 font-bold truncate" style={{ color: t?.color }}>
-                {t?.name || `Đội ${s.teamId}`}
-              </span>
-              <span className="flex-1 font-semibold text-[clamp(15px,1.8vw,22px)] text-white text-center truncate">
-                {s.answer}
-              </span>
-              <span
-                className={`text-sm font-bold shrink-0 ${
-                  ok ? "text-[#80ed99]" : ng ? "text-[#ffb3c1]" : "text-mist"
-                }`}
-              >
-                {ok ? "ĐÚNG" : ng ? "SAI" : "Đang chờ…"}
-              </span>
-            </div>
-          );
-        })}
+              {c.team?.name || `Đội ${c.teamId}`}
+            </span>
+            {c.answer != null && c.answer !== "" ? (
+              <>
+                <span className="text-mist text-sm font-mono tabular-nums">
+                  {c.elapsed != null ? c.elapsed.toFixed(2) + "s" : "—"}
+                </span>
+                <span
+                  className={`font-semibold text-[clamp(14px,1.5vw,20px)] leading-snug max-w-full ${
+                    c.ok ? "text-[#80ed99]" : c.ng ? "text-[#ffb3c1]" : "text-white"
+                  }`}
+                >
+                  “{c.answer}”
+                </span>
+                <span
+                  className={`text-xs font-bold uppercase tracking-widest ${
+                    c.ok ? "text-[#80ed99]" : c.ng ? "text-[#ffb3c1]" : "text-mist"
+                  }`}
+                >
+                  {c.ok ? "Đúng" : c.ng ? "Sai" : "Đang chờ…"}
+                </span>
+              </>
+            ) : (
+              <span className="text-lg text-mist/40">—</span>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
