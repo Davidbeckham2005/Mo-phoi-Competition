@@ -334,6 +334,11 @@ export function markRowAnswer(teamId, correct) {
   const game = g();
   if (!game.puzzle?.submissions?.[teamId]) return;
   game.puzzle.corrections[teamId] = !!correct;
+  // Tính sẵn xếp hạng + điểm dự kiến sau mỗi lần chấm, để màn hình MC hiện "+40/+30/..."
+  // thay vì "+0" trong lúc chấm. Điểm chính thức vẫn chỉ được cộng khi MC "Chốt điểm".
+  if (game.puzzle.rowPhase === "closed" || game.puzzle.rowPhase === "scored") {
+    game.puzzle.ranked = computeRowRanked();
+  }
   saveDb();
   emit();
 }

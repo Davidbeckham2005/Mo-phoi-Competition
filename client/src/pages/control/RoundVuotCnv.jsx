@@ -234,7 +234,7 @@ export default function RoundVuotCnv({ ctx }) {
 
           {p.rowPhase !== "open" && (
             <div className="grid gap-1.5">
-              {(p.ranked?.length && p.rowPhase === "scored"
+              {(p.ranked?.length && (p.rowPhase === "scored" || p.rowPhase === "closed")
                 ? p.ranked
                 : Object.entries(p.submissions || {})
                     .map(([teamId, s]) => ({ teamId, answer: s.answer, elapsed: s.elapsed, correct: p.corrections?.[teamId] ?? null, points: 0, place: null }))
