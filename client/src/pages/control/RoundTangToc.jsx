@@ -139,7 +139,7 @@ export default function RoundTangToc({ ctx }) {
             }`}
             onClick={() => act("screen.set", { mode: "question" })}
           >
-            📺 Chiếu video
+            Chiếu video
           </button>
           <button
             type="button"
@@ -150,7 +150,7 @@ export default function RoundTangToc({ ctx }) {
             }`}
             onClick={() => act("screen.set", { mode: "answers" })}
           >
-            📋 Đáp án các đội
+            Đáp án các đội
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
