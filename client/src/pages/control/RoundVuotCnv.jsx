@@ -223,17 +223,6 @@ export default function RoundVuotCnv({ ctx }) {
               <span className="badge badge-ok text-xs!">Đã chốt điểm ô này</span>
             )}
             {p.rowPhase === "open" && <span className="text-mist text-xs ml-auto">Đã nộp: {Object.keys(p.submissions || {}).length}</span>}
-            {(p.rowPhase === "closed" || p.rowPhase === "scored") && (
-              <span className="ml-auto flex items-center gap-1.5">
-                <span className="text-mist text-xs">Màn Đáp án: {Math.min(p.revealedRows || 0, Object.keys(p.submissions || {}).length)}/{Object.keys(p.submissions || {}).length}</span>
-                <button type="button" className="btn btn-ghost text-xs! py-1!" onClick={() => act("puzzle.nextAnswer")}>
-                  Mở đáp án tiếp
-                </button>
-                <button type="button" className="btn btn-ghost text-xs! py-1!" onClick={() => act("puzzle.allAnswers")}>
-                  Mở tất cả
-                </button>
-              </span>
-            )}
           </div>
 
           {p.rowPhase !== "open" && (
