@@ -61,43 +61,48 @@ export function RowResults({ state, g }) {
         KẾT QUẢ TRẢ LỜI — HÀNG {p.currentRow + 1}
       </div>
       <div className="mx-auto w-[min(900px,94%)]">
-        <div className="flex items-center px-4 pb-2 text-[11px] uppercase tracking-[0.25em] text-mist/70">
-          <span className="w-40 shrink-0">Đội</span>
-          <span className="flex-1 text-center">Đáp án</span>
-          <span className="w-24 shrink-0 text-right">Thời gian</span>
-          <span className="w-20 shrink-0 text-right">Kết quả</span>
-        </div>
         {cards.map((c, i) => (
-          <div
-            key={c.teamId}
-            className="r2-row-in flex items-center px-4 py-3.5"
-            style={{ animationDelay: `${i * 280}ms` }}
-          >
-            <span
-              className="w-40 shrink-0 font-bold text-[clamp(16px,1.6vw,22px)] truncate"
-              style={{ color: c.team?.color }}
-            >
-              {c.team?.name || `Đội ${c.teamId}`}
-            </span>
-            <span
-              className={`flex-1 text-center font-semibold text-[clamp(15px,1.8vw,22px)] leading-snug px-2 ${
-                c.answer ? "text-white" : "text-mist/40"
-              }`}
-            >
-              {c.answer && c.answer !== "" ? `“${c.answer}”` : "—"}
-            </span>
-            <span className="w-24 shrink-0 text-right text-mist font-mono tabular-nums text-sm">
-              {c.answer && c.answer !== "" && c.elapsed != null ? c.elapsed.toFixed(2) + "s" : ""}
-            </span>
-            <span
-              className={`w-20 shrink-0 text-right text-sm font-bold uppercase tracking-widest ${
-                c.ok ? "text-white/90" : c.ng ? "text-white/60" : "text-mist/50"
-              }`}
-            >
-              {c.answer && c.answer !== "" ? (c.ok ? "Đúng" : c.ng ? "Sai" : "Chờ…") : ""}
-            </span>
+          <div key={c.teamId} className="r2-row-in" style={{ animationDelay: `${i * 280}ms` }}>
+            <StaggeredRow team={c.team} index={i} answer={c.answer} elapsed={c.elapsed} />
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// Hàng ô đội theo thiết kế so le: ● (ô trống phía cạnh ngắn) + tên đội + đáp án + thời gian.
+// Dấu ● biểu thị ô TRỐNG — hiện mờ/đậm tùy đội sáng/tối, vị trí so lệch trái-phải theo index.
+export function StaggeredRow({ team, index, answer, elapsed, resultLabel /* unused */ }) {
+  const left = index % 2 === 0;
+  const answered = !!answer && answer !== "";
+  return (
+    <div className="flex items-center px-4 py-3.5 justify-center">
+      <div
+        className={`flex items-center gap-4 ${left ? "pr-10 pl-2" : "pl-10 pr-2"} w-full max-w-xl`}
+      >
+        <span
+          className={`text-[clamp(14px,1.6vw,20px)] ${answered ? "" : "text-mist/40"}`}
+          aria-hidden
+        >
+          ●
+        </span>
+        <span
+          className="w-40 shrink-0 font-bold text-[clamp(16px,1.6vw,22px)] truncate"
+          style={{ color: team?.color }}
+        >
+          {team?.name || ""}
+        </span>
+        <span
+          className={`flex-1 text-center font-semibold text-[clamp(15px,1.8vw,22px)] leading-snug px-2 ${
+            answered ? "text-white" : "text-mist/40"
+          }`}
+        >
+          {answered ? `“${answer}”` : "—"}
+        </span>
+        <span className="w-24 shrink-0 text-right text-mist font-mono tabular-nums text-sm">
+          {answered && elapsed != null ? elapsed.toFixed(2) + "s" : ""}
+        </span>
       </div>
     </div>
   );

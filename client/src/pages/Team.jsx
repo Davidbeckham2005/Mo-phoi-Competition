@@ -5,7 +5,7 @@ import { loginTeam } from "../lib/api/team.js";
 import { formatTime } from "../lib/format.js";
 import { useGameState } from "../lib/useGame.js";
 import { activeTeamIds } from "../lib/teams.js";
-import { Round2Board, Round2Question, RowResults } from "../components/Round2Stage.jsx";
+import { Round2Board, Round2Question, RowResults, StaggeredRow } from "../components/Round2Stage.jsx";
 
 const SESSION_KEY = "team_session";
 
@@ -253,6 +253,7 @@ export default function Team() {
               Quan sát video trên màn hình lớn, ghi đáp án (dạng tự luận) rồi gửi. Nộp nhanh sẽ được cộng nhiều điểm hơn.
             </p>
             <TeamVideo d={d} g={g} timer={timer} />
+            <TeamTangTocAnswers state={state} g={g} />
           </>
         ) : (
           <p className="text-mist">Video đã chiếu xong — chờ MC chốt điểm từng đội trên màn hình lớn.</p>
@@ -888,6 +889,35 @@ function TeamVideo({ d, g, timer }) {
       preload="auto"
       className="w-full max-w-2xl rounded-2xl border border-line bg-black object-contain shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
     />
+  );
+}
+
+// Vòng 3 (Tăng tốc): danh sách 4 đội đang thi, mỗi đội một hàng so le (● + tên + đáp án +
+// thời gian). Dấu ● là ô TRỐNG: đậm/mờ tùy đội sáng/tối, vị trí lệch trái-phải theo index —
+// đúng thiết kế màn đáp án thí sinh.
+function TeamTangTocAnswers({ state, g }) {
+  const teams = state.teams || [];
+  const active = activeTeamIds(g, teams);
+  const subs = g.tangToc?.submissions || {};
+  return (
+    <div className="w-[min(680px,94%)] mx-auto mt-2">
+      <div className="kicker text-center mb-3">ĐÁP ÁN CÁC ĐỘI</div>
+      <div className="mx-auto w-full">
+        {active.map((id, i) => {
+          const t = teams.find((x) => x.id === id);
+          const s = subs[id];
+          return (
+            <StaggeredRow
+              key={id}
+              team={t}
+              index={i}
+              answer={s?.answer}
+              elapsed={s?.elapsed}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
