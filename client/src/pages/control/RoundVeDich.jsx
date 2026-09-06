@@ -50,7 +50,6 @@ export default function RoundVeDich({ ctx }) {
           <span className="text-ok text-xs">Đã chọn {picked.length}/3 câu{hasPackage ? ` • gói ${PACKAGE_LABEL[pkg]}` : ""}</span>
         </div>
 
-        {/* Chọn gói câu hỏi — khóa khi chốt; khi đã chọn gói, bấm gói khác để chọn lại */}
         <div className="grid gap-1.5">
           {Object.entries(PACKAGES).map(([total, structure]) => {
             const totalVal = Number(total);
@@ -79,7 +78,7 @@ export default function RoundVeDich({ ctx }) {
           })}
         </div>
 
-        {/* Bộ 3 câu đã được server chọn theo gói */}
+
         {hasPackage && (
           <div className="grid gap-1 mt-3 pt-3 border-t border-line">
             {[0, 1, 2].map((idx) => {
@@ -105,7 +104,6 @@ export default function RoundVeDich({ ctx }) {
           </div>
         )}
 
-        {/* Nút Xóa hết khi chưa chốt */}
         {!locked && (
           <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-line">
             <button
@@ -115,14 +113,11 @@ export default function RoundVeDich({ ctx }) {
             >
               Xóa hết (chọn lại gói)
             </button>
-            <span className="text-mist text-xs">
-              Chọn đúng 1 gói → sửa nội dung từng câu trong ngân hàng nếu cần rồi chốt.
-            </span>
+
           </div>
         )}
       </div>
 
-      {/* Hành động chốt / sửa lại + ngôi sao */}
       <div className="rounded-xl border border-line bg-panel-solid p-3 mt-3">
         {locked ? (
           <div className="flex flex-wrap gap-2 items-center">
@@ -180,16 +175,7 @@ export default function RoundVeDich({ ctx }) {
                     Câu tiếp →
                   </button>
                 )}
-                {!revealed && (
-                  <>
-                    <button type="button" className="btn btn-danger px-3!" onClick={() => act("answer.mark", { correct: false })}>
-                      Sai −{pts}
-                    </button>
-                    <button type="button" className="btn btn-ok px-3!" onClick={() => act("answer.mark", { correct: true })}>
-                      Đúng +{pts}
-                    </button>
-                  </>
-                )}
+
               </div>
             )}
           </div>
@@ -203,12 +189,10 @@ export default function RoundVeDich({ ctx }) {
             >
               {hasPackage ? `Xác nhận bộ câu (gói ${PACKAGE_LABEL[pkg]}, ${picked.length}/3)` : "Chọn gói để chốt"}
             </button>
-            <span className="text-mist text-xs">Chọn đúng 1 gói để khóa bộ câu (không sửa được từng câu). Ngôi sao hy vọng chọn ngay khi chuẩn bị hiện từng câu (mỗi đội 1 lần).</span>
+
           </div>
         )}
-        <p className="text-mist text-[11px] mt-2.5">
-          Chọn gói 60/80/100 → "Xác nhận bộ câu" → "Bắt đầu thi" (đếm 3-2-1) → hiện câu 1 để đội trả lời. Trả lời Sai → các đội khác bấm chuông giành quyền trả lời. Muốn đổi gói, bấm "Sửa lại" rồi chọn gói khác.
-        </p>
+
       </div>
     </div>
   );
