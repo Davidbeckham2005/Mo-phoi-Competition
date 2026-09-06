@@ -129,8 +129,9 @@ export default function Audience() {
       ? [...(state.teams || [])].sort((a, b) => b.score - a.score).slice(0, 4)
       : state.teams;
 
-  // Vòng 2: đồng bộ background với màn khán giả vòng 1 (nền tối #070b16 + ảnh mờ theo cài đặt).
-  const cnvBg = g.round === "vuot_cnv";
+  // Background đồng bộ với màn khán giả vòng 1/2 (nền tối #070b16 + ảnh mờ theo cài đặt).
+  // Áp dụng cho Vòng 2 (Vượt CNV) và MÀN ĐÁP ÁN Vòng 3 (Tăng tốc) cho thống nhất.
+  const cnvBg = g.round === "vuot_cnv" || (g.round === "tang_toc" && d.mode === "answers");
   const cnvAudienceBg = state.settings?.audienceBg || "dark";
   const cnvBgUrl = state.settings?.audienceBgUrl || "";
   const cnvUseBlur = cnvAudienceBg === "blur" && cnvBgUrl;
@@ -381,41 +382,59 @@ function Stage({ state, timer }) {
 //   • phase "video": CHIỀU VIDEO LÀM TRUNG TÂM (toàn màn hình), không hiện kết quả.
 //   • phase "answers" → hiện kết quả (danh sách đáp án + điểm của từng đội).
 //     Khán giả dựa TRÊN CÙNG phase của server như màn hình MC để luôn đồng bộ.
-function _fmtElapsed(sec) {
-  if (sec == null) return "—";
-  return sec.toFixed(2) + "s";
-}
-
+// MÀN ĐÁP ÁN — VÒNG 3 (Tăng tốc): dựa theo thiết kế màn đáp án VÒNG 2 — mỗi đội một hàng
+// so le (● + tên + đáp án + thời gian) với hiệu ứng xuất hiện r2-row-in. Giữ thứ tự nộp bài
+// + thứ hạng (#) và điểm Đúng/Sai như màn chấm — đồng bộ giữa màn khán giả và bàn MC.
 function TangTocList({ items, teams, settled, judge }) {
   return (
-    <div className="w-full max-w-[1200px] mx-auto">
-      <div className="kicker text-center mb-3">
+    <div className="w-full max-w-[1100px] mx-auto">
+      <div className="kicker text-center mb-6">
         {judge ? "ĐÁP ÁN CÁC ĐỘI — THEO THỨ TỰ NỘP BÀI" : "ĐÁP ÁN ĐÃ GỬI — THEO THỨ TỰ NỘP BÀI"}
       </div>
-      <div className="grid gap-2.5">
-        {(items || []).map((it) => {
+      <div className="mx-auto w-[min(900px,94%)]">
+        {(items || []).map((it, i) => {
           const t = teams.find((x) => x.id === it.teamId);
           const ok = it.correct === true;
           const bad = it.correct === false;
+          const left = i % 2 === 0;
+          const answered = !!it.answer && it.answer !== "";
           return (
-            <div
-              key={it.teamId}
-              className="flex items-center gap-4 rounded-xl bg-panel-solid border border-line px-4 py-3"
-            >
-              <span className="font-display font-black text-[clamp(20px,2.6vw,34px)] w-12 text-center shrink-0"
-                style={{ color: it.place ? "var(--color-gold)" : "inherit" }}>
-                {it.place ? `${it.place}.` : "•"}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="font-bold" style={{ color: t?.color }}>{t?.name || it.teamId}</div>
-                <div className="text-mist truncate" title={it.answer}>“{it.answer}”</div>
+            <div key={it.teamId} className="r2-row-in" style={{ animationDelay: `${i * 280}ms` }}>
+              <div className="flex items-center px-4 py-3.5 justify-center">
+                <div className={`flex items-center gap-4 ${left ? "pr-10 pl-2" : "pl-10 pr-2"} w-full max-w-xl`}>
+                  <span
+                    className={`text-[clamp(14px,1.6vw,20px)] ${it.place ? "!text-gold" : answered ? "" : "text-mist/40"}`}
+                    aria-hidden
+                  >
+                    {it.place ? it.place : "●"}
+                  </span>
+                  <span
+                    className="w-40 shrink-0 font-bold text-[clamp(16px,1.6vw,22px)] truncate"
+                    style={{ color: t?.color }}
+                  >
+                    {t?.name || it.teamId}
+                  </span>
+                  <span
+                    className={`flex-1 text-center font-semibold text-[clamp(15px,1.8vw,22px)] leading-snug px-2 ${
+                      answered ? "text-white" : "text-mist/40"
+                    }`}
+                  >
+                    {answered ? `“${it.answer}”` : "—"}
+                  </span>
+                  <span className="w-24 shrink-0 text-right text-mist font-mono tabular-nums text-sm">
+                    {answered && it.elapsed != null ? it.elapsed.toFixed(2) + "s" : ""}
+                  </span>
+                  {judge && (
+                    <span
+                      className={`font-display font-bold text-[clamp(18px,2.4vw,30px)] w-14 shrink-0 text-right ${
+                        ok ? "text-ok" : bad ? "text-danger" : "text-mist"
+                      }`}
+                    >
+                      {ok ? `+${it.points}` : bad ? "0" : ""}
+                    </span>
+                  )}
+                </div>
               </div>
-              <span className="text-mist text-sm shrink-0">{_fmtElapsed(it.elapsed)}</span>
-              {judge && (
-                <span className={`font-display font-bold text-[clamp(18px,2.4vw,30px)] w-20 text-right shrink-0 ${ok ? "text-ok" : bad ? "text-danger" : "text-mist"}`}>
-                  {ok ? `+${it.points}` : bad ? "0" : ""}
-                </span>
-              )}
             </div>
           );
         })}
@@ -821,14 +840,43 @@ function TangTocStage({ state, g, timer }) {
   const submissions = tt.submissions || {};
   const ranked = tt.ranked || [];
   const teams = state.teams || [];
+  const active = activeTeamIds(g, teams);
   const hasVideo = !!d.mediaUrl && d.mediaType === "video";
 
-  // Danh sách đáp án sắp theo thời gian thấp → cao; ưu tiên ranked (đã có nhận định của MC).
-  const ordered = ranked.length
-    ? ranked
-    : Object.entries(submissions)
-        .map(([teamId, s]) => ({ teamId, answer: s.answer, elapsed: s.elapsed, correct: null, points: 0, place: null }))
-        .sort((a, b) => a.elapsed - b.elapsed);
+  // Màn đáp án VÒNG 3 giống VÒNG 2 (RowResults): LUÔN hiện đủ các đội đang thi, kể cả đội
+  // chưa gửi đáp án (hiển thị "—"). Dữ liệu đáp án gộp từ ranked (ưu tiên, có nhận định của
+  // MC) hoặc submissions; đội đã nộp xếp trước theo thời gian thấp → cao, đội chưa nộp ở sau.
+  const rankedByTeam = {};
+  (ranked || []).forEach((r) => (rankedByTeam[r.teamId] = r));
+  const ordered = active
+    .map((id) => {
+      const t = teams.find((x) => x.id === id);
+      const r = rankedByTeam[id];
+      const s = submissions[id];
+      const answer = r?.answer ?? s?.answer ?? null;
+      const answered = !!answer && answer !== "";
+      const correct = r
+        ? r.correct
+        : tt.corrections?.[id] === true
+          ? true
+          : tt.corrections?.[id] === false
+            ? false
+            : null;
+      return {
+        teamId: id,
+        answer,
+        elapsed: r?.elapsed ?? s?.elapsed ?? null,
+        answered,
+        correct,
+        points: r?.points ?? 0,
+        place: r?.place ?? null,
+        team: t,
+      };
+    })
+    .sort((a, b) => {
+      if (a.answered !== b.answered) return a.answered ? -1 : 1;
+      return (a.elapsed ?? Infinity) - (b.elapsed ?? Infinity);
+    });
 
   if (showAnswers) {
     return (
