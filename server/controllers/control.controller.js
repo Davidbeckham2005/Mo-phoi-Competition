@@ -98,6 +98,7 @@ const actions = {
   "vedich.lock": () => game.vedichLockPackage(),
   "vedich.unlock": () => game.vedichUnlockPackage(),
   "vedich.start": () => game.vedichStartGame(),
+  "vedich.startAnswer": () => game.startVedichAnswerTimer(),
   "tangtoc.submit": (p) => game.submitTangToc(p.teamId, p.answer),
   "tangtoc.play": () => game.tangTocPlay(),
   "tangtoc.stop": (p) => game.tangTocStop(p.pin),

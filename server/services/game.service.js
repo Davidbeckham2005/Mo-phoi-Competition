@@ -437,7 +437,9 @@ export function resetKhoiDong(teamId = null) {
           ? " • Ngôi sao hy vọng"
           : "";
       game.display.note = `${team(game.currentTeam)?.name || ""} • ${q?.points || 20} điểm${star}`;
-      setTimer(vedich.getAnswerSeconds(game), true);
+      // Không tự chạy timer — MC đọc câu hỏi xong rồi bấm "Bắt đầu tính giờ"
+      // (vedich.startAnswer). Chỉ đặt duration/remaining theo điểm câu, running = false.
+      setTimer(vedich.getAnswerSeconds(game), false);
     }
     saveDb();
     emit();
@@ -892,6 +894,40 @@ if (game.round === "khoi_dong") {
     vedich.startGame();
     setTimer(VEDICH_COUNTDOWN_SECONDS, true);
   };
+
+  // Bắt đầu tính giờ trả lời Vòng Về đích — MC bấm sau khi đọc xong câu hỏi.
+  // Chỉ chạy khi: phase == "answering", có câu hiện tại, timer chưa chạy.
+  // Nếu timer đang chạy hoặc phase chưa đúng → reject (không tạo thêm countdown).
+  export function startVedichAnswerTimer() {
+    const game = g();
+    if (game.round !== "ve_dich") {
+      const err = new Error("Không ở Vòng Về đích.");
+      err.status = 400;
+      throw err;
+    }
+    const ved = game.veDich;
+    if (ved.phase !== "answering") {
+      const err = new Error("Chưa hiện câu hỏi — chỉ bắt đầu tính giờ khi đang trả lời.");
+      err.status = 400;
+      throw err;
+    }
+    if (!vedich.findQuestion(game)) {
+      const err = new Error("Không có câu hỏi hiện tại để bắt đầu tính giờ.");
+      err.status = 400;
+      throw err;
+    }
+    if (ved.stealOpen) {
+      const err = new Error("Cửa sổ cướp quyền đang mở — không bắt đầu tính giờ lúc này.");
+      err.status = 400;
+      throw err;
+    }
+    if (game.timer.running) {
+      const err = new Error("Đồng hồ đang chạy — không thể bắt đầu lại.");
+      err.status = 400;
+      throw err;
+    }
+    setTimer(vedich.getAnswerSeconds(game), true);
+  }
 
   export function resetBuzzer(open = false) {
     const game = g();

@@ -8,7 +8,7 @@
 // Không cho MC ghép từng mức tùy ý — server TỰ lấy 3 câu từ ngân hàng của đội theo
 // đúng cấu trúc gói, không trùng câu trong gói và không lấy lại câu đã dùng.
 //
-// Câu hỏi thuộc các mức 10đ/20đ/30đ; thời gian trả lời theo POINT_SECONDS.
+// Câu hỏi thuộc các mức 10đ/20đ/30đ; thời gian trả lời theo ANSWER_SECONDS.
 // Mỗi đội có ngân hàng câu hỏi riêng nên bộ câu của các đội là khác nhau.
 // Giữ cơ chế Ngôi sao hy vọng (x2 điểm, sai trừ gấp đôi).
 //
@@ -36,8 +36,9 @@ function g() {
   return getDb().game;
 }
 
-// Mức điểm câu hỏi → số giây trả lời (công thức quy đổi giống cũ: 5s + điểm/2).
-export const POINT_SECONDS = { 10: 10, 20: 15, 30: 20 };
+// Mức điểm câu hỏi → số giây trả lời (Vòng 4):
+//   10đ → 30s, 20đ → 45s, 30đ → 60s.
+export const ANSWER_SECONDS = { 10: 30, 20: 45, 30: 60 };
 
 // Các gói câu hỏi hợp lệ của Vòng 4 (tổng điểm gói → cấu trúc 3 câu).
 export const PACKAGES = {
@@ -114,9 +115,11 @@ export function ensureBank() {
   return created;
 }
 
-// Số giây trả lời theo điểm câu đang thi (20→15s, 30→20s, 40→25s).
+// Số giây trả lời theo điểm câu đang thi (10→30s, 20→45s, 30→60s).
+// Trả về thời gian dựa trên điểm của câu hiện tại (currentPoints).
 export function getAnswerSeconds(game = g()) {
-  return POINT_SECONDS[currentPoints(game)] || 15;
+  const pts = currentPoints(game);
+  return ANSWER_SECONDS[pts] ?? 30;
 }
 
 // Điểm GỐC của câu đang thi (chưa nhân ngôi sao).
