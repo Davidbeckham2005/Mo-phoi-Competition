@@ -516,7 +516,7 @@ export default function Team() {
 
   if (g.round === "ve_dich") {
     return (
-      <Round4Layout state={state} onLogout={quit}>
+      <Round4Layout state={state} team={team} onLogout={quit}>
         {body}
       </Round4Layout>
     );
@@ -713,9 +713,9 @@ function TeamLayout({ state, team, remaining, running, onLogout, children }) {
   );
 }
 
-// Bố cục riêng Vòng 4 (Về đích) — KHÔNG header, KHÔNG list đội cạnh phải; chỉ nền
-// đồng bộ khán giả + nút đăng xuất + nội dung ở giữa.
-function Round4Layout({ state, onLogout, children }) {
+// Bố cục riêng Vòng 4 (Về đích) — KHÔNG header; vẫn giữ list đội cạnh phải; nền đồng bộ
+// khán giả + nút đăng xuất + nội dung ở giữa.
+function Round4Layout({ state, team, onLogout, children }) {
   return (
     <div className="relative min-h-screen flex flex-col items-center px-4 py-5 text-center">
       <TeamBackground settings={state?.settings} />
@@ -727,6 +727,7 @@ function Round4Layout({ state, onLogout, children }) {
       <div className="relative z-10 flex w-full flex-col items-center justify-center flex-1">
         {children}
       </div>
+      <TeamsSidebar teams={state?.teams || []} currentTeamId={team?.id} />
       <div className="pointer-events-none absolute inset-y-0 left-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 right-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
     </div>
