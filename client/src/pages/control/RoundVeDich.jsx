@@ -1,3 +1,5 @@
+import { formatTime } from "../../lib/format.js";
+
 const PACKAGES = {
   60: [10, 10, 20],
   80: [10, 20, 20],
@@ -5,7 +7,6 @@ const PACKAGES = {
 };
 
 const ANSWER_SECONDS = { 10: 30, 20: 45, 30: 60 };
-
 export default function RoundVeDich({ ctx }) {
   const { g, state, act, remaining, q, pts, revealed, running } = ctx;
   if (g.round !== "ve_dich") return null;
@@ -34,19 +35,6 @@ export default function RoundVeDich({ ctx }) {
 
   return (
     <div className="panel">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: activeTeam?.color }} />
-          <b className="text-sm truncate" style={{ color: activeTeam?.color }}>{activeTeam?.name || "—"}</b>
-          <span className={`badge text-xs! shrink-0 ${phase === "answering" ? "badge-ok" : "badge-warn"}`}>
-            {phase === "soan" ? "Soạn câu" : phase === "ready" ? "Sẵn sàng" : phase === "countdown" ? "3•2•1" : "Đang thi"}
-          </span>
-        </div>
-        <span className="text-xs text-mist shrink-0">
-          {hasPackage ? `Gói ${PACKAGE_LABEL[pkg]}` : "Chưa chọn gói"}
-        </span>
-      </div>
-
       <div className="rounded-xl border border-gold ring-1 ring-gold/30 bg-panel-solid p-3">
         <div className="flex justify-between items-center mb-3">
           <b className="text-sm" style={{ color: activeTeam?.color }}>{activeTeam?.name || g.currentTeam?.toUpperCase()}</b>
@@ -168,6 +156,11 @@ export default function RoundVeDich({ ctx }) {
                 <span className="text-mist text-xs flex-1">
                   {stealOpen ? "Đội giành chuông trả lời" : `${activeTeam?.name} (${g.currentTeam?.toUpperCase()}) trả lời`}
                 </span>
+                {running && (
+                  <span className="inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1 timer-xl text-3xl text-gold">
+                    {formatTime(remaining)}
+                  </span>
+                )}
                 {!revealed && !stealOpen && !running && (
                   <button type="button" className="btn btn-ok px-3!" onClick={() => act("vedich.startAnswer")}>
                     ▶ Bắt đầu tính giờ ({ANSWER_SECONDS[q?.points] ?? 30}s)
