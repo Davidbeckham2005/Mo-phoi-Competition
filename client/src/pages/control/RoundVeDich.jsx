@@ -34,13 +34,16 @@ export default function RoundVeDich({ ctx }) {
 
   return (
     <div className="panel">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-xs tracking-[0.18em] text-mist uppercase">Quản lý câu hỏi — Về đích</div>
-        <span className={`badge text-xs! ${phase === "answering" ? "badge-ok" : phase === "countdown" ? "badge-warn" : phase === "ready" ? "badge-warn" : "badge-warn"}`}>
-          {phase === "soan" ? "Đang soạn bộ câu"
-            : phase === "ready" ? "Đã xác nhận — sẵn sàng"
-              : phase === "countdown" ? "3 • 2 • 1 …"
-                : "Đang trả lời"}
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: activeTeam?.color }} />
+          <b className="text-sm truncate" style={{ color: activeTeam?.color }}>{activeTeam?.name || "—"}</b>
+          <span className={`badge text-xs! shrink-0 ${phase === "answering" ? "badge-ok" : "badge-warn"}`}>
+            {phase === "soan" ? "Soạn câu" : phase === "ready" ? "Sẵn sàng" : phase === "countdown" ? "3•2•1" : "Đang thi"}
+          </span>
+        </div>
+        <span className="text-xs text-mist shrink-0">
+          {hasPackage ? `Gói ${PACKAGE_LABEL[pkg]}` : "Chưa chọn gói"}
         </span>
       </div>
 
