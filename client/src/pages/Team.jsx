@@ -904,18 +904,20 @@ function VeDichBody({ g, d, teams, me, remaining, running, onBuzz, winnerId }) {
         {d.answerRevealed && <div className="stage-answer mt-5">Đáp án: {d.answer}</div>}
         {d.note && <div className="stage-note mt-4">{d.note}</div>}
         {canSteal && (
-          <>
-            <button
-              type="button"
-              className="mt-7 px-8 py-4 rounded-2xl font-display font-black text-2xl text-[#140d00] bg-gold shadow-[0_0_30px_rgba(255,214,10,0.4)] active:scale-95 transition"
-              onClick={() => onBuzz("row")}
-            >
-              BẤM GIÀNH QUYỀN TRẢ LỜI
-            </button>
-            <p className="text-mist text-sm mt-3">
-              Hoặc bấm phím <span className="inline-grid h-6 min-w-6 place-items-center rounded bg-[#13203a] border border-white/20 px-1.5 font-bold text-gold">INSERT</span> để giành quyền
-            </p>
-          </>
+          <button
+            type="button"
+            className="mt-7 px-8 py-4 rounded-2xl font-display font-black text-2xl text-[#140d00] bg-gold shadow-[0_0_30px_rgba(255,214,10,0.4)] active:scale-95 transition"
+            onClick={() => onBuzz("row")}
+          >
+            BẤM GIÀNH QUYỀN TRẢ LỜI
+          </button>
+        )}
+        {!eliminated && (
+          <p className="text-mist text-sm mt-5 max-w-md">
+            Khi đối thủ trả lời sai, bấm phím{" "}
+            <span className="inline-grid h-6 min-w-6 place-items-center rounded bg-[#13203a] border border-white/20 px-1.5 font-bold text-gold">INSERT</span>{" "}
+            (hoặc nút chuông) để giành quyền trả lời.
+          </p>
         )}
       </div>
     );
