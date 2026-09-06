@@ -1,8 +1,11 @@
-import { useState } from "react";
+const PACKAGES = {
+  60: [10, 10, 20],
+  80: [10, 20, 20],
+  100: [20, 20, 30],
+};
 
 export default function RoundVeDich({ ctx }) {
   const { g, state, act, remaining, q, pts, revealed } = ctx;
-  const [slot, setSlot] = useState(null);
   if (g.round !== "ve_dich") return null;
 
   const activeTeam = state.teams.find((t) => t.id === g.currentTeam);
@@ -18,10 +21,13 @@ export default function RoundVeDich({ ctx }) {
   const star = g.veDich?.starQuestion === curIndex;
   const starUsed = g.veDich?.starQuestion !== null;
   const stealOpen = !!g.veDich?.stealOpen;
+  const pkg = g.veDich?.packagePoints;
+  const hasPackage = pkg === 60 || pkg === 80 || pkg === 100;
 
-  function pick(points, targetSlot) {
-    setSlot(null);
-    act("vedich.pick", { points, slot: targetSlot });
+  const PACKAGE_LABEL = { 60: "60đ", 80: "80đ", 100: "100đ" };
+
+  function selectPackage(packagePoints) {
+    act("vedich.pick", { packagePoints });
   }
 
   return (
@@ -39,101 +45,78 @@ export default function RoundVeDich({ ctx }) {
       <div className="rounded-xl border border-gold ring-1 ring-gold/30 bg-panel-solid p-3">
         <div className="flex justify-between items-center mb-3">
           <b className="text-sm" style={{ color: activeTeam?.color }}>{activeTeam?.name || g.currentTeam?.toUpperCase()}</b>
-          <span className="text-ok text-xs">Đã chọn {picked.length}/3 câu</span>
+          <span className="text-ok text-xs">Đã chọn {picked.length}/3 câu{hasPackage ? ` • gói ${PACKAGE_LABEL[pkg]}` : ""}</span>
         </div>
 
-        {/* 3 vị trí câu — bấm để chọn slot (khi chưa chốt) */}
+        {/* Chọn gói câu hỏi — khóa khi chốt; khi đã chọn gói, bấm gói khác để chọn lại */}
         <div className="grid gap-1.5">
-          {[0, 1, 2].map((idx) => {
-            const q = picked[idx];
-            const isCurrent = locked && idx === curIndex && q;
-            const isSelected = !locked && slot === idx;
+          {Object.entries(PACKAGES).map(([total, structure]) => {
+            const totalVal = Number(total);
+            const isCurrent = hasPackage && pkg === totalVal;
             return (
               <button
-                key={idx}
+                key={total}
                 type="button"
                 disabled={locked}
-                onClick={() => (locked ? undefined : setSlot(isSelected ? null : idx))}
+                onClick={() => selectPackage(totalVal)}
                 className={`rounded-lg border px-3 py-2 text-xs text-left transition ${
                   isCurrent
-                    ? "border-gold bg-gold/10"
-                    : isSelected
-                      ? "border-gold ring-1 ring-gold/40 bg-gold/20"
-                      : q
-                        ? "border-ok/60 bg-ok/5"
-                        : "border-dashed border-line"
+                    ? "border-ok/60 bg-ok/5"
+                    : "border-dashed border-line hover:border-gold/50"
                 }`}
               >
                 <div className="flex justify-between items-center gap-2">
-                  <span>
-                    {q
-                      ? <span className="text-gold font-bold">Câu {idx + 1} • {q.points} điểm</span>
-                      : <span className="text-mist">Chưa chọn câu {idx + 1}</span>}
+                  <span className="text-base font-bold text-gold">Gói {totalVal}đ</span>
+                  <span className={isCurrent ? "text-ok" : "text-mist"}>
+                    {structure.join(" + ")} điểm
                   </span>
-                  {isCurrent && <span className="text-gold text-xs shrink-0">● ĐANG HIỆN</span>}
-                  {isSelected && <span className="text-gold text-xs shrink-0">Đang thay thế →</span>}
+                  {isCurrent && <span className="text-ok text-xs shrink-0">● ĐANG CHỌN</span>}
                 </div>
               </button>
             );
           })}
         </div>
 
-        {/* Thanh điều chỉnh khi chưa chốt */}
-        {!locked && (
-          <>
-            {(() => {
-              // Slots 20/30/40; khi thay thế 1 slot đã có câu, bỏ mức trùng để chỉ
-              // cho đổi sang 1 trong 2 mức còn lại (mỗi câu chỉ chọn 1 trong 3 mức).
-              const currentPts = slot !== null ? (picked[slot]?.points ?? null) : null;
-              const levelOptions = [20, 30, 40].filter((pt) => pt !== currentPts);
+        {/* Bộ 3 câu đã được server chọn theo gói */}
+        {hasPackage && (
+          <div className="grid gap-1 mt-3 pt-3 border-t border-line">
+            {[0, 1, 2].map((idx) => {
+              const cand = picked[idx];
+              const isCurrent = locked && idx === curIndex && cand;
               return (
-                <>
-                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-line">
-                    <span className="text-mist text-xs mr-1">
-                      {slot !== null
-                        ? `Thay thế Câu ${slot + 1} (đang ${currentPts}đ) bằng 1 trong 2 mức:`
-                        : picked.length >= 3
-                          ? "Đã đủ 3 câu — chọn 1 vị trí ở trên để thay thế."
-                          : `Thêm câu ${picked.length + 1}/3 chọn mức:`}
-                    </span>
-                    {levelOptions.map((pt) => (
-                      <button
-                        key={pt}
-                        type="button"
-                        className="btn"
-                        disabled={slot === null && picked.length >= 3}
-                        onClick={() => pick(pt, slot ?? picked.length)}
-                      >
-                        {pt}đ
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-mist text-[11px] mt-1">
-                    Mỗi câu chỉ được chọn 1 trong 3 mức (20/30/40). Trong bộ, hai câu khác nhau vẫn có thể cùng mức.
-                  </p>
-                </>
-              );
-            })()}
-            <div className="flex flex-wrap gap-2 mt-2">
-              {picked.map((q, idx) => (
-                <button
-                  key={q.id}
-                  type="button"
-                  className="btn btn-danger text-xs py-1!"
-                  onClick={() => act("vedich.remove", { slot: idx })}
+                <div
+                  key={idx}
+                  className={`rounded-lg border px-3 py-2 text-xs flex justify-between items-center gap-2 ${
+                    isCurrent ? "border-gold bg-gold/10" : "border-line"
+                  }`}
                 >
-                  Bỏ {q.points}đ (câu {idx + 1})
-                </button>
-              ))}
-              <button
-                type="button"
-                className="btn btn-ghost text-xs py-1!"
-                onClick={() => act("vedich.clear", { teamId: activeTeam?.id })}
-              >
-                Xóa hết
-              </button>
-            </div>
-          </>
+                  <span>
+                    <span className="text-gold font-bold">Câu {idx + 1}</span>{" "}
+                    <span className="text-mist">
+                      {cand ? `${cand.points} điểm` : "…"}
+                    </span>
+                  </span>
+                  {isCurrent && <span className="text-gold text-xs shrink-0">● ĐANG HIỆN</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Nút Xóa hết khi chưa chốt */}
+        {!locked && (
+          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-line">
+            <button
+              type="button"
+              className="btn btn-ghost text-xs py-1!"
+              onClick={() => act("vedich.clear", { teamId: activeTeam?.id })}
+            >
+              Xóa hết (chọn lại gói)
+            </button>
+            <span className="text-mist text-xs">
+              Chọn đúng 1 gói → sửa nội dung từng câu trong ngân hàng nếu cần rồi chốt.
+            </span>
+          </div>
         )}
       </div>
 
@@ -207,17 +190,17 @@ export default function RoundVeDich({ ctx }) {
           <div className="flex flex-wrap gap-2 items-center">
             <button
               type="button"
-              disabled={picked.length < 3}
+              disabled={!hasPackage || picked.length < 3}
               className="btn btn-ok flex-1 min-w-[180px]"
               onClick={() => act("vedich.lock")}
             >
-              Xác nhận bộ câu ({picked.length}/3)
+              {hasPackage ? `Xác nhận bộ câu (gói ${PACKAGE_LABEL[pkg]}, ${picked.length}/3)` : "Chọn gói để chốt"}
             </button>
-            <span className="text-mist text-xs">Đã đủ 3 câu rồi bấm "Xác nhận bộ câu". Ngôi sao hy vọng sẽ chọn ngay khi chuẩn bị hiện từng câu (mỗi đội 1 lần).</span>
+            <span className="text-mist text-xs">Chọn đúng 1 gói để khóa bộ câu (không sửa được từng câu). Ngôi sao hy vọng chọn ngay khi chuẩn bị hiện từng câu (mỗi đội 1 lần).</span>
           </div>
         )}
         <p className="text-mist text-[11px] mt-2.5">
-          Soạn xong 3 câu → "Xác nhận bộ câu" → "Bắt đầu thi" (đếm 3-2-1) → hiện câu 1 để đội trả lời. Trả lời Sai → các đội khác bấm chuông giành quyền trả lời.
+          Chọn gói 60/80/100 → "Xác nhận bộ câu" → "Bắt đầu thi" (đếm 3-2-1) → hiện câu 1 để đội trả lời. Trả lời Sai → các đội khác bấm chuông giành quyền trả lời. Muốn đổi gói, bấm "Sửa lại" rồi chọn gói khác.
         </p>
       </div>
     </div>

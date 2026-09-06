@@ -1,10 +1,16 @@
 // MODULE VÒNG 4 — Về đích (ve_dich).
 //
-// Mỗi đội thi theo lượt: MC CHỌN NGAY TRONG LÚC THI 3 câu hỏi từ ngân hàng câu hỏi
-// của đội. Mỗi câu thuộc một mức điểm: 20đ (trả lời 15s), 30đ (trả lời 20s),
-// 40đ (trả lời 25s). Các câu được chọn KHÔNG trùng nhau trong cùng một đội (vd gói
-// 20,20,20 = 3 câu 20đ khác nhau) và mỗi đội có ngân hàng câu hỏi riêng nên bộ câu
-// của các đội là khác nhau. Giữ cơ chế Ngôi sao hy vọng (x2 điểm, sai trừ gấp đôi).
+// Mỗi đội thi theo lượt: MC CHỌN NGAY TRONG LÚC THI 1 trong 3 gói câu hỏi. Mỗi gói
+// có đúng 3 câu theo cấu trúc cố định:
+//   Gói 60  = câu 10 + 10 + 20
+//   Gói 80  = câu 10 + 20 + 20
+//   Gói 100 = câu 20 + 20 + 30
+// Không cho MC ghép từng mức tùy ý — server TỰ lấy 3 câu từ ngân hàng của đội theo
+// đúng cấu trúc gói, không trùng câu trong gói và không lấy lại câu đã dùng.
+//
+// Câu hỏi thuộc các mức 10đ/20đ/30đ; thời gian trả lời theo POINT_SECONDS.
+// Mỗi đội có ngân hàng câu hỏi riêng nên bộ câu của các đội là khác nhau.
+// Giữ cơ chế Ngôi sao hy vọng (x2 điểm, sai trừ gấp đôi).
 //
 // Tách riêng logic này khỏi game.service.js để giảm phức tạp và tránh lỗi phát sinh
 // (giống vuotCnv.service.js cho Vòng 2). Module này TỰ quản lý saveDb/emit và nhận
@@ -13,7 +19,7 @@
 // Cách dùng (từ game.service.js):
 //   import * as vedich from "./rounds/veDich.service.js";
 //   vedich.init({ emit });
-//   vedich.pick(points); vedich.setStar(true); ...
+//   vedich.selectPackage(80); vedich.setStar(true); ...
 
 import { getDb, saveDb } from "../../models/store.js";
 import { TEAM_ORDER } from "../../config/constants.js";
@@ -30,13 +36,20 @@ function g() {
   return getDb().game;
 }
 
-// Mức điểm hợp lệ → số giây trả lời
-export const POINT_SECONDS = { 20: 15, 30: 20, 40: 25 };
+// Mức điểm câu hỏi → số giây trả lời (công thức quy đổi giống cũ: 5s + điểm/2).
+export const POINT_SECONDS = { 10: 10, 20: 15, 30: 20 };
+
+// Các gói câu hỏi hợp lệ của Vòng 4 (tổng điểm gói → cấu trúc 3 câu).
+export const PACKAGES = {
+  60: [10, 10, 20],
+  80: [10, 20, 20],
+  100: [20, 20, 30],
+};
 
 // Trạng thái mặc định khi vào vòng / reset.
 export function defaultState() {
   return {
-    packagePoints: 20,
+    packagePoints: null,
     // Ngôi sao hy vọng: mỗi đội được chọn đúng 1 câu duy nhất. starQuestion = vị trí câu
     // (pickIndex) được gắn sao; null = chưa chọn. Chọn TRƯỚC khi hiện câu (ready/prep),
     // khi đang trả lời không đổi được.
@@ -54,12 +67,10 @@ export function defaultState() {
   };
 }
 
-// Mức điểm hợp lệ cho Về đích.
-export const PACKAGE_POINTS = [20, 30, 40];
-// Số câu tối thiểu cần có cho mỗi đội ở MỖI mức điểm (20/30/40).
-export const Q_PER_LEVEL = 3;
-// Q_PER_LEVEL câu × số mức.
-export const Q_PER_TEAM = PACKAGE_POINTS.length * Q_PER_LEVEL; // 9
+// Ngân hàng câu dự phòng tối thiểu cho MỖI đội ở mỗi mức điểm (12×10, 24×20, 12×30).
+export const BANK_REQUIREMENTS = { 10: 12, 20: 24, 30: 12 };
+// Tổng câu dự phòng mỗi đội: 12 + 24 + 12 = 48.
+export const BANK_TOTAL = Object.values(BANK_REQUIREMENTS).reduce((a, b) => a + b, 0);
 
 // Hằng tham chiếu ngân hàng câu Về đích của mọi đội trong db.questions.main.
 function bank(db) {
@@ -78,8 +89,8 @@ function makeQuestion(teamId, points) {
   };
 }
 
-// Đảm bảo mỗi đội có đủ Q_PER_LEVEL câu ở mỗi mức 20/30/40. Nếu thiếu, tự tạo câu
-// bản nháp để đội vẫn chọn được đủ 3 câu. Trả về số câu đã tạo thêm.
+// Đảm bảo mỗi đội có ngân hàng câu đủ theo BANK_REQUIREMENTS (12×10, 24×20, 12×30).
+// Nếu thiếu, tự tạo câu bản nháp để đội vẫn chọn được đủ. Trả về số câu đã tạo thêm.
 export function ensureBank() {
   const db = getDb();
   const b = bank(db);
@@ -87,10 +98,11 @@ export function ensureBank() {
   for (const teamId of TEAM_ORDER) {
     const list = Array.isArray(b[teamId]) ? b[teamId] : [];
     b[teamId] = list;
-    for (const pts of PACKAGE_POINTS) {
-      const have = list.filter((x) => Number(x.points) === pts).length;
-      for (let i = have; i < Q_PER_LEVEL; i += 1) {
-        b[teamId].push(makeQuestion(teamId, pts));
+    for (const [pts, need] of Object.entries(BANK_REQUIREMENTS)) {
+      const level = Number(pts);
+      const have = list.filter((x) => Number(x.points) === level).length;
+      for (let i = have; i < need; i += 1) {
+        b[teamId].push(makeQuestion(teamId, level));
         created += 1;
       }
     }
@@ -170,85 +182,63 @@ function currentPoints(game = g()) {
   return q?.points || game?.veDich?.packagePoints || 20;
 }
 
-// MC chọn (thêm mới hoặc thay thế) một câu trong bộ câu của đội đang thi.
-//   - slot = 0..picked.length (vị trí muốn thêm/thay): nếu slot < picked.length thì THAY THẾ
-//     câu tại vị trí đó; nếu slot >= picked.length thì THÊM MỚI vào cuối.
-//   - Chỉ cho phép khi chưa chốt (locked == false) — sau khi chốt phải unlock để sửa.
-//   - Tự chọn câu đầu tiên ở mức chỉ định trong ngân hàng CHƯA được đội dùng ở vị trí khác.
-export function pick(points, slot) {
+// MC chọn gói câu hỏi cho đội đang thi. Server TỰ lấy 3 câu từ ngân hàng của đội
+// theo đúng cấu trúc gói (PACKAGES), không lấy lại câu đã dùng trước đó.
+//   - packagePoints bắt buộc là 60, 80 hoặc 100.
+//   - Chỉ cho phép khi chưa chốt (locked == false) — sau khi chốt phải unlock để đổi gói.
+//   - Nếu không đủ câu ở mức cần thiết → trả lỗi rõ ràng, không tự chọn bừa.
+//   - Trả về mảng id của 3 câu đã chọn.
+export function selectPackage(packagePoints) {
   const game = g();
   const team = game.currentTeam;
-  const pts = Number(points);
-  if (![20, 30, 40].includes(pts)) {
-    const err = new Error("Giá trị điểm phải là 20, 30 hoặc 40.");
+  const pts = Number(packagePoints);
+  const structure = PACKAGES[pts];
+  if (!structure) {
+    const err = new Error("Gói câu hỏi chỉ có thể là 60, 80 hoặc 100 điểm.");
     err.status = 400;
     throw err;
   }
   if (game.veDich.locked) {
-    const err = new Error("Bộ câu đã chốt — hãy bấm Sửa lại trước khi điều chỉnh.");
-    err.status = 400;
-    throw err;
-  }
-  const picked = game.veDich.picked?.[team] || [];
-  const pos = Number.isInteger(slot) && slot >= 0 ? slot : picked.length;
-  // Chặn: vị trí vượt danh sách, hoặc THÊM MỚI (pos == length) khi đã đủ 3 câu.
-  if (pos > picked.length || (pos === picked.length && picked.length >= 3)) {
-    const err = new Error(`Đội này đã chọn ${picked.length}/3 câu — chỉ có thể thay thế vị trí 0..${Math.max(0, picked.length - 1)}.`);
+    const err = new Error("Bộ câu đã chốt — không thể đổi gói. Bấm Sửa lại nếu muốn chọn gói khác.");
     err.status = 400;
     throw err;
   }
   const bank = getDb().questions.main.veDich?.[team] || [];
-  // Trường hợp THAY THẾ 1 vị trí đã có câu: chỉ được đổi sang MỨC KHÁC, không được
-  // chọn lại đúng mức của câu hiện tại (vì câu đó đã ở mức đó rồi).
-  const existing = pos < picked.length ? picked[pos] : null;
-  if (existing) {
-    const cur = bank.find((x) => x.id === existing);
-    if (cur && Number(cur.points) === pts) {
-      const err = new Error(`Câu ${pos + 1} đã ở mức ${pts} điểm — chọn 1 trong 2 mức còn lại để thay thế.`);
+  // Câu đã sử dụng: mọi câu đang nằm trong gói của CÁC đội (kể cả gói cũ của chính đội
+  // này nếu đang đổi sang gói khác) — không được lấy lại. Đổi gói trước khi chốt không
+  // "giải phóng" câu cũ để tránh trùng câu giữa các lượt.
+  const usedIds = new Set();
+  for (const qids of Object.values(game.veDich.picked || {})) {
+    (qids || []).forEach((qid) => usedIds.add(qid));
+  }
+  const pickedIds = [];
+  const needByLevel = structure.reduce((acc, lv) => { acc[lv] = (acc[lv] || 0) + 1; return acc; }, {});
+  for (const level of Object.keys(needByLevel)) {
+    const lv = Number(level);
+    const need = needByLevel[lv];
+    const candidates = bank.filter((x) => Number(x.points) === lv && !usedIds.has(x.id));
+    if (candidates.length < need) {
+      const err = new Error(
+        `Đội ${team.toUpperCase()} không đủ câu ${lv} điểm chưa dùng: cần ${need}, hiện còn ${candidates.length}. Hãy bổ sung câu ${lv} điểm trong ngân hàng rồi thử lại.`
+      );
       err.status = 400;
       throw err;
     }
+    // Lấy các câu đầu tiên chưa dùng; ưu tiên câu đã soạn nội dung (không phải bản nháp tự tạo).
+    const chosen = candidates
+      .slice()
+      .sort((a, b) => (a.auto ? 1 : 0) - (b.auto ? 1 : 0))
+      .slice(0, need)
+      .map((x) => x.id);
+    chosen.forEach((qid) => usedIds.add(qid));
+    pickedIds.push(...chosen);
   }
-  // Các câu đã dùng ở các vị trí KHÁC (không tính vị trí đang được thay thế).
-  const usedElsewhere = picked.filter((_, i) => i !== pos);
-  const q = bank.find((x) => x.points === pts && !usedElsewhere.includes(x.id));
-  if (!q) {
-    const err = new Error(
-      `Đội ${team.toUpperCase()} không còn câu hỏi ${pts} điểm chưa dùng — chọn mức khác hoặc bỏ bớt câu.`
-    );
-    err.status = 400;
-    throw err;
-  }
-  const next = picked.slice();
-  if (pos < picked.length) next[pos] = q.id;
-  else next.push(q.id);
-  game.veDich.picked = { ...(game.veDich.picked || {}), [team]: next };
+  game.veDich.picked = { ...(game.veDich.picked || {}), [team]: pickedIds };
   game.veDich.packagePoints = pts;
+  game.veDich.pickIndex = 0;
   saveDb();
   emit();
-  return q;
-}
-
-// Bỏ câu tại một vị trí trong bộ câu đang soạn (chưa chốt).
-export function removePicked(slot) {
-  const game = g();
-  const team = game.currentTeam;
-  if (game.veDich.locked) {
-    const err = new Error("Bộ câu đã chốt — hãy bấm Sửa lại trước khi điều chỉnh.");
-    err.status = 400;
-    throw err;
-  }
-  const picked = game.veDich.picked?.[team] || [];
-  if (!Number.isInteger(slot) || slot < 0 || slot >= picked.length) {
-    const err = new Error("Vị trí câu cần xóa không hợp lệ.");
-    err.status = 400;
-    throw err;
-  }
-  const next = picked.slice();
-  next.splice(slot, 1);
-  game.veDich.picked = { ...(game.veDich.picked || {}), [team]: next };
-  saveDb();
-  emit();
+  return pickedIds;
 }
 
 // Chốt bộ 3 câu — đưa câu hỏi cho thí sinh trả lời (bắt đầu từ câu 1).

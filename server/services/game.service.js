@@ -334,7 +334,7 @@ export function resetKhoiDong(teamId = null) {
       setTimer(game.khoiDong.timerSeconds, false);
     }
     if (roundId === "ve_dich") {
-      // Đảm bảo mỗi đội có đủ ngân hàng câu (3×20, 3×30, 3×40); tự tạo bản nháp nếu thiếu.
+      // Đảm bảo mỗi đội có đủ ngân hàng câu (12×10, 24×20, 12×30); tự tạo bản nháp nếu thiếu.
       vedich.ensureBank();
       game.veDich = vedich.defaultState();
       // Chỉ 4 đội điểm cao thi vòng 4; bắt đầu từ đội điểm cao nhất.
@@ -436,7 +436,7 @@ export function resetKhoiDong(teamId = null) {
         game.veDich.starQuestion === (game.veDich.pickIndex ?? 0)
           ? " • Ngôi sao hy vọng"
           : "";
-      game.display.note = `${team(game.currentTeam)?.name || ""} • ${q?.points || game.veDich.packagePoints || 20} điểm${star}`;
+      game.display.note = `${team(game.currentTeam)?.name || ""} • ${q?.points || 20} điểm${star}`;
       setTimer(vedich.getAnswerSeconds(game), true);
     }
     saveDb();
@@ -883,10 +883,9 @@ if (game.round === "khoi_dong") {
     emit();
   }
 
-  export const vedichPick = (points, slot) => vedich.pick(points, slot);
+  export const vedichSelectPackage = (packagePoints) => vedich.selectPackage(packagePoints);
   export const vedichSetStar = (star) => vedich.setStar(!!star);
   export const vedichClearPicked = (teamId) => vedich.clearPicked(teamId);
-  export const vedichRemovePicked = (slot) => vedich.removePicked(slot);
   export const vedichLockPackage = () => vedich.lockPackage();
   export const vedichUnlockPackage = () => vedich.unlockPackage();
   export const vedichStartGame = () => {
