@@ -36,8 +36,9 @@ export default function RoundVeDich({ ctx }) {
   }
 
   return (
-    <div className="panel">
-      <div className="rounded-xl border border-gold ring-1 ring-gold/30 bg-panel-solid p-3 mt-3">
+    <div className="panel divide-y divide-line">
+      {/* CHỌN GÓI */}
+      <section className="py-4">
         <div className="flex justify-between items-center mb-3">
           <b className="text-sm" style={{ color: activeTeam?.color }}>{activeTeam?.name || g.currentTeam?.toUpperCase()}</b>
           <span className="text-ok text-xs">Đã chọn {picked.length}/3 câu{hasPackage ? ` • gói ${PACKAGE_LABEL[pkg]}` : ""}</span>
@@ -53,9 +54,9 @@ export default function RoundVeDich({ ctx }) {
                 type="button"
                 disabled={locked}
                 onClick={() => selectPackage(totalVal)}
-                className={`rounded-lg border px-3 py-2 text-xs text-left transition ${
+                className={`border px-3 py-2 text-xs text-left transition ${
                   isCurrent
-                    ? "border-ok/60 bg-ok/5"
+                    ? "border-ok bg-ok/10"
                     : "border-dashed border-line hover:border-gold/50"
                 }`}
               >
@@ -71,7 +72,6 @@ export default function RoundVeDich({ ctx }) {
           })}
         </div>
 
-
         {hasPackage && (
           <div className="grid gap-1 mt-3 pt-3 border-t border-line">
             {[0, 1, 2].map((idx) => {
@@ -80,7 +80,7 @@ export default function RoundVeDich({ ctx }) {
               return (
                 <div
                   key={idx}
-                  className={`rounded-lg border px-3 py-2 text-xs flex justify-between items-center gap-2 ${
+                  className={`border px-3 py-2 text-xs flex justify-between items-center gap-2 ${
                     isCurrent ? "border-gold bg-gold/10" : "border-line"
                   }`}
                 >
@@ -98,24 +98,23 @@ export default function RoundVeDich({ ctx }) {
         )}
 
         {!locked && (
-          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-line">
-            <button
-              type="button"
-              className="btn btn-ghost text-xs py-1!"
-              onClick={() => act("vedich.clear", { teamId: activeTeam?.id })}
-            >
-              Xóa hết (chọn lại gói)
-            </button>
-
-          </div>
+          <button
+            type="button"
+            className="btn btn-ghost text-xs py-1! mt-3"
+            onClick={() => act("vedich.clear", { teamId: activeTeam?.id })}
+          >
+            Xóa hết (chọn lại gói)
+          </button>
         )}
-      </div>
+      </section>
 
-      <div className="mt-3 mb-3">
+      {/* CÂU HỎI & ĐÁP ÁN */}
+      <section className="py-4">
         <CurrentQuestionCard q={q} />
-      </div>
+      </section>
 
-      <div className="rounded-xl border border-line bg-panel-solid p-3 mt-3">
+      {/* ĐIỀU KHIỂN */}
+      <section className="pt-4">
         {locked ? (
           <div className="flex flex-wrap gap-2 items-center">
             {phase === "ready" && (
@@ -200,11 +199,9 @@ export default function RoundVeDich({ ctx }) {
             >
               {hasPackage ? `Xác nhận bộ câu (gói ${PACKAGE_LABEL[pkg]}, ${picked.length}/3)` : "Chọn gói để chốt"}
             </button>
-
           </div>
         )}
-
-      </div>
+      </section>
     </div>
   );
 }
