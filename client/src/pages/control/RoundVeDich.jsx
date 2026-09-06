@@ -4,8 +4,10 @@ const PACKAGES = {
   100: [20, 20, 30],
 };
 
+const ANSWER_SECONDS = { 10: 30, 20: 45, 30: 60 };
+
 export default function RoundVeDich({ ctx }) {
-  const { g, state, act, remaining, q, pts, revealed } = ctx;
+  const { g, state, act, remaining, q, pts, revealed, running } = ctx;
   if (g.round !== "ve_dich") return null;
 
   const activeTeam = state.teams.find((t) => t.id === g.currentTeam);
@@ -168,6 +170,11 @@ export default function RoundVeDich({ ctx }) {
                 <span className="text-mist text-xs flex-1">
                   {stealOpen ? "Đội giành chuông trả lời" : `${activeTeam?.name} (${g.currentTeam?.toUpperCase()}) trả lời`}
                 </span>
+                {!revealed && !stealOpen && !running && (
+                  <button type="button" className="btn btn-ok px-3!" onClick={() => act("vedich.startAnswer")}>
+                    ▶ Bắt đầu tính giờ ({ANSWER_SECONDS[q?.points] ?? 30}s)
+                  </button>
+                )}
                 {revealed && (
                   <button type="button" className="btn px-3!" onClick={() => act("question.next")}>
                     Câu tiếp →
