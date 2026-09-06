@@ -914,9 +914,7 @@ function VeDichBody({ g, d, teams, me, remaining, running, onBuzz, winnerId }) {
         )}
         {!eliminated && (
           <p className="text-mist text-sm mt-5 max-w-md">
-            Khi đối thủ trả lời sai, bấm phím{" "}
-            <span className="inline-grid h-6 min-w-6 place-items-center rounded bg-[#13203a] border border-white/20 px-1.5 font-bold text-gold">INSERT</span>{" "}
-            (hoặc nút chuông) để giành quyền trả lời.
+            Khi đối thủ trả lời sai, hãy bấm phím <b className="text-gold">INSERT</b> để giành quyền trả lời.
           </p>
         )}
       </div>
