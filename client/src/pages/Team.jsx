@@ -845,17 +845,20 @@ function VeDichBody({ g, d, teams, me, remaining, running, onBuzz, winnerId }) {
     );
   } else {
     inner = (
-      <div className="text-center w-full max-w-xl">
-        <div
-          className={`timer-xl ${running && remaining <= 5 ? "timer-danger" : ""}`}
-          style={{ fontSize: "clamp(56px,9vw,90px)" }}
-        >
-          {formatTime(remaining)}
-        </div>
+      <div className="flex flex-col items-center w-full max-w-xl">
         <div className="round-badge">Về đích — {cur?.name || g.currentTeam?.toUpperCase()}</div>
         {star && (
           <div className="badge badge-ok text-base! px-4 py-2 mt-3">Ngôi sao hy vọng — điểm ×2</div>
         )}
+        <div
+          className={`mt-4 inline-flex items-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-5 py-1 timer-xl ${running && remaining <= 5 ? "timer-danger" : "text-gold"}`}
+          style={{ fontSize: "clamp(36px,6vw,64px)" }}
+        >
+          {formatTime(remaining)}
+        </div>
+        <p className="text-mist text-sm mt-3 max-w-md">
+          {running ? "Đang trả lời — đọc kỹ câu hỏi dưới đây." : "Chờ MC bắt đầu đếm giờ trả lời."}
+        </p>
         {d.mediaUrl && d.mediaType === "image" && (
           <img src={d.mediaUrl} alt="" className="max-h-[24vh] mx-auto rounded-2xl mt-3 object-contain border border-line" />
         )}
