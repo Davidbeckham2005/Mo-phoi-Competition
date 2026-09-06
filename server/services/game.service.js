@@ -410,7 +410,7 @@ export function resetKhoiDong(teamId = null) {
       // 3 giây rồi mới phát (tangTocPlay).
       game.tangToc = freshTangToc();
       const ttDur = q.duration || q.timeLimit || 120;
-      game.display.note = `Câu ${game.questionIndex + 1} — bấm “Chiếu video” để phát (đếm ngược ${TANG_TOC_PREP_SECONDS}s rồi chiếu).`;
+      game.display.note = `Câu ${game.questionIndex + 1} — bấm “Bắt đầu đếm giờ” để chiếu video (đếm ngược ${TANG_TOC_PREP_SECONDS}s rồi phát).`;
       setTimer(ttDur, false);
     }
     if (game.round === "khoi_dong") {
@@ -875,7 +875,7 @@ if (game.round === "khoi_dong") {
       game.display.mediaUrl = q?.mediaUrl || "";
       game.display.mediaType = q?.mediaType || "";
       game.display.title = ROUNDS.find((r) => r.id === game.round)?.name || "";
-      game.display.note = `Câu ${Math.max(0, questionIndex) + 1} — bấm “Chiếu video” để phát (đếm ngược ${TANG_TOC_PREP_SECONDS}s rồi chiếu).`;
+      game.display.note = `Câu ${Math.max(0, questionIndex) + 1} — bấm “Bắt đầu đếm giờ” để chiếu video (đếm ngược ${TANG_TOC_PREP_SECONDS}s rồi phát).`;
       setTimer(q?.duration || q?.timeLimit || 120, false);
       saveDb();
       emit();
@@ -1166,16 +1166,19 @@ if (game.round === "khoi_dong") {
     emit();
   }
 
-  // MC bấm "▶ Chiếu video": chạy đếm ngược TANG_TOC_PREP_SECONDS giây (hiện trên mọi
-  // màn hình) rồi mới chuyển sang phase "video" và phát. KHÔNG xóa bài đã nộp, nên nếu
-  // MC đã dừng giữa chừng (tangTocStop) thì lần phát này sẽ tiếp tục từ vị trí cũ.
+  // MC bấm "▶ Chiếu video": hiện câu hỏi/video lên màn hình nhưng CHƯA chạy timer —
+  // chuyển sang phase "ready" (video dừng, timer = duration của câu, running = false).
+  // MC bấm "▶ Bắt đầu đếm giờ" (tangTocStartCountdown) mới chạy đếm ngược chuẩn bị
+  // TANG_TOC_PREP_SECONDS rồi timer loop tự chuyển phase "video" và phát + đếm giờ trả lời.
+  // KHÔNG xóa bài đã nộp, nên nếu MC đã dừng giữa chừng (tangTocStop) thì lần phát sau
+  // vẫn tiếp tục từ vị trí cũ.
   export function tangTocPlay() {
     const game = g();
     if (game.round !== "tang_toc") return;
     const ph = game.tangToc?.phase;
-    if (ph === "answers" || (ph === "video" && game.timer.running)) return;
+    if (ph === "answers" || ph === "preparing" || (ph === "video" && game.timer.running)) return;
     if (!game.tangToc) game.tangToc = freshTangToc();
-    game.tangToc.phase = "preparing";
+    game.tangToc.phase = "ready";
     const q = currentQuestion();
     game.questionStatus = "showing";
     game.display.mode = "question";
@@ -1187,7 +1190,20 @@ if (game.round === "khoi_dong") {
     game.display.mediaType = q?.mediaType || "";
     game.display.title = ROUNDS.find((r) => r.id === game.round)?.name || "";
     const dur = q?.duration || q?.timeLimit || 120;
-    game.display.note = `Chuẩn bị chiếu video ${dur}s — cả 4 đội gửi đáp án khi phát; nộp nhanh được nhiều điểm.`;
+    game.display.note = `Câu ${game.questionIndex + 1} — video đã hiện; MC bấm “Bắt đầu đếm giờ” để chiếu (đếm ngược ${TANG_TOC_PREP_SECONDS}s rồi phát).`;
+    setTimer(dur, false);
+  }
+
+  // MC bấm "▶ Bắt đầu đếm giờ" (btn khích hoạt countdown): chỉ được chạy khi câu hỏi
+  // đã hiện sẵn sàng (phase "ready" hoặc "video" đang tạm dừng sau khi Dừng) và timer
+  // chưa chạy. Chạy đếm ngược chuẩn bị → timer loop tự phát video + đếm thời gian trả lời.
+  export function tangTocStartCountdown() {
+    const game = g();
+    if (game.round !== "tang_toc") return;
+    const ph = game.tangToc?.phase;
+    if (ph === "preparing" || ph === "answers" || (ph === "video" && game.timer.running)) return;
+    if (ph !== "ready" && ph !== "video") return;
+    game.tangToc.phase = "preparing";
     setTimer(TANG_TOC_PREP_SECONDS, true);
   }
 

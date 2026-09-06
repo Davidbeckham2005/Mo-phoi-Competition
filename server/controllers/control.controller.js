@@ -101,6 +101,7 @@ const actions = {
   "vedich.startAnswer": () => game.startVedichAnswerTimer(),
   "tangtoc.submit": (p) => game.submitTangToc(p.teamId, p.answer),
   "tangtoc.play": () => game.tangTocPlay(),
+  "tangtoc.countdown": () => game.tangTocStartCountdown(),
   "tangtoc.stop": (p) => game.tangTocStop(p.pin),
   "tangtoc.settle": () => game.settleTangToc(),
   "tangtoc.phase": (p) => game.tangTocSetPhase(p.phase),

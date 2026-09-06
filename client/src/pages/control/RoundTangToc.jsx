@@ -166,6 +166,15 @@ export default function RoundTangToc({ ctx }) {
             >
               ⏸ Dừng video
             </button>
+          ) : shown && !running ? (
+            <button
+              type="button"
+              className="btn btn-ok text-sm! py-1.5! disabled:opacity-45"
+              disabled={settled || phase === "answers"}
+              onClick={() => act("tangtoc.countdown")}
+            >
+              ▶ Bắt đầu đếm giờ (Câu {curIdx + 1})
+            </button>
           ) : (
             <button
               type="button"
@@ -196,7 +205,13 @@ export default function RoundTangToc({ ctx }) {
         <div className="flex items-center gap-3 mb-2">
           <div className="text-xs tracking-[0.18em] text-mist uppercase">Câu hỏi</div>
           <span className="text-mist text-xs ml-auto">
-            {g.display?.mediaUrl ? (phase === "video" && running ? "Đang chiếu ⏺" : "Sẵn sàng chiếu") : "Chưa cài video"}
+            {g.display?.mediaUrl ? (
+              phase === "video" && running
+                ? "Đang chiếu ⏺"
+                : shown && !running
+                  ? "Sẵn sàng chiếu — chờ bắt đầu đếm giờ"
+                  : "Sẵn sàng chiếu"
+            ) : "Chưa cài video"}
           </span>
         </div>
         <div className="grid gap-2 sm:grid-cols-4 mb-2">
