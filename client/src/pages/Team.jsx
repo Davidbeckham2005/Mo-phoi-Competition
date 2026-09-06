@@ -774,14 +774,18 @@ function VeDichBody({ g, d, teams, me, remaining, running, onBuzz, winnerId }) {
   const ved = g.veDich || {};
   const phase = ved.phase || "soan";
   const cur = teams.find((t) => t.id === g.currentTeam);
+  const myTeam = teams.find((t) => t.id === me);
+  const eliminated = !!myTeam?.eliminated;
   const star = ved.starQuestion === (ved.pickIndex ?? 0);
   const inQuestion = d.mode === "question" && !!d.question;
   const blocked = (g.buzzer?.blocked || []).includes(me);
   const open = !!g.buzzer?.open;
   const won = winnerId === me;
 
-  // Có thể bấm chuông giành quyền: đang mở chuông (stealOpen), mình chưa bị chặn, chưa có người thắng.
-  const canSteal = open && !!ved.stealOpen && !blocked && !winnerId;
+  // Có thể bấm chuông giành quyền: đang mở chuông (stealOpen), mình chưa bị chặn, chưa có
+  // người thắng. Đội ĐÃ BỊ LOẠI không tham gia (server loại bỏ ngay từ đầu khi bấm chuông)
+  // nên ẩn luôn nút để không bị tưởng chuông hỏng.
+  const canSteal = open && !!ved.stealOpen && !blocked && !winnerId && !eliminated;
 
   let inner;
   if (phase === "countdown") {
@@ -825,7 +829,11 @@ function VeDichBody({ g, d, teams, me, remaining, running, onBuzz, winnerId }) {
         {d.question && <div className="stage-q mt-3">{d.question}</div>}
         {ved.stealOpen && (
           <div className="badge badge-warn text-base! px-4 py-2 mt-5 animate-pulse">
-            {won ? "BẠN GIÀNH ĐƯỢC QUYỀN — hãy trả lời!" : "Mở chuông giành quyền trả lời"}
+            {eliminated
+              ? "Đội đã bị loại — không giành quyền được"
+              : won
+                ? "BẠN GIÀNH ĐƯỢC QUYỀN — hãy trả lời!"
+                : "Mở chuông giành quyền trả lời"}
           </div>
         )}
         {d.answerRevealed && <div className="stage-answer mt-5">Đáp án: {d.answer}</div>}
