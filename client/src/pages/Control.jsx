@@ -354,10 +354,10 @@ export default function Control() {
             );
           })}
         </div>
-        <p className="mt-5">
-          <Link to="/admin" className="text-gold underline">Mở trang quản trị</Link>
-        </p>
         </>)}
+      <p className="mt-5">
+        <Link to="/admin" className="text-gold underline">Mở trang quản trị</Link>
+      </p>
       </aside>
 
       {/* CỘT GIỮA */}
