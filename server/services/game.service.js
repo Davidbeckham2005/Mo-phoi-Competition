@@ -30,6 +30,8 @@
 
   let timerHandle = null;
   let khoiDongTimer = null;
+  // Handle tự động bắt đầu tính giờ trả lời Vòng Về đích (nếu MC không bấm kịp trong X giây).
+  let vedichAutoTimer = null;
   let broadcast = () => {};
 
   export function setBroadcast(fn) {
@@ -440,6 +442,8 @@ export function resetKhoiDong(teamId = null) {
       // Không tự chạy timer — MC đọc câu hỏi xong rồi bấm "Bắt đầu tính giờ"
       // (vedich.startAnswer). Chỉ đặt duration/remaining theo điểm câu, running = false.
       setTimer(vedich.getAnswerSeconds(game), false);
+      // Nếu MC không bấm kịp trong X giây (settings.veDichAutoAnswerSeconds) → tự bắt đầu.
+      scheduleVedichAutoStart();
     }
     saveDb();
     emit();
@@ -721,6 +725,7 @@ if (game.round === "khoi_dong") {
       game.tangToc = freshTangToc();
       setTimer(0, false);
     } else if (game.round === "ve_dich") {
+      clearVedichAuto();
       // Cửa sổ cướp quyền còn treo chưa được chấm (không đội nào giành/trả lời) → áp luật
       // "không ai trả lời được" cho đội chọn câu trước khi sang câu kế.
       const pend = game.veDich.stealPending;
@@ -921,6 +926,7 @@ if (game.round === "khoi_dong") {
   export const vedichLockPackage = () => vedich.lockPackage();
   export const vedichUnlockPackage = () => vedich.unlockPackage();
   export const vedichStartGame = () => {
+    clearVedichAuto();
     vedich.startGame();
     setTimer(VEDICH_COUNTDOWN_SECONDS, true);
   };
@@ -956,7 +962,33 @@ if (game.round === "khoi_dong") {
       err.status = 400;
       throw err;
     }
+    clearVedichAuto();
     setTimer(vedich.getAnswerSeconds(game), true);
+  }
+
+  // Lên lịch TỰ bắt đầu đếm giờ trả lời Vòng Về đích sau X giây (settings.veDichAutoAnswerSeconds)
+  // nếu MC chưa bấm "Bắt đầu tính giờ". Hủy tự động khi MC bấm sớm hoặc rời phase answering.
+  function clearVedichAuto() {
+    if (vedichAutoTimer) {
+      clearTimeout(vedichAutoTimer);
+      vedichAutoTimer = null;
+    }
+  }
+
+  function scheduleVedichAutoStart() {
+    clearVedichAuto();
+    const sec = Number(getDb().settings?.veDichAutoAnswerSeconds) || 0;
+    if (sec <= 0) return;
+    vedichAutoTimer = setTimeout(() => {
+      vedichAutoTimer = null;
+      const game = g();
+      const ved = game.veDich;
+      if (game.round !== "ve_dich" || !ved || ved.phase !== "answering" || ved.stealOpen || game.timer.running) {
+        return;
+      }
+      if (!vedich.findQuestion(game)) return;
+      setTimer(vedich.getAnswerSeconds(game), true);
+    }, sec * 1000);
   }
 
   export function resetBuzzer(open = false) {

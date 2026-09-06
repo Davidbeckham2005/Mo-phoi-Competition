@@ -1020,6 +1020,7 @@ function SettingsTab({ state, reload, setMsg }) {
   const [s, setS] = useState(state.settings);
   const [kdAnswerSec, setKdAnswerSec] = useState(() => Number(state.game?.khoiDong?.answerSeconds) || 4);
   const [kdTimerSec, setKdTimerSec] = useState(() => Number(state.game?.khoiDong?.timerSeconds) || 60);
+  const [vedAutoSec, setVedAutoSec] = useState(() => Number(state.settings?.veDichAutoAnswerSeconds) || 5);
   // Bộ điểm thưởng theo độ nhanh Vòng 2 (Vượt CNV) & Vòng 3 (Tăng tốc) — admin thay đổi được.
   const [r2Pts, setR2Pts] = useState(() => (state.game?.round2Points || [40, 30, 20, 10]).map((n) => String(Number(n) || 0)));
   const [r3Pts, setR3Pts] = useState(() => (state.game?.round3Points || [40, 30, 20, 10]).map((n) => String(Number(n) || 0)));
@@ -1080,6 +1081,10 @@ function SettingsTab({ state, reload, setMsg }) {
       <label className="label-grid">
         Thời gian mỗi lượt khởi động (giây)
         <input type="number" value={kdTimerSec} onChange={(e) => setKdTimerSec(Number(e.target.value))} />
+      </label>
+      <label className="label-grid">
+        Về đích — tự bắt đầu giờ trả lời sau (giây, 0 = tắt, chờ MC bấm)
+        <input type="number" min={0} value={vedAutoSec} onChange={(e) => setVedAutoSec(Number(e.target.value))} />
       </label>
       <div className="rounded-xl border border-line bg-night/40 p-3.5">
         <div className="text-xs tracking-[0.18em] text-mist uppercase mb-1">Điểm thưởng theo độ nhanh</div>

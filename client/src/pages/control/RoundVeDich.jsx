@@ -1,4 +1,3 @@
-import { formatTime } from "../../lib/format.js";
 import CurrentQuestionCard from "./CurrentQuestionCard.jsx";
 
 const PACKAGES = {
@@ -161,11 +160,6 @@ export default function RoundVeDich({ ctx }) {
                 <span className="text-mist text-xs flex-1">
                   {stealOpen ? "Đội giành chuông trả lời" : `${activeTeam?.name} (${g.currentTeam?.toUpperCase()}) trả lời`}
                 </span>
-                {running && (
-                  <span className="inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1 timer-xl text-3xl text-gold">
-                    {formatTime(remaining)}
-                  </span>
-                )}
                 {!revealed && !stealOpen && !running && (
                   <button type="button" className="btn btn-ok px-3!" onClick={() => act("vedich.startAnswer")}>
                     ▶ Bắt đầu tính giờ ({ANSWER_SECONDS[q?.points] ?? 30}s)

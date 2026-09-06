@@ -98,5 +98,8 @@ export function defaultSettings() {
     showLiveRanking: false,
     audienceBg: "dark",
     audienceBgUrl: "",
+    // Số giây MC được phép đọc câu hỏi trước khi hệ thống TỰ bắt đầu đếm giờ trả lời
+    // ở Vòng Về đích (0 = tắt, bắt buộc MC bấm thủ công "Bắt đầu tính giờ").
+    veDichAutoAnswerSeconds: 5,
   };
 }
