@@ -1,4 +1,4 @@
-export default function CurrentQuestionCard({ q, revealed }) {
+export default function CurrentQuestionCard({ q }) {
   if (!q) return null;
 
   return (
@@ -9,14 +9,8 @@ export default function CurrentQuestionCard({ q, revealed }) {
 
       <div className="font-display text-xl leading-snug text-white">{q.question}</div>
 
-      <div
-        className={`mt-2.5 rounded-lg border px-4 py-2.5 text-base transition ${
-          revealed
-            ? "border-ok/40 bg-ok/10 font-semibold text-ok"
-            : "border-line bg-night/50 tracking-[0.25em] text-mist"
-        }`}
-      >
-        Đáp án: {revealed ? q.answer : "••••••••"}
+      <div className="mt-2.5 rounded-lg border border-ok/40 bg-ok/10 px-4 py-2.5 text-base font-semibold text-ok">
+        Đáp án: {q.answer}
       </div>
     </div>
   );
