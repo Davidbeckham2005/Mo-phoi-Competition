@@ -110,6 +110,8 @@ const actions = {
     return r;
   },
   "tangtoc.reveal": (p) => game.tangTocReveal(p.step),
+  // Đổi bộ điểm thưởng theo độ nhanh của Vòng 2 / Vòng 3 (admin).
+  "round.points": (p) => game.setRoundPoints(p.round, p.points),
   "tiebreak.teams": (p) => game.setTieBreakTeams(p.teams),
   "tiebreak.questions": (p) => game.setTieBreakQuestions(p.questions),
   "tiebreak.show": () => game.showTieBreakQuestion(),

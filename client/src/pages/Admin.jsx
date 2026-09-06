@@ -1020,6 +1020,9 @@ function SettingsTab({ state, reload, setMsg }) {
   const [s, setS] = useState(state.settings);
   const [kdAnswerSec, setKdAnswerSec] = useState(() => Number(state.game?.khoiDong?.answerSeconds) || 4);
   const [kdTimerSec, setKdTimerSec] = useState(() => Number(state.game?.khoiDong?.timerSeconds) || 60);
+  // Bộ điểm thưởng theo độ nhanh Vòng 2 (Vượt CNV) & Vòng 3 (Tăng tốc) — admin thay đổi được.
+  const [r2Pts, setR2Pts] = useState(() => (state.game?.round2Points || [40, 30, 20, 10]).map((n) => String(Number(n) || 0)));
+  const [r3Pts, setR3Pts] = useState(() => (state.game?.round3Points || [40, 30, 20, 10]).map((n) => String(Number(n) || 0)));
   return (
     <div className="panel grid gap-3.5 max-w-[560px]">
       <label className="label-grid">
@@ -1078,6 +1081,51 @@ function SettingsTab({ state, reload, setMsg }) {
         Thời gian mỗi lượt khởi động (giây)
         <input type="number" value={kdTimerSec} onChange={(e) => setKdTimerSec(Number(e.target.value))} />
       </label>
+      <div className="rounded-xl border border-line bg-night/40 p-3.5">
+        <div className="text-xs tracking-[0.18em] text-mist uppercase mb-1">Điểm thưởng theo độ nhanh</div>
+        <p className="text-mist text-xs mb-3">
+          MC đổi bộ điểm cho từng đội trả lời ĐÚNG ở Vòng 2 (Vượt CNV) &amp; Vòng 3 (Tăng tốc), theo thứ tự nộp nhanh → chậm (mặc định 40·30·20·10).
+        </p>
+        {[
+          { label: "Vòng 2 · Vượt CNV", key: "r2", arr: r2Pts, set: setR2Pts },
+          { label: "Vòng 3 · Tăng tốc", key: "r3", arr: r3Pts, set: setR3Pts },
+        ].map((g2) => (
+          <div key={g2.key} className="mb-3">
+            <div className="text-sm font-semibold text-white mb-1.5">{g2.label}</div>
+            <div className="flex items-center gap-2">
+              {["Nhất", "Nhì", "Ba", "Tư"].map((label, idx) => (
+                <label key={label} className="flex-1 min-w-0">
+                  <span className="block text-[10px] uppercase tracking-wider text-mist mb-0.5">{label}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    className="w-full! px-2 py-1! text-sm tabular-nums"
+                    value={g2.arr[idx]}
+                    onChange={(e) => {
+                      const next = g2.arr.slice();
+                      next[idx] = e.target.value;
+                      g2.set(next);
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn btn-ghost text-xs py-1!"
+          onClick={async () => {
+            const num = (a) => a.map((x) => Math.max(0, Number(x) || 0));
+            await sendControl("round.points", { round: "vuot_cnv", points: num(r2Pts) });
+            await sendControl("round.points", { round: "tang_toc", points: num(r3Pts) });
+            setMsg("Đã lưu điểm thưởng Vòng 2 & Vòng 3");
+            reload();
+          }}
+        >
+          Lưu điểm thưởng Vòng 2 &amp; Vòng 3
+        </button>
+      </div>
       <div className="flex gap-2">
         <button type="button" className="btn" onClick={async () => { await saveSettings(s); setMsg("Đã lưu cài đặt"); reload(); }}>Lưu</button>
         <button type="button" className="btn btn-ghost" onClick={async () => { await setKhoiDongAnswerSeconds(kdAnswerSec || 0); await setKhoiDongTimerSeconds(kdTimerSec || 60); setMsg("Đã lưu cấu hình khởi động"); reload(); }}>Lưu thời gian khởi động</button>

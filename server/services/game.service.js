@@ -499,6 +499,30 @@ export function resetKhoiDong(teamId = null) {
     emit();
   }
 
+  // Điểm thưởng theo độ nhanh cho Vòng 2 (round2Points) / Vòng 3 (round3Points).
+  // Đọc từ game state; fallback về mặc định [40, 30, 20, 10] nếu DB cũ chưa có.
+  function roundPoints(round) {
+    const pts = round === "vuot_cnv" ? g().round2Points : g().round3Points;
+    return Array.isArray(pts) && pts.length ? pts.map((n) => Number(n) || 0) : [40, 30, 20, 10];
+  }
+
+  // Admin/MC chỉnh bộ điểm thưởng của một vòng (vuot_cnv / tang_toc).
+  export function setRoundPoints(round, points) {
+    const game = g();
+    if (round !== "vuot_cnv" && round !== "tang_toc") return;
+    const arr = Array.isArray(points)
+      ? points.map((n) => Math.max(0, Number(n) || 0))
+      : [40, 30, 20, 10];
+    if (round === "vuot_cnv") game.round2Points = arr;
+    else game.round3Points = arr;
+    saveDb();
+    emit();
+  }
+
+  export function getRoundPoints(round) {
+    return roundPoints(round);
+  }
+
   // markAnswer dùng chung: vòng 2 (vuot_cnv) chấm qua luồng riêng (puzzle.mark + puzzle.settle) nên bỏ qua.
   export function markAnswer(correct, teamId = null) {
     const game = g();
@@ -1063,9 +1087,10 @@ if (game.round === "khoi_dong") {
     }));
     const corr = game.tangToc.corrections || {};
     const byElapsed = [...subs].sort((a, b) => a.elapsed - b.elapsed);
+    const pts = roundPoints("tang_toc");
     const correct = byElapsed
       .filter((s) => corr[s.teamId] === true)
-      .map((s, i) => ({ ...s, place: i + 1, points: [40, 30, 20, 10][i] || 10 }));
+      .map((s, i) => ({ ...s, place: i + 1, points: pts[i] ?? pts[pts.length - 1] ?? 10 }));
     const correctMap = {};
     correct.forEach((s) => (correctMap[s.teamId] = s));
     return byElapsed.map((s) => {

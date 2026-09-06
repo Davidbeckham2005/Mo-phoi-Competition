@@ -287,7 +287,7 @@ export default function RoundVuotCnv({ ctx }) {
                 Chốt điểm (tính theo tốc độ)
               </button>
               <span className="text-mist text-xs">
-                Chỉ đội ĐÚNG được điểm: nhanh nhất 40 · kế 30 · 20 · 10. Có ≥1 đội đúng → mở mảnh, ngược lại khóa.
+                Chỉ đội ĐÚNG được điểm: {(g.round2Points || [40, 30, 20, 10]).join(" · ")} (theo độ nhanh). Có ≥1 đội đúng → mở mảnh, ngược lại khóa.
               </span>
             </div>
           )}

@@ -286,11 +286,9 @@ export function solveKeyword(teamId, correct) {
 // === TRẢ LỜI TỰ LUẬN GỬI VỀ MC (tham khảo vòng 3 Tăng tốc) ====================
 // Mọi đội cùng nộp đáp án cho câu hàng ngang hiện tại; hệ thống ghi nhận thời gian
 // nộp (elapsed, giây thập phân tính từ lúc hiện câu). MC chấm đúng/sai từng đội rồi
-// bấm "Chốt" — điểm theo độ nhanh giữa các đội đúng: nhất 40 · nhì 30 · ba 20 · tư 10.
+// bấm "Chốt" — điểm theo độ nhanh giữa các đội đúng (mặc định: nhất 40 · nhì 30 ·
+// ba 20 · tư 10, admin có thể thay đổi qua game.round2Points).
 // Trả lời sai = 0 điểm (KHÔNG bị trừ). Có ≥1 đội đúng → mở mảnh; tất cả sai → khóa.
-
-// Điểm khi trả lời đúng theo độ NANH (xếp giữa các đội đúng).
-export const ROW_POINTS = [40, 30, 20, 10];
 
 // Số giây miễn phí để bấm chấm: rowChấm không dùng chuông cướp nên không cần.
 function rowElapsed() {
@@ -361,6 +359,10 @@ export function closeRowSubmissions() {
 export function computeRowRanked() {
   const game = g();
   const p = game.puzzle;
+  // Điểm thưởng theo độ nhanh — admin có thể thay đổi qua game.round2Points
+  // (fallback [40, 30, 20, 10] nếu DB cũ chưa có).
+  const ptsAll = game.round2Points;
+  const pts = Array.isArray(ptsAll) && ptsAll.length ? ptsAll.map((n) => Number(n) || 0) : [40, 30, 20, 10];
   const subs = Object.entries(p.submissions || {}).map(([teamId, s]) => ({
     teamId,
     answer: s.answer,
@@ -370,7 +372,7 @@ export function computeRowRanked() {
   const corr = p.corrections || {};
   const correct = byElapsed
     .filter((s) => corr[s.teamId] === true)
-    .map((s, i) => ({ ...s, place: i + 1, points: ROW_POINTS[i] || 10 }));
+    .map((s, i) => ({ ...s, place: i + 1, points: pts[i] ?? pts[pts.length - 1] ?? 10 }));
   const correctMap = {};
   correct.forEach((s) => (correctMap[s.teamId] = s));
   return byElapsed.map((s) => {
