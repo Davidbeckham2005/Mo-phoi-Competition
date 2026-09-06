@@ -37,16 +37,7 @@ export default function RoundVeDich({ ctx }) {
 
   return (
     <div className="panel">
-      <CurrentQuestionCard
-        q={q}
-        revealed={revealed}
-        pts={pts}
-        team={activeTeam}
-        star={star}
-        running={running}
-        remaining={remaining}
-        label="Về đích"
-      />
+      <CurrentQuestionCard q={q} revealed={revealed} />
       <div className="rounded-xl border border-gold ring-1 ring-gold/30 bg-panel-solid p-3 mt-3">
         <div className="flex justify-between items-center mb-3">
           <b className="text-sm" style={{ color: activeTeam?.color }}>{activeTeam?.name || g.currentTeam?.toUpperCase()}</b>
