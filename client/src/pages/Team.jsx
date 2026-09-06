@@ -79,6 +79,41 @@ export default function Team() {
     return () => window.removeEventListener("keydown", onKey);
   }, [g.round, g.puzzle?.keywordSolved, g.puzzle?.keywordClaim, g.puzzle?.keywordBlocked, team?.id, buzz]);
 
+  // Nhấn phím INSERT để giành quyền trả lời vòng Về đích khi đối thủ sai (chuông mở).
+  useEffect(() => {
+    if (g.round !== "ve_dich") return undefined;
+    const ved = g.veDich || {};
+    const myTeamEliminated = !!state?.teams?.find((t) => t.id === team?.id)?.eliminated;
+    const enabled =
+      !!g.buzzer?.open &&
+      !!ved.stealOpen &&
+      !(g.buzzer?.blocked || []).includes(team?.id) &&
+      !g.buzzer?.winner &&
+      !myTeamEliminated;
+    function onKey(e) {
+      if (!enabled) return;
+      const tag = (e.target && e.target.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const c = e.code || "";
+      const k = e.key || "";
+      if (c === "Insert" || c === "NumpadInsert" || k === "Insert") {
+        e.preventDefault();
+        buzz("row");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [
+    g.round,
+    g.buzzer?.open,
+    g.buzzer?.winner,
+    g.buzzer?.blocked,
+    g.veDich?.stealOpen,
+    state?.teams,
+    team?.id,
+    buzz,
+  ]);
+
   function doLogin(e) {
     e.preventDefault();
     if (!pickId) {
@@ -106,16 +141,14 @@ export default function Team() {
 
   function buzz(intent = "row") {
     socket.emit("buzzer:press", { teamId: session.teamId, pass: session.pass, intent });
-    if (intent === "keyword") {
-      const url = state?.sounds?.buzz?.url;
-      if (url) {
-        try {
-          const a = new Audio(url);
-          a.volume = 1;
-          a.play().catch(() => {});
-        } catch {
-          /* bỏ qua lỗi phát âm thanh */
-        }
+    const url = state?.sounds?.buzz?.url;
+    if (url) {
+      try {
+        const a = new Audio(url);
+        a.volume = 1;
+        a.play().catch(() => {});
+      } catch {
+        /* bỏ qua lỗi phát âm thanh */
       }
     }
   }
