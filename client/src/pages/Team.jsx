@@ -514,6 +514,14 @@ export default function Team() {
     );
   }
 
+  if (g.round === "ve_dich") {
+    return (
+      <Round4Layout state={state} onLogout={quit}>
+        {body}
+      </Round4Layout>
+    );
+  }
+
   return (
     <TeamLayout state={state} team={team} remaining={remaining} running={running} onLogout={quit}>
       {body}
@@ -698,6 +706,26 @@ function TeamLayout({ state, team, remaining, running, onLogout, children }) {
         <div className="flex-1 flex flex-col items-center justify-center w-full min-w-0">
           {children}
         </div>
+      </div>
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
+    </div>
+  );
+}
+
+// Bố cục riêng Vòng 4 (Về đích) — KHÔNG header, KHÔNG list đội cạnh phải; chỉ nền
+// đồng bộ khán giả + nút đăng xuất + nội dung ở giữa.
+function Round4Layout({ state, onLogout, children }) {
+  return (
+    <div className="relative min-h-screen flex flex-col items-center px-4 py-5 text-center">
+      <TeamBackground settings={state?.settings} />
+      <div className="absolute top-4 left-4 z-40">
+        <button type="button" className="btn btn-ghost py-2! px-3! text-sm" onClick={onLogout}>
+          ← Đăng xuất
+        </button>
+      </div>
+      <div className="relative z-10 flex w-full flex-col items-center justify-center flex-1">
+        {children}
       </div>
       <div className="pointer-events-none absolute inset-y-0 left-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 right-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
@@ -890,7 +918,6 @@ function VeDichBody({ g, d, teams, me, remaining, running, onBuzz, winnerId }) {
   return (
     <div className="flex flex-col items-center gap-6 w-full min-w-0">
       {inner}
-      <ScoreList teams={teams} me={me} />
     </div>
   );
 }
