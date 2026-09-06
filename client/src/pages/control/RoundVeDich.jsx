@@ -175,7 +175,16 @@ export default function RoundVeDich({ ctx }) {
                     Câu tiếp →
                   </button>
                 )}
-
+                {!revealed && (
+                  <>
+                    <button type="button" className="btn btn-danger px-3!" onClick={() => act("answer.mark", { correct: false })}>
+                      Sai −{pts}
+                    </button>
+                    <button type="button" className="btn btn-ok px-3!" onClick={() => act("answer.mark", { correct: true })}>
+                      Đúng +{pts}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
