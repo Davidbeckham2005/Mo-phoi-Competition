@@ -913,9 +913,10 @@ function VeDichBody({ g, d, teams, me, remaining, running, onBuzz, winnerId }) {
           </button>
         )}
         {!eliminated && (
-          <p className="text-mist text-sm mt-5 max-w-md">
-            Khi đối thủ trả lời sai, hãy bấm phím <b className="text-gold">INSERT</b> để giành quyền trả lời.
-          </p>
+          <div className="mt-5 rounded-2xl border border-line bg-panel-solid px-5 py-3 max-w-md">
+            <p className="text-sm font-semibold text-gold">ĐỐI THỦ SAI — BẤM INSERT GIÀNH QUYỀN</p>
+            <p className="text-mist text-sm mt-1">Khi đối thủ trả lời sai và bạn biết câu trả lời, hãy bấm phím INSERT thật nhanh để giành quyền.</p>
+          </div>
         )}
       </div>
     );
