@@ -516,7 +516,7 @@ export default function Team() {
 
   if (g.round === "ve_dich") {
     return (
-      <Round4Layout state={state} team={team} onLogout={quit}>
+      <Round4Layout state={state} team={team} onLogout={quit} insertHint={d.mode === "question" && !!d.question && !team?.eliminated}>
         {body}
       </Round4Layout>
     );
@@ -715,7 +715,7 @@ function TeamLayout({ state, team, remaining, running, onLogout, children }) {
 
 // Bố cục riêng Vòng 4 (Về đích) — KHÔNG header; vẫn giữ list đội cạnh phải; nền đồng bộ
 // khán giả + nút đăng xuất + nội dung ở giữa.
-function Round4Layout({ state, team, onLogout, children }) {
+function Round4Layout({ state, team, onLogout, insertHint, children }) {
   return (
     <div className="relative min-h-screen flex flex-col items-center px-4 py-5 text-center">
       <TeamBackground settings={state?.settings} />
@@ -727,6 +727,14 @@ function Round4Layout({ state, team, onLogout, children }) {
       <div className="relative z-10 flex w-full flex-col items-center justify-center flex-1">
         {children}
       </div>
+      {insertHint && (
+        <div className="absolute bottom-4 right-4 z-40 max-w-[260px]">
+          <div className="rounded-xl border border-gold/40 bg-[#0b1120]/85 px-4 py-2.5 text-left">
+            <p className="text-sm font-semibold text-gold">ĐỐI THỦ SAI — BẤM INSERT</p>
+            <p className="text-xs text-mist mt-0.5">Bấm phím INSERT thật nhanh để giành quyền trả lời.</p>
+          </div>
+        </div>
+      )}
       <TeamsSidebar teams={state?.teams || []} currentTeamId={team?.id} />
       <div className="pointer-events-none absolute inset-y-0 left-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 right-0 z-50 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
@@ -911,12 +919,6 @@ function VeDichBody({ g, d, teams, me, remaining, running, onBuzz, winnerId }) {
           >
             BẤM GIÀNH QUYỀN TRẢ LỜI
           </button>
-        )}
-        {!eliminated && (
-          <div className="mt-5 rounded-2xl border border-line bg-panel-solid px-5 py-3 max-w-md">
-            <p className="text-sm font-semibold text-gold">ĐỐI THỦ SAI — BẤM INSERT GIÀNH QUYỀN</p>
-            <p className="text-mist text-sm mt-1">Khi đối thủ trả lời sai và bạn biết câu trả lời, hãy bấm phím INSERT thật nhanh để giành quyền.</p>
-          </div>
         )}
       </div>
     );
