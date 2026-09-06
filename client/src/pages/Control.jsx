@@ -386,20 +386,11 @@ export default function Control() {
         {g.round === "khoi_dong" && <QuestionScorePanel ctx={ctx} />}
 
         {/* 2 · TRẠNG THÁI (không phải Round 1 — Round 1 gộp đồng hồ vào ô Câu hỏi & đáp án).
-           Vòng 2 và Vòng 3 đã gộp đồng hồ + trạng thái vào thanh điều khiển riêng (không hiện panel này). */}
-        {g.round !== "khoi_dong" && g.round !== "vuot_cnv" && g.round !== "tang_toc" && (
-          <div className="panel flex flex-wrap items-center gap-3 py-3">
-            <span className="round-badge">{g.round || "setup"}</span>
-            <span className={`badge ${status.cls === "ok" ? "badge-ok" : status.cls === "warn" ? "badge-warn" : ""}`}>
-              {status.text}
-            </span>
-            {progress && <span className="text-mist text-sm">{progress}</span>}
-            {answering && (
-              <span className="badge" style={{ borderColor: answering.color, color: answering.color }}>
-                Trả lời: {winner ? `${winner.name} (chuông)` : cur?.name}
-              </span>
-            )}
-            <span className={`ml-auto inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1.5 timer-xl text-3xl ${remaining <= 5 && running ? "timer-danger" : "text-gold"}`}>
+           Vòng 2 và Vòng 3 đã gộp đồng hồ + trạng thái vào thanh điều khiển riêng (không hiện panel này).
+           Ở đây chỉ hiện đồng hồ lớn khi đang đếm (running). */}
+        {g.round !== "khoi_dong" && g.round !== "vuot_cnv" && g.round !== "tang_toc" && running && (
+          <div className="panel flex items-center justify-center py-3">
+            <span className={`inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-6 py-2 timer-xl text-4xl ${remaining <= 5 ? "timer-danger" : "text-gold"}`}>
               {formatTime(remaining)}
             </span>
           </div>
