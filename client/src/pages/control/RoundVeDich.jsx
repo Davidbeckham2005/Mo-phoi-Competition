@@ -1,3 +1,6 @@
+import { formatTime } from "../../lib/format.js";
+import CurrentQuestionCard from "./CurrentQuestionCard.jsx";
+
 const PACKAGES = {
   60: [10, 10, 20],
   80: [10, 20, 20],
@@ -33,49 +36,14 @@ export default function RoundVeDich({ ctx }) {
   }
 
   return (
-    <div className="panel divide-y divide-line">
-      {/* CÂU HỎI & ĐÁP ÁN */}
-      <section className="px-4 py-5">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-xs tracking-[0.2em] text-gold uppercase">{activeTeam?.name || g.currentTeam?.toUpperCase()}</span>
-          {running && (
-            <span className="flex items-center gap-2">
-              <span className="font-display text-3xl tabular-nums text-gold">{remaining}</span>
-              <span className="text-mist text-[10px] uppercase">giây</span>
-            </span>
-          )}
+    <div className="panel">
+      <div className="rounded-xl border border-gold ring-1 ring-gold/30 bg-panel-solid p-3 mt-3">
+        <div className="flex justify-between items-center mb-3">
+          <b className="text-sm" style={{ color: activeTeam?.color }}>{activeTeam?.name || g.currentTeam?.toUpperCase()}</b>
+          <span className="text-ok text-xs">Đã chọn {picked.length}/3 câu{hasPackage ? ` • gói ${PACKAGE_LABEL[pkg]}` : ""}</span>
         </div>
 
-        {q.mediaUrl && (
-          <img src={q.mediaUrl} className="mx-auto mt-3 max-h-[150px] rounded-lg border border-line/50" />
-        )}
-
-        <div className="mt-3 font-display text-2xl leading-snug text-white">{q?.question || "Chưa chọn câu hỏi"}</div>
-
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1 border-l-4 border-gold bg-night/50 px-4 py-2.5">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-mist">Đáp án</div>
-            <div className="font-display text-xl text-white">
-              {q ? q.answer : "—"}
-            </div>
-          </div>
-          {q && (
-            <div className="shrink-0 text-center">
-              <div className="font-display text-3xl font-bold text-gold">{pts}đ</div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-mist">điểm</div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* CHỌN GÓI */}
-      <section className="px-4 py-4">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs tracking-[0.2em] text-mist uppercase">Chọn gói câu hỏi</span>
-          <span className="text-xs text-mist">Đã chọn {picked.length}/3 câu{hasPackage ? ` • ${PACKAGE_LABEL[pkg]}` : ""}</span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid gap-1.5">
           {Object.entries(PACKAGES).map(([total, structure]) => {
             const totalVal = Number(total);
             const isCurrent = hasPackage && pkg === totalVal;
@@ -85,34 +53,44 @@ export default function RoundVeDich({ ctx }) {
                 type="button"
                 disabled={locked}
                 onClick={() => selectPackage(totalVal)}
-                className={`border px-3 py-3 text-left transition ${
+                className={`rounded-lg border px-3 py-2 text-xs text-left transition ${
                   isCurrent
-                    ? "border-gold bg-gold/10"
-                    : "border-line hover:border-gold/50"
+                    ? "border-ok/60 bg-ok/5"
+                    : "border-dashed border-line hover:border-gold/50"
                 }`}
               >
-                <div className="text-lg font-bold text-gold">{totalVal}đ</div>
-                <div className="text-xs text-mist">{structure.join(" + ")}</div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-base font-bold text-gold">Gói {totalVal}đ</span>
+                  <span className={isCurrent ? "text-ok" : "text-mist"}>
+                    {structure.join(" + ")} điểm
+                  </span>
+                  {isCurrent && <span className="text-ok text-xs shrink-0">● ĐANG CHỌN</span>}
+                </div>
               </button>
             );
           })}
         </div>
 
+
         {hasPackage && (
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="grid gap-1 mt-3 pt-3 border-t border-line">
             {[0, 1, 2].map((idx) => {
               const cand = picked[idx];
               const isCurrent = locked && idx === curIndex && cand;
               return (
                 <div
                   key={idx}
-                  className={`border px-3 py-2 text-center transition ${
+                  className={`rounded-lg border px-3 py-2 text-xs flex justify-between items-center gap-2 ${
                     isCurrent ? "border-gold bg-gold/10" : "border-line"
                   }`}
                 >
-                  <div className="text-xs text-mist">Câu {idx + 1}</div>
-                  <div className="font-semibold text-white">{cand ? `${cand.points}đ` : "…"}</div>
-                  {isCurrent && <div className="text-[10px] text-gold uppercase">Đang hiện</div>}
+                  <span>
+                    <span className="text-gold font-bold">Câu {idx + 1}</span>{" "}
+                    <span className="text-mist">
+                      {cand ? `${cand.points} điểm` : "…"}
+                    </span>
+                  </span>
+                  {isCurrent && <span className="text-gold text-xs shrink-0">● ĐANG HIỆN</span>}
                 </div>
               );
             })}
@@ -120,100 +98,113 @@ export default function RoundVeDich({ ctx }) {
         )}
 
         {!locked && (
-          <button
-            type="button"
-            className="btn btn-ghost text-xs py-1! mt-3"
-            onClick={() => act("vedich.clear", { teamId: activeTeam?.id })}
-          >
-            Xóa hết (chọn lại gói)
-          </button>
-        )}
-      </section>
-
-      {/* ĐIỀU KHIỂN */}
-      <section className="px-4 py-4">
-        {locked ? (
-          phase === "ready" && (
-            <div className="flex flex-wrap gap-2 items-center">
-              <button type="button" className="btn btn-ok flex-1 min-w-[180px]" onClick={() => act("vedich.start")}>
-                Bắt đầu thi
-              </button>
-              <button
-                type="button"
-                className={`btn ${star ? "btn-ok" : ""}`}
-                onClick={() => act("vedich.star", { star: !star })}
-              >
-                Sao hy vọng {star ? "×2" : "OFF"}
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => act("vedich.unlock")}>
-                Sửa lại
-              </button>
-            </div>
-          )
-        ) : (
-          <button
-            type="button"
-            disabled={!hasPackage || picked.length < 3}
-            className="btn btn-ok w-full"
-            onClick={() => act("vedich.lock")}
-          >
-            Xác nhận bộ câu
-          </button>
-        )}
-
-        {phase === "prep" && (
-          <div className="flex flex-wrap items-center gap-2 mt-3">
+          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-line">
             <button
               type="button"
-              disabled={starUsed && !star}
-              className={`btn ${star ? "btn-ok" : ""}`}
-              onClick={() => act("vedich.star", { star: !star })}
+              className="btn btn-ghost text-xs py-1!"
+              onClick={() => act("vedich.clear", { teamId: activeTeam?.id })}
             >
-              Sao hy vọng {star ? "×2" : "OFF"}
+              Xóa hết (chọn lại gói)
             </button>
-            <button type="button" className="btn btn-ok flex-1" onClick={() => act("question.show")}>
-              Hiện câu hỏi
+
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 mb-3">
+        <CurrentQuestionCard q={q} />
+      </div>
+
+      <div className="rounded-xl border border-line bg-panel-solid p-3 mt-3">
+        {locked ? (
+          <div className="flex flex-wrap gap-2 items-center">
+            {phase === "ready" && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <button type="button" className="btn btn-ok flex-1 min-w-[180px]" onClick={() => act("vedich.start")}>
+                  Bắt đầu thi (3 • 2 • 1)
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${star ? "btn-ok" : ""}`}
+                  onClick={() => act("vedich.star", { star: !star })}
+                >
+                  Ngôi sao hy vọng {star ? "×2 (ON)" : "OFF"}
+                </button>
+                <button type="button" className="btn btn-ghost" onClick={() => act("vedich.unlock")}>
+                  Sửa lại
+                </button>
+              </div>
+            )}
+            {phase === "countdown" && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-gold font-display text-xl">Chuẩn bị thi — {remaining >= 0 ? remaining : 3}…</span>
+                <button type="button" className="btn btn-ghost" onClick={() => act("vedich.unlock")}>Hủy</button>
+              </div>
+            )}
+            {phase === "prep" && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={starUsed && !star}
+                  className={`btn ${star ? "btn-ok" : ""}`}
+                  onClick={() => act("vedich.star", { star: !star })}
+                >
+                  Ngôi sao hy vọng {star ? "×2 (ON)" : starUsed ? "(đã dùng)" : "OFF"}
+                </button>
+                <span className="text-mist text-xs flex-1">Câu {(curIndex || 0) + 1} đã sẵn sàng — chọn sao (nếu muốn) rồi trình câu hỏi cho đội {activeTeam?.name}.</span>
+                <button type="button" className="btn btn-ok px-3!" onClick={() => act("question.show")}>
+                  Hiện câu hỏi
+                </button>
+              </div>
+            )}
+            {phase === "answering" && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-mist text-xs flex-1">
+                  {stealOpen ? "Đội giành chuông trả lời" : `${activeTeam?.name} (${g.currentTeam?.toUpperCase()}) trả lời`}
+                </span>
+                {running && (
+                  <span className="inline-flex items-center justify-center rounded-xl border border-[rgba(255,214,10,0.45)] bg-[#0e1830]/60 px-4 py-1 timer-xl text-3xl text-gold">
+                    {formatTime(remaining)}
+                  </span>
+                )}
+                {!revealed && !stealOpen && !running && (
+                  <button type="button" className="btn btn-ok px-3!" onClick={() => act("vedich.startAnswer")}>
+                    ▶ Bắt đầu tính giờ ({ANSWER_SECONDS[q?.points] ?? 30}s)
+                  </button>
+                )}
+                {revealed && (
+                  <button type="button" className="btn px-3!" onClick={() => act("question.next")}>
+                    Câu tiếp →
+                  </button>
+                )}
+                {!revealed && (
+                  <>
+                    <button type="button" className="btn btn-danger px-3!" onClick={() => act("answer.mark", { correct: false })}>
+                      Sai −{pts}
+                    </button>
+                    <button type="button" className="btn btn-ok px-3!" onClick={() => act("answer.mark", { correct: true })}>
+                      Đúng +{pts}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              type="button"
+              disabled={!hasPackage || picked.length < 3}
+              className="btn btn-ok flex-1 min-w-[180px]"
+              onClick={() => act("vedich.lock")}
+            >
+              {hasPackage ? `Xác nhận bộ câu (gói ${PACKAGE_LABEL[pkg]}, ${picked.length}/3)` : "Chọn gói để chốt"}
             </button>
+
           </div>
         )}
 
-        {phase === "countdown" && (
-          <div className="flex flex-wrap items-center gap-2 mt-3">
-            <span className="font-display text-xl text-gold">Chuẩn bị thi — {remaining >= 0 ? remaining : 3}…</span>
-            <button type="button" className="btn btn-ghost ml-auto" onClick={() => act("vedich.unlock")}>
-              Hủy
-            </button>
-          </div>
-        )}
-
-        {phase === "answering" && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-mist text-xs flex-1">
-              {stealOpen ? "Đội giành chuông trả lời" : `${activeTeam?.name} trả lời`}
-            </span>
-            {!revealed && !stealOpen && !running && (
-              <button type="button" className="btn btn-ok" onClick={() => act("vedich.startAnswer")}>
-                Bắt đầu tính giờ
-              </button>
-            )}
-            {revealed && (
-              <button type="button" className="btn" onClick={() => act("question.next")}>
-                Câu tiếp →
-              </button>
-            )}
-            {!revealed && (
-              <>
-                <button type="button" className="btn btn-danger text-base! px-6!" onClick={() => act("answer.mark", { correct: false })}>
-                  Sai
-                </button>
-                <button type="button" className="btn btn-ok text-base! px-6!" onClick={() => act("answer.mark", { correct: true })}>
-                  Đúng
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </section>
+      </div>
     </div>
   );
 }
