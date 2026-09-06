@@ -1,4 +1,5 @@
 import { formatTime } from "../../lib/format.js";
+import CurrentQuestionCard from "./CurrentQuestionCard.jsx";
 
 const PACKAGES = {
   60: [10, 10, 20],
@@ -7,6 +8,7 @@ const PACKAGES = {
 };
 
 const ANSWER_SECONDS = { 10: 30, 20: 45, 30: 60 };
+
 export default function RoundVeDich({ ctx }) {
   const { g, state, act, remaining, q, pts, revealed, running } = ctx;
   if (g.round !== "ve_dich") return null;
@@ -35,7 +37,17 @@ export default function RoundVeDich({ ctx }) {
 
   return (
     <div className="panel">
-      <div className="rounded-xl border border-gold ring-1 ring-gold/30 bg-panel-solid p-3">
+      <CurrentQuestionCard
+        q={q}
+        revealed={revealed}
+        pts={pts}
+        team={activeTeam}
+        star={star}
+        running={running}
+        remaining={remaining}
+        label="Về đích"
+      />
+      <div className="rounded-xl border border-gold ring-1 ring-gold/30 bg-panel-solid p-3 mt-3">
         <div className="flex justify-between items-center mb-3">
           <b className="text-sm" style={{ color: activeTeam?.color }}>{activeTeam?.name || g.currentTeam?.toUpperCase()}</b>
           <span className="text-ok text-xs">Đã chọn {picked.length}/3 câu{hasPackage ? ` • gói ${PACKAGE_LABEL[pkg]}` : ""}</span>
