@@ -57,6 +57,9 @@ export function defaultState() {
     starQuestion: null,
     answeringTeam: "a",
     stealOpen: false,
+    // Ngữ cảnh đội chọn câu đã trả lời SAI (đang chờ kết quả cướp quyền): điểm trừ của đội
+    // chọn câu chỉ được quyết định khi cửa sổ cướp quyền kết thúc. null = không treo.
+    stealPending: null,
     // Đã chốt bộ 3 câu cho đội hiện tại chưa? (false = MC đang soạn/chỉnh, true = đưa cho thí sinh thi)
     locked: false,
     // Giai đoạn thi: "soan" (chưa chốt) | "countdown" (đang đếm 3-2-1) | "answering" (đang trả lời)
@@ -133,6 +136,42 @@ export function getPoints(game = g()) {
   const ved = game.veDich;
   const star = ved.starQuestion === (ved.pickIndex ?? 0);
   return star ? pts * 2 : pts;
+}
+
+// Tính điểm cho Vòng Về đích theo đúng bảng luật câu thường + Ngôi sao hy vọng.
+// Mọi mức đều dựa trên điểm GỐC P (questionPoints) của câu, không hard-code 10/20/30.
+//   outcome:
+//     "selecting-correct" — đội chọn câu trả lời ĐÚNG ngay           → +P (NSHV: +2P).
+//     "no-answer"         — chọn câu sai, KHÔNG ai giành quyền/trả lời
+//                                                                    → 0 (NSHV: −P/2).
+//     "steal-correct"     — chọn câu sai, đội khác giành quyền ĐÚNG → −P / +P
+//                                                                    (NSHV: −2P / +2P).
+//     "steal-wrong"       — chọn câu sai, đội khác giành quyền SAI  → 0 / −P
+//                                                                    (NSHV: −P/2 / −P).
+// Trả về { selecting, stealing } = số điểm cộng (+) / trừ (−) cho đội chọn câu và đội
+// giành quyền (stealing = 0 khi không có đội giành quyền).
+export function calculateAnswerScore({ questionPoints, isStarOfHope, outcome }) {
+  const P = Number(questionPoints) || 0;
+  const star = !!isStarOfHope;
+  let r;
+  switch (outcome) {
+    case "selecting-correct":
+      r = { selecting: star ? 2 * P : P, stealing: 0 };
+      break;
+    case "no-answer":
+      r = { selecting: star ? -(P / 2) : 0, stealing: 0 };
+      break;
+    case "steal-correct":
+      r = { selecting: star ? -2 * P : -P, stealing: star ? 2 * P : P };
+      break;
+    case "steal-wrong":
+      r = { selecting: star ? -(P / 2) : 0, stealing: -P };
+      break;
+    default:
+      r = { selecting: 0, stealing: 0 };
+  }
+  // Tránh -0 khi P = 0.
+  return { selecting: r.selecting || 0, stealing: r.stealing || 0 };
 }
 
 // Bật/tắt Ngôi sao hy vọng cho câu SẮP được trình.
@@ -281,6 +320,7 @@ export function unlockPackage() {
   const game = g();
   game.veDich.locked = false;
   game.veDich.starQuestion = null;
+  game.veDich.stealPending = null;
   game.veDich.phase = "soan";
   saveDb();
   emit();
@@ -294,6 +334,7 @@ export function clearPicked(teamId) {
   game.veDich.pickIndex = 0;
   game.veDich.locked = false;
   game.veDich.starQuestion = null;
+  game.veDich.stealPending = null;
   game.veDich.phase = "soan";
   saveDb();
   emit();
@@ -307,6 +348,7 @@ export function setAnsweringTeam(teamId) {
   game.veDich.pickIndex = 0;
   // Mỗi đội tự chốt bộ câu của mình — đội mới chưa chốt.
   game.veDich.locked = false;
+  game.veDich.stealPending = null;
   game.veDich.phase = "soan";
   saveDb();
   emit();

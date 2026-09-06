@@ -539,25 +539,46 @@ export function resetKhoiDong(teamId = null) {
     }
     let points = q.points || 10;
     if (game.round === "ve_dich") {
-      points = vedich.getPoints(game);
       // === VÒNG VỀ ĐÍCH: chấm Đúng/Sai riêng cho vòng này rồi return. ===
+      // Mọi tình huống tính từ điểm GỐC P qua vedich.calculateAnswerScore (không hard-code
+      // 10/20/30; NSHV x2 theo P). Điểm cập nhật NGAY sau khi có kết quả trả lời.
       const ved = game.veDich;
+      const base = vedich.getBasePoints(game);
+      const star = ved.starQuestion === (ved.pickIndex ?? 0);
       if (ved.stealOpen) {
-        // Đang ở "cửa sổ cướp quyền": đội giành được chuông (buzzer.winner) trả lời.
-        // Điểm cho đội cướp là ĐIỂM GỐC (không kế thừa ngôi sao hy vọng của đội chủ câu).
+        // Đang ở "cửa sổ cướp quyền".
         const winner = game.buzzer?.winner;
         if (!winner) {
+          // Không có đội nào giành quyền trả lời → áp dụng trường hợp "không ai trả lời được":
+          // đội chọn câu bị trừ P/2 (NSHV) hoặc 0 (câu thường). Đóng cửa sổ và hiện đáp án
+          // để MC chiếu cho khán giả rồi sang câu kế.
+          const pend = ved.stealPending || { teamId: tid, base, star };
+          ved.stealPending = null;
+          ved.stealOpen = false;
+          closeBuzzer();
+          const adj = vedich.calculateAnswerScore({ questionPoints: pend.base, isStarOfHope: pend.star, outcome: "no-answer" });
+          addScore(pend.teamId, adj.selecting);
+          game.display.answerRevealed = true;
+          game.questionStatus = "revealed";
+          pauseTimer();
           saveDb();
           emit();
           return;
         }
-        const base = vedich.getBasePoints(game);
         closeBuzzer();
         ved.stealOpen = false;
-        if (correct) {
-          addScore(winner, base);
+        const pend = ved.stealPending;
+        ved.stealPending = null;
+        if (pend) {
+          // Đội chọn câu đã trả lời SAI → chấm theo bảng luật có đội giành quyền.
+          const outcome = correct ? "steal-correct" : "steal-wrong";
+          const adj = vedich.calculateAnswerScore({ questionPoints: pend.base, isStarOfHope: pend.star, outcome });
+          addScore(pend.teamId, adj.selecting);
+          addScore(winner, adj.stealing);
         } else {
-          addScore(winner, -base);
+          // Hết giờ (đội chủ câu KHÔNG trả lời) rồi mới mở chuông → giữ nguyên quy tắc đang
+          // có: đội giành quyền được ±P (không kế thừa NSHV), đội chủ câu không bị trừ.
+          addScore(winner, correct ? base : -base);
         }
         game.display.answerRevealed = true;
         game.questionStatus = "revealed";
@@ -567,8 +588,9 @@ export function resetKhoiDong(teamId = null) {
         return;
       }
       if (correct) {
-        // Đội đang thi trả lời ĐÚNG → cộng điểm, hiện đáp án.
-        addScore(tid, points);
+        // Đội đang thi trả lời ĐÚNG → +P (hoặc +2P nếu câu là Ngôi sao hy vọng).
+        const adj = vedich.calculateAnswerScore({ questionPoints: base, isStarOfHope: star, outcome: "selecting-correct" });
+        addScore(tid, adj.selecting);
         game.display.answerRevealed = true;
         game.questionStatus = "revealed";
         pauseTimer();
@@ -576,10 +598,10 @@ export function resetKhoiDong(teamId = null) {
         emit();
         return;
       }
-      // Đội đang thi trả lời SAI:
-      //  - Có ngôi sao hy vọng ở câu này → trừ gấp đôi điểm của đội đó.
-      //  - Mở chuông cho 3 đội còn lại giành quyền trả lời ngay.
-      if (ved.starQuestion === (ved.pickIndex ?? 0)) addScore(tid, -points);
+      // Đội đang thi trả lời SAI: CHƯA trừ điểm ai ngay — điểm trừ của đội chọn câu được quyết
+      // định theo kết quả cửa sổ cướp quyền (bảng luật 2.2/2.3/3.2). Mở chuông cho các đội còn
+      // lại giành quyền trả lời và lưu ngữ cảnh (stealPending) để chấm đúng khi cướp kết thúc.
+      ved.stealPending = { teamId: tid, base, star };
       ved.stealOpen = true;
       game.buzzer = game.buzzer || {};
       game.buzzer.blocked = game.buzzer.blocked || [];
@@ -699,6 +721,14 @@ if (game.round === "khoi_dong") {
       game.tangToc = freshTangToc();
       setTimer(0, false);
     } else if (game.round === "ve_dich") {
+      // Cửa sổ cướp quyền còn treo chưa được chấm (không đội nào giành/trả lời) → áp luật
+      // "không ai trả lời được" cho đội chọn câu trước khi sang câu kế.
+      const pend = game.veDich.stealPending;
+      if (pend) {
+        const adj = vedich.calculateAnswerScore({ questionPoints: pend.base, isStarOfHope: pend.star, outcome: "no-answer" });
+        addScore(pend.teamId, adj.selecting);
+        game.veDich.stealPending = null;
+      }
       game.veDich.stealOpen = false;
       // Điều hướng giữa các câu ĐÃ CHỐT của đội đang thi.
       const picked = game.veDich.picked?.[game.currentTeam] || [];
