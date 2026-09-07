@@ -802,7 +802,9 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
   const m = draft.main;
   const qs0 = Array.isArray(m.veDich) ? m.veDich : [];
   const levels = [10, 20, 30];
-  const [visible, setVisible] = useState({ 10: 20, 20: 30, 30: 20 });
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [visible, setVisible] = useState(50);
   const [importing, setImporting] = useState(false);
   const fileRef = useRef(null);
   function setQs(next) {
@@ -813,6 +815,10 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
   }
   function delQ(id) {
     setQs(qs0.filter((q) => q.id !== id));
+  }
+  function delQs(ids) {
+    const s = new Set(ids);
+    setQs(qs0.filter((q) => !s.has(q.id)));
   }
   function addQ(points) {
     setQs([...qs0, { id: uid(), points, question: "", answer: "" }]);
@@ -852,6 +858,17 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
     URL.revokeObjectURL(a.href);
   }
 
+  const all = qs0.slice().sort((a, b) => Number(!!b.auto) - Number(!!a.auto) || String(a.question || "").localeCompare(String(b.question || "")));
+  const kw = search.trim().toLowerCase();
+  const matched = all.filter(
+    (q) =>
+      (filter === "all" || Number(q.points) === filter) &&
+      (!kw ||
+        String(q.question || "").toLowerCase().includes(kw) ||
+        String(q.answer || "").toLowerCase().includes(kw))
+  );
+  const shown = matched.slice(0, visible);
+
   return (
     <div>
       {/* THỐNG KÊ + IMPORT — gọn một dòng */}
@@ -882,69 +899,110 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
         </span>
       </div>
 
-      {/* 3 CỘT 10 / 20 / 30 */}
-      <div className="grid gap-6 xl:grid-cols-3">
-        {levels.map((lv) => {
-          const qs = qs0
-            .filter((q) => Number(q.points) === lv)
-            .slice()
-            .sort((a, b) => Number(!!b.auto) - Number(!!a.auto) || String(a.question || "").localeCompare(String(b.question || "")));
-          const shown = qs.slice(0, visible[lv] || qs.length);
+      {/* LỌC THEO ĐIỂM */}
+      <div className="flex flex-wrap items-center gap-2 mb-2.5">
+        <span className="text-xs uppercase tracking-[0.18em] text-mist">Lọc theo điểm</span>
+        {["all", ...levels].map((lv) => (
+          <button
+            key={lv}
+            type="button"
+            onClick={() => setFilter(lv)}
+            className={`border px-3 py-1 text-xs font-semibold transition ${
+              filter === lv
+                ? "border-gold bg-gold/15 text-gold"
+                : "border-line/60 text-mist hover:border-gold/50 hover:text-white"
+            }`}
+          >
+            {lv === "all" ? "Tất cả" : `${lv}đ`}
+          </button>
+        ))}
+      </div>
+
+      {/* TÌM KIẾM + THÊM */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Tìm theo nội dung câu hỏi / đáp án…"
+          className="min-w-0 flex-1!"
+        />
+        <button
+          type="button"
+          className="btn btn-ok text-xs py-1.5! ml-auto"
+          title={filter === "all" ? "Thêm câu 10 điểm" : `Thêm câu ${filter} điểm`}
+          onClick={() => addQ(filter === "all" ? 10 : filter)}
+        >
+          {filter === "all" ? "+ Thêm" : `+ Thêm ${filter}đ`}
+        </button>
+      </div>
+
+      {/* DANH SÁCH */}
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <span className="text-sm text-mist">
+          Hiện {shown.length}/{matched.length} câu
+        </span>
+        {matched.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-danger text-xs py-1! px-2! ml-auto"
+            onClick={() => {
+              if (confirm(`Xóa ${matched.length} câu Về đích đang hiển thị sau bộ lọc?`)) {
+                delQs(matched.map((q) => q.id));
+              }
+            }}
+          >
+            Xóa {matched.length} câu
+          </button>
+        )}
+      </div>
+
+      <div className="grid gap-2">
+        {shown.map((qd, i) => {
+          const incomplete =
+            !String(qd.question || "").trim() || !String(qd.answer || "").trim();
           return (
-            <div key={lv}>
-              <div className="flex items-baseline gap-2 mb-2.5">
-                <h4 className="font-bold text-sm">{lv} điểm</h4>
-                <span className="text-mist text-xs">{qs.length} câu</span>
-                <button type="button" className="btn btn-ghost text-xs py-0.5! px-2! ml-auto" onClick={() => addQ(lv)}>
-                  + Thêm
-                </button>
+            <div key={qd.id} className="flex items-start gap-2.5 rounded-lg border border-line/60 bg-night/30 px-3 py-2.5">
+              <span className="shrink-0 w-6 pt-1.5 text-right text-xs text-mist tabular-nums">{i + 1}</span>
+              <span className="shrink-0 w-9 pt-1.5 text-xs font-bold text-gold">{qd.points}đ</span>
+              <div className="min-w-0 flex-1">
+                <textarea
+                  rows={2}
+                  value={qd.question || ""}
+                  placeholder={`Câu hỏi ${qd.points} điểm`}
+                  onChange={(e) => setQ(qd.id, { question: e.target.value, auto: false })}
+                  className="w-full!"
+                />
+                <input
+                  value={qd.answer || ""}
+                  placeholder="Đáp án"
+                  onChange={(e) => setQ(qd.id, { answer: e.target.value, auto: false })}
+                  className="w-full! mt-1.5"
+                />
+                {incomplete && <p className="mt-1 text-[11px] text-mist/70">Chưa nhập nội dung</p>}
               </div>
-
-              <div className="grid gap-2">
-                {shown.map((qd, i) => {
-                  const incomplete =
-                    !String(qd.question || "").trim() || !String(qd.answer || "").trim();
-                  return (
-                    <div key={qd.id} className="flex items-start gap-2.5 rounded-lg border border-line/60 bg-night/30 px-3 py-2.5">
-                      <span className="shrink-0 w-6 pt-1.5 text-right text-xs text-mist tabular-nums">{i + 1}</span>
-                      <div className="min-w-0 flex-1">
-                        <textarea
-                          rows={2}
-                          value={qd.question || ""}
-                          placeholder={`Câu hỏi ${qd.points} điểm`}
-                          onChange={(e) => setQ(qd.id, { question: e.target.value, auto: false })}
-                          className="w-full!"
-                        />
-                        <input
-                          value={qd.answer || ""}
-                          placeholder="Đáp án"
-                          onChange={(e) => setQ(qd.id, { answer: e.target.value, auto: false })}
-                          className="w-full! mt-1.5"
-                        />
-                        {incomplete && <p className="mt-1 text-[11px] text-mist/70">Chưa nhập nội dung</p>}
-                      </div>
-                      <button type="button" className="btn btn-danger text-xs py-1! px-2! mt-1 shrink-0" onClick={() => delQ(qd.id)}>
-                        Xóa
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {qs.length > shown.length && (
-                <button
-                  type="button"
-                  className="mt-2.5 w-full border border-line/60 px-3 py-1.5 text-xs text-mist transition hover:border-gold/40 hover:text-white"
-                  onClick={() => setVisible({ ...visible, [lv]: (visible[lv] || 0) + 20 })}
-                >
-                  Hiện thêm ({qs.length - shown.length} câu)
-                </button>
-              )}
-              {qs.length === 0 && <p className="text-mist text-xs">Chưa có câu hỏi.</p>}
+              <button type="button" className="btn btn-danger text-xs py-1! px-2! mt-1 shrink-0" onClick={() => delQ(qd.id)}>
+                Xóa
+              </button>
             </div>
           );
         })}
       </div>
+
+      {shown.length < matched.length && (
+        <button
+          type="button"
+          className="mt-2.5 w-full border border-line/60 px-3 py-1.5 text-xs text-mist transition hover:border-gold/40 hover:text-white"
+          onClick={() => setVisible((v) => v + 50)}
+        >
+          Hiện thêm ({matched.length - shown.length} câu)
+        </button>
+      )}
+      {matched.length === 0 && (
+        <p className="text-mist text-sm">Không có câu hỏi phù hợp với bộ lọc / từ khóa hiện tại.</p>
+      )}
+      {qs0.length === 0 && (
+        <p className="text-mist text-sm">Chưa có câu hỏi Về đích. Nhập Excel/CSV hoặc bấm nút Thêm.</p>
+      )}
     </div>
   );
 }
