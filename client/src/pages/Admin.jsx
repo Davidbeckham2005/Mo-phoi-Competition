@@ -868,7 +868,6 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
         String(q.answer || "").toLowerCase().includes(kw))
   );
   const shown = matched.slice(0, visible);
-  const autoTotal = qs0.filter((q) => !!q.auto).length;
   const autoInMatched = matched.filter((q) => !!q.auto).length;
 
   return (
@@ -876,15 +875,12 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
       {/* THỐNG KÊ + IMPORT — gọn một dòng */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4">
         <span className="text-sm">
-          Ngân hàng câu chung:{" "}
           <b>10đ: {qs0.filter((q) => Number(q.points) === 10).length}</b>
           {" · "}
           <b>20đ: {qs0.filter((q) => Number(q.points) === 20).length}</b>
           {" · "}
           <b>30đ: {qs0.filter((q) => Number(q.points) === 30).length}</b>
         </span>
-        <span className="text-xs text-mist">Tối thiểu 12×10 + 24×20 + 12×30 = 48 câu</span>
-        {autoTotal > 0 && <span className="text-xs text-gold/80">{autoTotal} câu tự tạo</span>}
         <span className="ml-auto flex items-center gap-2">
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onImport} />
           <button
@@ -904,7 +900,6 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
 
       {/* LỌC THEO ĐIỂM */}
       <div className="flex flex-wrap items-center gap-2 mb-2.5">
-        <span className="text-xs uppercase tracking-[0.18em] text-mist">Lọc theo điểm</span>
         {["all", ...levels].map((lv) => (
           <button
             key={lv}
@@ -1022,12 +1017,11 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
           Hiện thêm ({matched.length - shown.length} câu)
         </button>
       )}
-      {matched.length === 0 && (
-        <p className="text-mist text-sm">Không có câu hỏi phù hợp với bộ lọc / từ khóa hiện tại.</p>
-      )}
-      {qs0.length === 0 && (
-        <p className="text-mist text-sm">Chưa có câu hỏi Về đích. Nhập Excel/CSV hoặc bấm nút Thêm.</p>
-      )}
+      {qs0.length === 0 ? (
+        <p className="text-mist text-sm">Chưa có câu hỏi Về đích.</p>
+      ) : matched.length === 0 ? (
+        <p className="text-mist text-sm">Không có câu hỏi phù hợp với bộ lọc.</p>
+      ) : null}
     </div>
   );
 }
