@@ -199,9 +199,18 @@ export function parseVeDichRows(rows) {
     let answer = pickImportField(row, KEY_ANSWER);
     if (!points && !question && !answer) {
       const vals = Object.values(row).map((v) => String(v ?? "").trim());
-      points = vals[0] ?? "";
-      question = vals[1] ?? "";
-      answer = vals[2] ?? "";
+      const n0 = /^\d+$/.test(vals[0] || "");
+      const n1 = /^\d+$/.test(vals[1] || "");
+      if (vals.length >= 4 && n0 && n1) {
+        // 4 cột trở lên, cột đầu là số thứ tự + cột 2 là điểm → STT, Điểm, Câu hỏi, Đáp án.
+        points = vals[1];
+        question = vals[2];
+        answer = vals[3];
+      } else {
+        points = vals[0];
+        question = vals[1];
+        answer = vals[2];
+      }
     }
     return { points: normalizePoints(Number(points) || 20), question: String(question || "").trim(), answer: String(answer || "").trim(), row: i + 1 };
   });

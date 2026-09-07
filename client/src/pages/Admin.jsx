@@ -840,10 +840,10 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
 
   function downloadVdTemplate() {
     const csv =
-      "\uFEFFĐiểm,Câu hỏi,Đáp án\n" +
-      "10,Thủ đô của Việt Nam là thành phố nào?,Hà Nội\n" +
-      "20,Tác phẩm “Tắt đèn” của nhà văn nào?,Ngô Tất Tố\n" +
-      "30,Năm nào Đảng Cộng sản Việt Nam thành lập?,1930\n";
+      "\uFEFFSTT,Điểm,Câu hỏi,Đáp án\n" +
+      "1,10,Thủ đô của Việt Nam là thành phố nào?,Hà Nội\n" +
+      "2,20,Tác phẩm “Tắt đèn” của nhà văn nào?,Ngô Tất Tố\n" +
+      "3,30,Năm nào Đảng Cộng sản Việt Nam thành lập?,1930\n";
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -873,7 +873,7 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
         <button type="button" className="btn btn-ghost text-xs py-1!" onClick={downloadVdTemplate}>
           Tải file mẫu
         </button>
-        <span className="text-mist text-[11px] ml-auto">Cột: Điểm (10/20/30) • Câu hỏi • Đáp án. Không tiêu đề = 3 cột đúng thứ tự.</span>
+        <span className="text-mist text-[11px] ml-auto">Cột: Điểm (10/20/30) • Câu hỏi • Đáp án. STT tuỳ chọn (4 cột đầu). Không tiêu đề = 3 cột đúng thứ tự.</span>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">

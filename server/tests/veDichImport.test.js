@@ -35,6 +35,12 @@ ok(rows[1].points === 20 && rows[1].question === "" && rows[1].answer === "Pháp
 const p2 = vedich.parseVeDichText("30,Câu ba,Đáp án ba\n10,Câu một,Đáp án một\n");
 ok(p2.length === 2 && p2[0].points === 30 && p2[0].question === "Câu ba" && p2[0].answer === "Đáp án ba", "CSV không tiêu đề: 3 cột theo vị trí");
 
+// 2b) Cột STT ở đầu — có tiêu đề (được bỏ qua) và không tiêu đề (4 cột: STT, điểm, câu, đáp án).
+const stt1 = vedich.parseVeDichText("STT,Điểm,Câu hỏi,Đáp án\n1,10,Câu S1,Đáp S1\n2,30,Câu S2,Đáp S2\n");
+ok(stt1.length === 2 && stt1[0].points === 10 && stt1[0].question === "Câu S1" && stt1[1].points === 30, "STT có tiêu đề: bỏ qua cột STT");
+const stt2 = vedich.parseVeDichText("1,20,Câu X1,Đáp X1\n2,10,Câu X2,Đáp X2\n");
+ok(stt2.length === 2 && stt2[0].points === 20 && stt2[0].question === "Câu X1" && stt2[1].points === 10, "STT không tiêu đề: đọc đúng điểm/câu/đáp án từ cột 2-4");
+
 // 3) parseVeDichRows nhận dạng cột tiếng Anh + chuẩn mức điểm.
 const en = vedich.parseVeDichRows([{ points: "40", question: "Q?", answer: "A" }, { Score: 20, Question: "Q2", Key: "K" }]);
 ok(en.length === 2 && en[0].points === 30, "mức 40đ lạ chuẩn về 30đ");
