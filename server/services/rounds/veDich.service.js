@@ -11,8 +11,8 @@
 // VÒNG, không phải cấp đội) → không bao giờ chọn lại cho đội khác.
 //
 // Câu hỏi thuộc các mức 10đ/20đ/30đ; thời gian trả lời theo ANSWER_SECONDS.
-// Ngân hàng tối thiểu: 12×10 + 24×20 + 12×30 = 48 câu. Thiếu thì hệ thống tự tạo
-// câu nháp (auto: true) để Admin sửa nội dung.
+// Ngân hàng tối thiểu: 12×10 + 24×20 + 12×30 = 48 câu. Hệ thống KHÔNG tự tạo câu
+// nháp (auto) — Admin phải nhập/import cho đủ; khi thiếu, MC báo lỗi rõ khi chọn gói.
 // Giữ cơ chế Ngôi sao hy vọng (x2 điểm, sai trừ gấp đôi).
 //
 // Tách riêng logic này khỏi game.service.js để giảm phức tạp và tránh lỗi phát sinh
@@ -127,37 +127,23 @@ function bank(db) {
   return db.questions.main.veDich;
 }
 
-// Tự tạo câu mới đúng mức điểm (bản nháp) khi ngân hàng chung thiếu.
-function makeQuestion(points) {
-  return {
-    id: `vd-auto-${points}-${Math.random().toString(36).slice(2, 8)}`,
-    points,
-    question: `(Câu tự tạo) ${points} điểm — hãy sửa nội dung.`,
-    answer: "",
-    auto: true,
-  };
-}
-
-// Đảm bảo ngân hàng CHUNG có đủ câu theo BANK_REQUIREMENTS (12×10, 24×20, 12×30).
-// Nếu thiếu (hoặc dữ liệu cũ gắn đội), tự chuẩn hóa/tạo câu bản nháp (auto: true).
-// Trả về số câu đã tạo thêm.
+// Kiểm tra ngân hàng CHUNG so với tối thiểu (12×10, 24×20, 12×30).
+// KHÔNG tự tạo câu nháp nữa — ngân hàng chỉ gồm câu thật do Admin nhập/import.
+// Nếu dữ liệu cũ (object gắn đội) vẫn được chuẩn hóa thành mảng chung.
+// Trả về số câu thiếu so với tối thiểu theo từng mức (để báo nếu cần).
 export function ensureBank() {
   const db = getDb();
-  const b = normalizeBank(bank(db));
+  const prev = db.questions.main.veDich;
+  const b = normalizeBank(prev);
   db.questions.main.veDich = b;
-  let created = 0;
+  const shortage = {};
   for (const [pts, need] of Object.entries(BANK_REQUIREMENTS)) {
     const level = Number(pts);
     const have = b.filter((x) => Number(x.points) === level).length;
-    for (let i = have; i < need; i += 1) {
-      b.push(makeQuestion(level));
-      created += 1;
-    }
+    if (have < need) shortage[level] = need - have;
   }
-  if (created > 0) {
-    saveDb();
-  }
-  return created;
+  if (JSON.stringify(prev) !== JSON.stringify(b)) saveDb();
+  return { shortage, created: 0 };
 }
 
 // ---------- NHẬP CÂU HỎI TỪ FILE EXCEL / CSV ----------

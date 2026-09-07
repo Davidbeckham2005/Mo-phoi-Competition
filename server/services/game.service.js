@@ -336,7 +336,7 @@ export function resetKhoiDong(teamId = null) {
       setTimer(game.khoiDong.timerSeconds, false);
     }
     if (roundId === "ve_dich") {
-      // Đảm bảo mỗi đội có đủ ngân hàng câu (12×10, 24×20, 12×30); tự tạo bản nháp nếu thiếu.
+      // Đảm bảo ngân hàng câu chung ở dạng chuẩn (mảng); KHÔNG tự tạo câu nháp.
       vedich.ensureBank();
       game.veDich = vedich.defaultState();
       // Chỉ 4 đội điểm cao thi vòng 4; bắt đầu từ đội điểm cao nhất.
