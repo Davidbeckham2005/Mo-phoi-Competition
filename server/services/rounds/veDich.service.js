@@ -25,6 +25,7 @@
 //   vedich.selectPackage(80); vedich.setStar(true); ...
 
 import { getDb, saveDb } from "../../models/store.js";
+import XLSX from "xlsx";
 
 // Các hàm dùng chung được game.service.js tiêm vào khi khởi động module.
 let emit = () => {};
@@ -157,6 +158,181 @@ export function ensureBank() {
     saveDb();
   }
   return created;
+}
+
+// ---------- NHẬP CÂU HỎI TỪ FILE EXCEL / CSV ----------
+// Cột nhận diện linh hoạt tiếng Việt / tiếng Anh, không phân biệt hoa thường/dấu:
+//   Điểm   (points/diem/sodiem/score/muc)      → điểm câu (ưu tiên cột đầu).
+//   Câu hỏi (question/cauhoi/noidung/text)     → nội dung câu hỏi.
+//   Đáp án  (answer/dapan/traloi/key)          → đáp án.
+// Nếu tệp không có dòng tiêu đề → quy ước 3 cột: điểm, câu hỏi, đáp án.
+
+const KEY_POINTS = new Set(["diem", "points", "diemso", "sodiem", "score", "muc", "mucdiem", "level"]);
+const KEY_QUESTION = new Set(["cauhoi", "question", "cau", "noidung", "text", "comment"]);
+const KEY_ANSWER = new Set(["dapan", "answer", "keys", "key", "traloi", "ketqua"]);
+
+function normImportKey(k) {
+  return String(k || "")
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/\s+/g, "")
+    .replace(/[_\-\u0028\u0029]/g, "");
+}
+
+function pickImportField(obj, keys) {
+  for (const k of Object.keys(obj)) {
+    if (keys.has(normImportKey(k))) return String(obj[k] ?? "").trim();
+  }
+  return "";
+}
+
+// Chuyển mảng row (object) thành danh sách { points, question, answer }.
+// Chấp nhận dòng trống cột điểm → mặc định 20đ; thiếu câu hỏi → để trống (bỏ khi import).
+export function parseVeDichRows(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.filter((r) => r && typeof r === "object").map((row, i) => {
+    let points = pickImportField(row, KEY_POINTS);
+    let question = pickImportField(row, KEY_QUESTION);
+    let answer = pickImportField(row, KEY_ANSWER);
+    if (!points && !question && !answer) {
+      const vals = Object.values(row).map((v) => String(v ?? "").trim());
+      points = vals[0] ?? "";
+      question = vals[1] ?? "";
+      answer = vals[2] ?? "";
+    }
+    return { points: normalizePoints(Number(points) || 20), question: String(question || "").trim(), answer: String(answer || "").trim(), row: i + 1 };
+  });
+}
+
+// Tách CSV (tự nhận biết dấu phẩy / chấm phẩy / tab) thành mảng object theo header.
+function parseCsvTable(text) {
+  const first = text.split(/\r?\n/).find((l) => l.trim()) || "";
+  const sc = (first.match(/;/g) || []).length;
+  const cc = (first.match(/,/g) || []).length;
+  const tc = (first.match(/\t/g) || []).length;
+  let delim = ",";
+  if (tc > sc && tc > cc) delim = "\t";
+  else if (sc > cc) delim = ";";
+
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+        } else inQuotes = false;
+      } else cell += ch;
+    } else if (ch === '"') inQuotes = true;
+    else if (ch === delim) {
+      row.push(cell);
+      cell = "";
+    } else if (ch === "\n") {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else if (ch !== "\r") cell += ch;
+  }
+  if (cell.length || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  const nonempty = rows.filter((r) => r.some((c) => String(c).trim()));
+  if (!nonempty.length) return [];
+  const headers = nonempty[0].map((h) => String(h || "").trim());
+  const lookLikeHeader = headers.some((h) => KEY_POINTS.has(normImportKey(h)) || KEY_QUESTION.has(normImportKey(h)) || KEY_ANSWER.has(normImportKey(h)));
+  if (!lookLikeHeader) {
+    // Không có tiêu đề → quy ước vị trí; gán khóa số để parseVeDichRows đọc theo cột.
+    return nonempty.map((r) => {
+      const o = {};
+      r.forEach((v, i) => {
+        o[String(i)] = String(v ?? "").trim();
+      });
+      return o;
+    });
+  }
+  return nonempty.slice(1).map((r) => {
+    const o = {};
+    headers.forEach((h, i) => {
+      if (h) o[h] = r[i] ?? "";
+    });
+    return o;
+  });
+}
+
+export function parseVeDichText(text) {
+  const raw = String(text || "").replace(/^\uFEFF/, "").trim();
+  if (!raw) return [];
+  return parseVeDichRows(parseCsvTable(raw));
+}
+
+export function parseVeDichXlsx(buffer) {
+  let wb;
+  try {
+    wb = XLSX.read(buffer, { type: "buffer", cellDates: false });
+  } catch {
+    const err = new Error("Tệp Excel không hợp lệ.");
+    err.status = 400;
+    throw err;
+  }
+  const sheetName = wb.SheetNames[0];
+  if (!sheetName) return [];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "", raw: false });
+  return parseVeDichRows(rows);
+}
+
+// Import câu hỏi từ tệp (xlsx/xls hoặc CSV) vào NGÂN HÀNG CHUNG.
+// Bỏ qua câu không có nội dung và câu trùng (theo nội dung) với câu đã có trong ngân hàng.
+// Trả về { added, skipped, errors, questions, total } (không làm thay đổi nếu tệp không hợp lệ).
+export function importVeDichFile(buf, name = "") {
+  const isXlsx = /\.xlsx?$/i.test(name) || (buf[0] === 0x50 && buf[1] === 0x4b);
+  const parsed = isXlsx ? parseVeDichXlsx(buf) : parseVeDichText(buf.toString("utf8"));
+  if (!parsed.length) {
+    const err = new Error("Không tìm thấy câu hỏi hợp lệ trong tệp. Cần cột Điểm / Câu hỏi / Đáp án (tệp không tiêu đề: 3 cột theo thứ tự đó).");
+    err.status = 400;
+    throw err;
+  }
+  const db = getDb();
+  const bank = normalizeBank(db.questions.main.veDich);
+  const existing = new Set(bank.map((q) => normImportKey(q.question || "")));
+  let added = 0;
+  let skipped = 0;
+  const errors = [];
+  const questions = [];
+  for (const p of parsed) {
+    if (!p.question) {
+      errors.push(`Dòng ${p.row}: thiếu nội dung câu hỏi`);
+      continue;
+    }
+    const key = normImportKey(p.question);
+    if (existing.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    existing.add(key);
+    const q = {
+      id: `vd-import-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      points: p.points,
+      question: p.question,
+      answer: p.answer,
+    };
+    questions.push(q);
+    added += 1;
+  }
+  if (added > 0) {
+    db.questions.main.veDich = normalizeBank([...bank, ...questions]);
+    saveDb();
+  }
+  return { added, skipped, errors, questions, total: db.questions.main.veDich.length };
 }
 
 // Số giây trả lời theo điểm câu đang thi (10→30s, 20→45s, 30→60s).

@@ -66,6 +66,19 @@ export function saveMainQuestions(main) {
   return request("/api/admin/questions/main", { method: "POST", body: { main } });
 }
 
+export async function importVeDichQuestionsFile(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/admin/questions/ve-dich/import", {
+    method: "POST",
+    headers: { "x-admin-pin": getPin() },
+    body: fd,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Đọc tệp thất bại.");
+  return data;
+}
+
 export async function uploadSound(slot, file) {
   const fd = new FormData();
   fd.append("file", file);

@@ -2,6 +2,7 @@
   import { SOUND_SLOTS, emptySounds } from "../models/Sound.js";
   import { publicState, adminState } from "../services/state.service.js";
   import * as exam from "../services/exam.service.js";
+  import * as vedich from "../services/rounds/veDich.service.js";
   import * as game from "../services/game.service.js";
   import { emitEvent } from "../config/io.js";
 
@@ -115,6 +116,18 @@
     // Tăng tốc 1·2·3·4) cập nhật NGAY sau khi lưu/upload câu hỏi, không cần click lại.
     game.emit();
     return db.questions.main;
+  }
+
+  export function importVeDichQuestions(req) {
+    if (!req.file) {
+      const err = new Error("Không có tệp.");
+      err.status = 400;
+      throw err;
+    }
+    const result = vedich.importVeDichFile(req.file.buffer, req.file.originalname || "");
+    // Đẩy trạng thái để màn Admin + bàn MC hiển thị ngay câu vừa import.
+    game.emit();
+    return result;
   }
 
   export function uploadMedia(req) {

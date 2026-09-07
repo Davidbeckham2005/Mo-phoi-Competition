@@ -10,6 +10,7 @@ import {
   assignTeams,
   saveTeams,
   saveMainQuestions,
+  importVeDichQuestionsFile,
   uploadFile,
   uploadSound,
   deleteSound,
@@ -511,7 +512,7 @@ function QuestionsTab({ state, reload, setMsg }) {
           {sub === "khoi_dong" && <KhoiDongEditor draft={draft} setDraft={setDraft} teams={state.teams} />}
           {sub === "vuot_cnv" && <VuotCnvEditor draft={draft} setDraft={setDraft} />}
           {sub === "tang_toc" && <TangTocEditor draft={draft} setDraft={setDraft} />}
-          {sub === "ve_dich" && <VeDichEditor draft={draft} setDraft={setDraft} />}
+          {sub === "ve_dich" && <VeDichEditor draft={draft} setDraft={setDraft} setMsg={setMsg} />}
           {sub === "json" && <JsonEditor draft={draft} setDraft={setDraft} setMsg={setMsg} />}
       </div>
     </div>
@@ -797,11 +798,13 @@ function TangTocEditor({ draft, setDraft }) {
   );
 }
 
-function VeDichEditor({ draft, setDraft }) {
+function VeDichEditor({ draft, setDraft, setMsg }) {
   const m = draft.main;
   const qs0 = Array.isArray(m.veDich) ? m.veDich : [];
   const levels = [10, 20, 30];
   const [visible, setVisible] = useState({ 10: 20, 20: 30, 30: 20 });
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef(null);
   function setQs(next) {
     setDraft({ ...draft, main: { ...m, veDich: next } });
   }
@@ -815,9 +818,43 @@ function VeDichEditor({ draft, setDraft }) {
     setQs([...qs0, { id: uid(), points, question: "", answer: "" }]);
   }
 
+  async function onImport(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    try {
+      const r = await importVeDichQuestionsFile(file);
+      setMsg(
+        `Đã thêm ${r.added} câu Về đích` +
+          (r.skipped ? `, bỏ qua ${r.skipped} câu đã có` : "") +
+          (r.errors?.length ? `, ${r.errors.length} dòng thiếu câu hỏi` : "") +
+          ` (ngân hàng: ${r.total})`
+      );
+    } catch (err) {
+      setMsg(err.message);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function downloadVdTemplate() {
+    const csv =
+      "\uFEFFĐiểm,Câu hỏi,Đáp án\n" +
+      "10,Thủ đô của Việt Nam là thành phố nào?,Hà Nội\n" +
+      "20,Tác phẩm “Tắt đèn” của nhà văn nào?,Ngô Tất Tố\n" +
+      "30,Năm nào Đảng Cộng sản Việt Nam thành lập?,1930\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "mau-cau-hoi-ve-dich.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-3">
         <span className="text-sm text-mist">Ngân hàng câu CHUNG — không gắn đội:</span>
         {levels.map((lv) => (
           <span key={lv} className="badge badge-ok">
@@ -826,6 +863,19 @@ function VeDichEditor({ draft, setDraft }) {
         ))}
         <span className="text-xs text-mist ml-auto">Tối thiểu 12×10 + 24×20 + 12×30 = 48 câu</span>
       </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-4 rounded-xl border border-dashed border-line bg-night/40 px-3 py-2">
+        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onImport} />
+        <span className="text-sm font-semibold">Nhập câu hỏi từ file:</span>
+        <button type="button" disabled={importing} className="btn btn-ok text-xs py-1!" onClick={() => fileRef.current?.click()}>
+          {importing ? "Đang nhập…" : "Chọn Excel / CSV"}
+        </button>
+        <button type="button" className="btn btn-ghost text-xs py-1!" onClick={downloadVdTemplate}>
+          Tải file mẫu
+        </button>
+        <span className="text-mist text-[11px] ml-auto">Cột: Điểm (10/20/30) • Câu hỏi • Đáp án. Không tiêu đề = 3 cột đúng thứ tự.</span>
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-3">
         {levels.map((lv) => {
           const qs = qs0
