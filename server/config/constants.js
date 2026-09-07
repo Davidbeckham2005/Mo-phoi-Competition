@@ -72,7 +72,7 @@ export function defaultGame() {
     timer: { remaining: 0, running: false, endsAt: null, duration: 0 },
     buzzer: { open: false, locked: false, winner: null, order: [], blocked: [] },
     puzzle: emptyPuzzle(),
-    veDich: { packagePoints: null, star: false, answeringTeam: null, stealOpen: false, stealPending: null, picked: { a: [], b: [], c: [], d: [], e: [], f: [] }, pickIndex: 0 },
+    veDich: { packagePoints: null, starQuestion: null, answeringTeam: null, stealOpen: false, stealPending: null, locked: false, phase: "soan", picked: {}, pickIndex: 0, usedQuestionIds: [] },
     tangToc: { submissions: {}, ranked: [] },
     khoiDong: { submissions: {}, history: {}, timerSeconds: 60, answerSeconds: 4 },
     tieBreak: { teams: [], questionIndex: 0, questions: [], phase: "setup", winner: null },

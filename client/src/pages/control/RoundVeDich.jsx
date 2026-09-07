@@ -1,9 +1,9 @@
 import CurrentQuestionCard from "./CurrentQuestionCard.jsx";
 
 const PACKAGES = {
-  60: [10, 10, 20],
-  80: [10, 20, 20],
-  100: [20, 20, 30],
+  60: [10, 10, 20, 20],
+  80: [10, 20, 20, 30],
+  100: [20, 20, 30, 30],
 };
 
 const ANSWER_SECONDS = { 10: 30, 20: 45, 30: 60 };
@@ -13,7 +13,8 @@ export default function RoundVeDich({ ctx }) {
   if (g.round !== "ve_dich") return null;
 
   const activeTeam = state.teams.find((t) => t.id === g.currentTeam);
-  const bank = (state.questions?.main?.veDich || {})[g.currentTeam] || [];
+  // Ngân hàng câu CHUNG — không gắn đội.
+  const bank = Array.isArray(state.questions?.main?.veDich) ? state.questions.main.veDich : [];
   const pickedIds = (g.veDich?.picked || {})[g.currentTeam] || [];
   const picked = pickedIds
     .map((id) => bank.find((x) => x.id === id))
@@ -27,6 +28,7 @@ export default function RoundVeDich({ ctx }) {
   const stealOpen = !!g.veDich?.stealOpen;
   const pkg = g.veDich?.packagePoints;
   const hasPackage = pkg === 60 || pkg === 80 || pkg === 100;
+  const bankCounts = [10, 20, 30].map((lv) => bank.filter((x) => Number(x.points) === lv).length);
 
   const PACKAGE_LABEL = { 60: "60đ", 80: "80đ", 100: "100đ" };
 
@@ -40,7 +42,7 @@ export default function RoundVeDich({ ctx }) {
       <section className="py-4">
         <div className="flex justify-between items-center mb-3">
           <b className="text-sm" style={{ color: activeTeam?.color }}>{activeTeam?.name || g.currentTeam?.toUpperCase()}</b>
-          <span className="text-ok text-xs">Đã chọn {picked.length}/3 câu{hasPackage ? ` • gói ${PACKAGE_LABEL[pkg]}` : ""}</span>
+          <span className="text-ok text-xs">Đã chọn {picked.length}/4 câu{hasPackage ? ` • gói ${PACKAGE_LABEL[pkg]}` : ""}</span>
         </div>
 
         <div className="grid gap-1.5">
@@ -73,7 +75,7 @@ export default function RoundVeDich({ ctx }) {
 
         {hasPackage && (
           <div className="grid gap-1 mt-3 pt-3 border-t border-line">
-            {[0, 1, 2].map((idx) => {
+            {[0, 1, 2, 3].map((idx) => {
               const cand = picked[idx];
               const isCurrent = locked && idx === curIndex && cand;
               return (
@@ -105,6 +107,10 @@ export default function RoundVeDich({ ctx }) {
             Xóa hết (chọn lại gói)
           </button>
         )}
+        <p className="text-mist text-xs mt-2">
+          Ngân hàng chung: {bankCounts[0]} câu 10đ • {bankCounts[1]} câu 20đ • {bankCounts[2]} câu 30đ
+          {g.veDich?.usedQuestionIds?.length ? ` • đã dùng ${g.veDich.usedQuestionIds.length} câu` : ""}
+        </p>
       </section>
 
       {/* CÂU HỎI & ĐÁP ÁN */}
@@ -187,11 +193,11 @@ export default function RoundVeDich({ ctx }) {
           <div className="flex flex-wrap gap-2 items-center">
             <button
               type="button"
-              disabled={!hasPackage || picked.length < 3}
+              disabled={!hasPackage || picked.length < 4}
               className="btn btn-ok flex-1 min-w-[180px]"
               onClick={() => act("vedich.lock")}
             >
-              {hasPackage ? `Xác nhận bộ câu (gói ${PACKAGE_LABEL[pkg]}, ${picked.length}/3)` : "Chọn gói để chốt"}
+              {hasPackage ? `Xác nhận bộ câu (gói ${PACKAGE_LABEL[pkg]}, ${picked.length}/4)` : "Chọn gói để chốt"}
             </button>
           </div>
         )}

@@ -203,7 +203,7 @@ export default function Control() {
       : `Hàng ngang ${(p.currentRow ?? 0) + 1} • ${cornersDone ? 5 : doneCount}/5 mảnh xong`;
   } else if (g.round === "ve_dich") {
     const picked = ((g.veDich?.picked || {})[cur?.id] || []);
-    progress = `Câu ${(g.veDich?.pickIndex || 0) + 1}/${picked.length || 3} • ${q?.points || g.veDich?.packagePoints || 20}đ${veStar ? " • Sao ×2" : ""} • ${cur?.name || ""}`;
+    progress = `Câu ${(g.veDich?.pickIndex || 0) + 1}/${picked.length || 4} • ${q?.points || g.veDich?.packagePoints || 20}đ${veStar ? " • Sao ×2" : ""} • ${cur?.name || ""}`;
   }
 
   const saiText = cnvRowPhase

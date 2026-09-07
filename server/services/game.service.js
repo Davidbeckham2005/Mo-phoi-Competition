@@ -749,8 +749,8 @@ if (game.round === "khoi_dong") {
         game.display.note = "";
         game.questionStatus = "idle";
         setTimer(0, false);
-      } else if (picked.length >= 3) {
-        // Đã trả lời hết 3 câu → chuyển sang đội kế tiếp trong top 4; đội mới tự soạn bộ câu.
+      } else if (picked.length >= 4) {
+        // Đã trả lời hết 4 câu → chuyển sang đội kế tiếp trong top 4; đội mới tự soạn bộ câu.
         const order = activeTeamIds();
         const i = order.indexOf(game.currentTeam);
         if (i >= 0 && i < order.length - 1) {

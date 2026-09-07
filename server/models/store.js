@@ -74,6 +74,50 @@ function normalizeMainKhoiDong(main) {
   return fixed;
 }
 
+// Chuẩn mức điểm câu veDich về mức hợp lệ (10/20/30); dữ liệu cũ có thể là 40đ.
+function normalizeVeDichPoints(p) {
+  const n = Number(p) || 20;
+  if (n <= 10) return 10;
+  if (n <= 20) return 20;
+  return 30;
+}
+
+// Chuẩn hóa dữ liệu câu Về đích về NGÂN HÀNG CHUNG dạng mảng — KHÔNG phụ thuộc số đội.
+// Dữ liệu cũ (object { teamId: [câu...] }) được dẹp phẳng thành mảng chung, khử trùng theo id,
+// để server (Vòng 4) với bất kỳ số đội nào cũng lấy câu từ cùng một ngân hàng.
+export function normalizeMainVeDich(main) {
+  if (!main) return main;
+  const fixed = { ...main };
+  const normQ = (q) => {
+    const base = (q && typeof q === "object") ? q : {};
+    const points = normalizeVeDichPoints(base.points);
+    return { ...base, id: base.id || `vd-migrate-${Math.random().toString(36).slice(2, 8)}`, points, auto: !!base.auto };
+  };
+  const raw = main.veDich;
+  if (Array.isArray(raw)) {
+    fixed.veDich = raw.map(normQ);
+    return fixed;
+  }
+  if (raw && typeof raw === "object") {
+    const seen = new Set();
+    const out = [];
+    for (const tid of Object.keys(raw)) {
+      const arr = Array.isArray(raw[tid]) ? raw[tid] : [];
+      for (const q of arr) {
+        if (!q || typeof q !== "object") continue;
+        const id = q.id || `vd-migrate-${out.length}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        out.push(normQ(q));
+      }
+    }
+    fixed.veDich = out;
+    return fixed;
+  }
+  fixed.veDich = [];
+  return fixed;
+}
+
 export { normalizeMainKhoiDong };
 
 async function persist(data) {
@@ -118,24 +162,23 @@ async function assemble() {
       if (existing) return existing;
       return { ...def, memberIds: [], score: 0 };
     });
-    // Hợp nhất câu hỏi main: giữ dữ liệu đã lưu, bổ sung khối dữ liệu đội mới (khoiDong e/f,
-    // veDich e/f) từ JSON để vòng 1/4 chạy được với 6 đội.
+    // Hợp nhất câu hỏi main: giữ dữ liệu đã lưu, bổ sung khối dữ liệu đội mới (khoiDong e/f)
+    // từ JSON để vòng 1 chạy được với 6 đội. veDich là NGÂN HÀNG CHUNG (mảng), không theo đội.
     const dbMain = main || fallback.questions.main;
     const freshMain = fallback.questions.main;
     const mergedMain = { ...dbMain };
     if (!mergedMain.khoiDong) mergedMain.khoiDong = {};
-    if (!mergedMain.veDich) mergedMain.veDich = {};
     for (const tid of TEAM_ORDER) {
       if (!mergedMain.khoiDong[tid] && freshMain?.khoiDong?.[tid]) mergedMain.khoiDong[tid] = freshMain.khoiDong[tid];
-      if (!mergedMain.veDich[tid] && freshMain?.veDich?.[tid]) mergedMain.veDich[tid] = freshMain.veDich[tid];
     }
+    if (!mergedMain.veDich) mergedMain.veDich = freshMain?.veDich || [];
     return {
       settings: { ...fallback.settings, ...settings },
       teams: mergedTeams,
       contestants,
       questions: {
         soKhao: soKhao.length ? soKhao : fallback.questions.soKhao,
-        main: normalizeMainKhoiDong(mergedMain),
+        main: normalizeMainKhoiDong(normalizeMainVeDich(mergedMain)),
       },
       media,
       sounds,
@@ -161,7 +204,7 @@ export async function loadDb() {
       sounds: { ...Sound.emptySounds(), ...(json.sounds || {}) },
       questions: {
         soKhao: json.questions?.soKhao || defaultDb().questions.soKhao,
-        main: normalizeMainKhoiDong(json.questions?.main || defaultDb().questions.main),
+        main: normalizeMainKhoiDong(normalizeMainVeDich(json.questions?.main || defaultDb().questions.main)),
       },
     };
     if (!db.game) db.game = defaultGame();

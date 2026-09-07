@@ -397,12 +397,18 @@ function probeVideoDuration(src) {
     v.src = src;
   });
 }
+const normVdPoints = (p) => {
+  const n = Number(p) || 20;
+  if (n <= 10) return 10;
+  if (n <= 20) return 20;
+  return 30;
+};
 function normalizeMain(v) {
   const m = {
     khoiDong: v.khoiDong || {},
     vuotCnv: v.vuotCnv || { keyword: "", hint: "", letterCount: "", media: { type: "image", url: "" }, rows: [] },
     tangToc: v.tangToc || [],
-    veDich: v.veDich || {},
+    veDich: v.veDich || [],
   };
   for (const tid of TEAM_ORDER) {
     const raw = m.khoiDong[tid] || [];
@@ -426,8 +432,18 @@ function normalizeMain(v) {
       }
     }
     m.khoiDong[tid] = clusters;
-    m.veDich[tid] = (m.veDich[tid] || []).filter((q) => q && typeof q === "object").map((q) => ({ id: q.id || uid(), points: q.points || 20, question: q.question || "", answer: q.answer || "", ...q }));
   }
+  // Ngân hàng câu Về đích: là mảng CHUNG — không phụ thuộc số lượng đội.
+  // Dữ liệu cũ (object gắn đội) được dẹp phẳng thành mảng chung; mức điểm chuẩn về 10/20/30.
+  const vdRaw = Array.isArray(m.veDich) ? m.veDich : Object.keys(m.veDich || {}).flatMap((tid) => (Array.isArray(m.veDich[tid]) ? m.veDich[tid] : []));
+  m.veDich = vdRaw.filter((q) => q && typeof q === "object").map((q) => ({
+    id: q.id || uid(),
+    question: q.question || "",
+    answer: q.answer || "",
+    ...q,
+    points: normVdPoints(q.points),
+    auto: !!q.auto,
+  }));
   m.vuotCnv.rows = (m.vuotCnv.rows || []).filter((r) => r && typeof r === "object").map((r) => ({ id: r.id || uid(), question: r.question || "", answer: r.answer || "", letterCount: r.letterCount ?? "", ...r }));
   m.tangToc = (m.tangToc || []).filter((q) => q && typeof q === "object").map((q) => ({ id: q.id || uid(), answer: q.answer || "", duration: Number(q.duration) || 60, mediaUrl: q.mediaUrl || "", mediaType: "video", ...q }));
   return m;
@@ -495,7 +511,7 @@ function QuestionsTab({ state, reload, setMsg }) {
           {sub === "khoi_dong" && <KhoiDongEditor draft={draft} setDraft={setDraft} teams={state.teams} />}
           {sub === "vuot_cnv" && <VuotCnvEditor draft={draft} setDraft={setDraft} />}
           {sub === "tang_toc" && <TangTocEditor draft={draft} setDraft={setDraft} />}
-          {sub === "ve_dich" && <VeDichEditor draft={draft} setDraft={setDraft} teams={state.teams} />}
+          {sub === "ve_dich" && <VeDichEditor draft={draft} setDraft={setDraft} />}
           {sub === "json" && <JsonEditor draft={draft} setDraft={setDraft} setMsg={setMsg} />}
       </div>
     </div>
@@ -781,50 +797,65 @@ function TangTocEditor({ draft, setDraft }) {
   );
 }
 
-function VeDichEditor({ draft, setDraft, teams }) {
+function VeDichEditor({ draft, setDraft }) {
   const m = draft.main;
-  const teamIds = TEAM_ORDER;
-  function findIdx(tid, id) {
-    return (m.veDich?.[tid] || []).findIndex((q) => q.id === id);
+  const qs0 = Array.isArray(m.veDich) ? m.veDich : [];
+  const levels = [10, 20, 30];
+  const [visible, setVisible] = useState({ 10: 20, 20: 30, 30: 20 });
+  function setQs(next) {
+    setDraft({ ...draft, main: { ...m, veDich: next } });
   }
-  function setQ(tid, id, p) {
-    const qs = (m.veDich?.[tid] || []).map((q, k) => (k === findIdx(tid, id) ? { ...q, ...p } : q));
-    setDraft({ ...draft, main: { ...m, veDich: { ...(m.veDich || {}), [tid]: qs } } });
+  function setQ(id, p) {
+    setQs(qs0.map((q) => (q.id === id ? { ...q, ...p } : q)));
   }
-  function delQ(tid, id) {
-    const qs = (m.veDich?.[tid] || []).filter((q) => q.id !== id);
-    setDraft({ ...draft, main: { ...m, veDich: { ...(m.veDich || {}), [tid]: qs } } });
+  function delQ(id) {
+    setQs(qs0.filter((q) => q.id !== id));
   }
-  function addQ(tid, points) {
-    const qs = [...(m.veDich?.[tid] || []), { id: uid(), points, question: "", answer: "" }].sort((x, y) => x.points - y.points);
-    setDraft({ ...draft, main: { ...m, veDich: { ...(m.veDich || {}), [tid]: qs } } });
+  function addQ(points) {
+    setQs([...qs0, { id: uid(), points, question: "", answer: "" }]);
   }
 
   return (
     <div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {teamIds.map((tid) => {
-          const qs = (m.veDich?.[tid] || []).slice().sort((x, y) => x.points - y.points);
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <span className="text-sm text-mist">Ngân hàng câu CHUNG — không gắn đội:</span>
+        {levels.map((lv) => (
+          <span key={lv} className="badge badge-ok">
+            {lv}đ: {qs0.filter((q) => Number(q.points) === lv).length} câu
+          </span>
+        ))}
+        <span className="text-xs text-mist ml-auto">Tối thiểu 12×10 + 24×20 + 12×30 = 48 câu</span>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-3">
+        {levels.map((lv) => {
+          const qs = qs0
+            .filter((q) => Number(q.points) === lv)
+            .slice()
+            .sort((a, b) => Number(!!b.auto) - Number(!!a.auto) || String(a.question || "").localeCompare(String(b.question || "")));
+          const shown = qs.slice(0, visible[lv] || qs.length);
           return (
-            <div key={tid} className="rounded-xl border border-line bg-night/40 p-3">
-              <div className="font-bold text-sm mb-3 flex items-center gap-2" style={{ color: teams.find((t) => t.id === tid)?.color }}>
-                {teams.find((t) => t.id === tid)?.name || tid.toUpperCase()}
-                <span className="ml-auto flex gap-1">
-                  {[20, 30, 40].map((p) => (
-                    <button key={p} type="button" className="btn btn-ghost text-xs py-0.5!" onClick={() => addQ(tid, p)}>+{p}</button>
-                  ))}
-                </span>
+            <div key={lv} className="rounded-xl border border-line bg-night/40 p-3">
+              <div className="font-bold text-sm mb-3 flex items-center gap-2">
+                <span className="text-gold">{lv} điểm</span>
+                <span className="text-mist font-normal text-xs">({qs.length} câu)</span>
+                <button type="button" className="btn btn-ghost text-xs py-0.5! ml-auto" onClick={() => addQ(lv)}>+ Thêm</button>
               </div>
-              {qs.map((qd) => (
+              {shown.map((qd) => (
                 <div key={qd.id} className="flex items-start gap-2 mb-2">
-                  <b className="text-gold pt-1 w-8 shrink-0">{qd.points}</b>
+                  <b className="text-gold pt-1 w-7 shrink-0 text-sm">{qd.points}</b>
                   <div className="grid gap-1 flex-1">
-                    <textarea rows={2} value={qd.question || ""} placeholder={`Câu hỏi ${qd.points} điểm`} onChange={(e) => setQ(tid, qd.id, { question: e.target.value })} />
-                    <input value={qd.answer || ""} placeholder="Đáp án" onChange={(e) => setQ(tid, qd.id, { answer: e.target.value })} />
+                    {!!qd.auto && <span className="badge badge-warn w-fit text-[10px]">Câu tự tạo — hãy sửa nội dung</span>}
+                    <textarea rows={2} value={qd.question || ""} placeholder={`Câu hỏi ${qd.points} điểm`} onChange={(e) => setQ(qd.id, { question: e.target.value, auto: false })} />
+                    <input value={qd.answer || ""} placeholder="Đáp án" onChange={(e) => setQ(qd.id, { answer: e.target.value, auto: false })} />
                   </div>
-                  <button type="button" className="btn btn-danger text-xs py-1! mt-1" onClick={() => delQ(tid, qd.id)}>Xóa</button>
+                  <button type="button" className="btn btn-danger text-xs py-1! mt-1" onClick={() => delQ(qd.id)}>Xóa</button>
                 </div>
               ))}
+              {qs.length > shown.length && (
+                <button type="button" className="btn btn-ghost w-full text-xs py-1!" onClick={() => setVisible({ ...visible, [lv]: (visible[lv] || 0) + 20 })}>
+                  Hiện thêm (còn {qs.length - shown.length} câu)
+                </button>
+              )}
               {qs.length === 0 && <p className="text-mist text-xs">Chưa có câu hỏi.</p>}
             </div>
           );
