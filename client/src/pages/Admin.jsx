@@ -854,29 +854,36 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <span className="text-sm text-mist">Ngân hàng câu CHUNG — không gắn đội:</span>
-        {levels.map((lv) => (
-          <span key={lv} className="badge badge-ok">
-            {lv}đ: {qs0.filter((q) => Number(q.points) === lv).length} câu
-          </span>
-        ))}
-        <span className="text-xs text-mist ml-auto">Tối thiểu 12×10 + 24×20 + 12×30 = 48 câu</span>
+      {/* THỐNG KÊ + IMPORT — gọn một dòng */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4">
+        <span className="text-sm">
+          Ngân hàng câu chung:{" "}
+          <b>10đ: {qs0.filter((q) => Number(q.points) === 10).length}</b>
+          {" · "}
+          <b>20đ: {qs0.filter((q) => Number(q.points) === 20).length}</b>
+          {" · "}
+          <b>30đ: {qs0.filter((q) => Number(q.points) === 30).length}</b>
+        </span>
+        <span className="text-xs text-mist">Tối thiểu 12×10 + 24×20 + 12×30 = 48 câu</span>
+        <span className="ml-auto flex items-center gap-2">
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onImport} />
+          <button
+            type="button"
+            disabled={importing}
+            title="Cột: Điểm (10/20/30) • Câu hỏi • Đáp án. STT tuỳ chọn (4 cột đầu). Không tiêu đề = 3 cột đúng thứ tự."
+            className="btn btn-ok text-xs py-1!"
+            onClick={() => fileRef.current?.click()}
+          >
+            {importing ? "Đang nhập…" : "Nhập Excel / CSV"}
+          </button>
+          <button type="button" className="btn btn-ghost text-xs py-1!" onClick={downloadVdTemplate}>
+            File mẫu
+          </button>
+        </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 mb-4 rounded-xl border border-dashed border-line bg-night/40 px-3 py-2">
-        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onImport} />
-        <span className="text-sm font-semibold">Nhập câu hỏi từ file:</span>
-        <button type="button" disabled={importing} className="btn btn-ok text-xs py-1!" onClick={() => fileRef.current?.click()}>
-          {importing ? "Đang nhập…" : "Chọn Excel / CSV"}
-        </button>
-        <button type="button" className="btn btn-ghost text-xs py-1!" onClick={downloadVdTemplate}>
-          Tải file mẫu
-        </button>
-        <span className="text-mist text-[11px] ml-auto">Cột: Điểm (10/20/30) • Câu hỏi • Đáp án. STT tuỳ chọn (4 cột đầu). Không tiêu đề = 3 cột đúng thứ tự.</span>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-3">
+      {/* 3 CỘT 10 / 20 / 30 */}
+      <div className="grid gap-6 xl:grid-cols-3">
         {levels.map((lv) => {
           const qs = qs0
             .filter((q) => Number(q.points) === lv)
@@ -884,26 +891,53 @@ function VeDichEditor({ draft, setDraft, setMsg }) {
             .sort((a, b) => Number(!!b.auto) - Number(!!a.auto) || String(a.question || "").localeCompare(String(b.question || "")));
           const shown = qs.slice(0, visible[lv] || qs.length);
           return (
-            <div key={lv} className="rounded-xl border border-line bg-night/40 p-3">
-              <div className="font-bold text-sm mb-3 flex items-center gap-2">
-                <span className="text-gold">{lv} điểm</span>
-                <span className="text-mist font-normal text-xs">({qs.length} câu)</span>
-                <button type="button" className="btn btn-ghost text-xs py-0.5! ml-auto" onClick={() => addQ(lv)}>+ Thêm</button>
+            <div key={lv}>
+              <div className="flex items-baseline gap-2 mb-2.5">
+                <h4 className="font-bold text-sm">{lv} điểm</h4>
+                <span className="text-mist text-xs">{qs.length} câu</span>
+                <button type="button" className="btn btn-ghost text-xs py-0.5! px-2! ml-auto" onClick={() => addQ(lv)}>
+                  + Thêm
+                </button>
               </div>
-              {shown.map((qd) => (
-                <div key={qd.id} className="flex items-start gap-2 mb-2">
-                  <b className="text-gold pt-1 w-7 shrink-0 text-sm">{qd.points}</b>
-                  <div className="grid gap-1 flex-1">
-                    {!!qd.auto && <span className="badge badge-warn w-fit text-[10px]">Câu tự tạo — hãy sửa nội dung</span>}
-                    <textarea rows={2} value={qd.question || ""} placeholder={`Câu hỏi ${qd.points} điểm`} onChange={(e) => setQ(qd.id, { question: e.target.value, auto: false })} />
-                    <input value={qd.answer || ""} placeholder="Đáp án" onChange={(e) => setQ(qd.id, { answer: e.target.value, auto: false })} />
-                  </div>
-                  <button type="button" className="btn btn-danger text-xs py-1! mt-1" onClick={() => delQ(qd.id)}>Xóa</button>
-                </div>
-              ))}
+
+              <div className="grid gap-2">
+                {shown.map((qd, i) => {
+                  const incomplete =
+                    !String(qd.question || "").trim() || !String(qd.answer || "").trim();
+                  return (
+                    <div key={qd.id} className="flex items-start gap-2.5 rounded-lg border border-line/60 bg-night/30 px-3 py-2.5">
+                      <span className="shrink-0 w-6 pt-1.5 text-right text-xs text-mist tabular-nums">{i + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <textarea
+                          rows={2}
+                          value={qd.question || ""}
+                          placeholder={`Câu hỏi ${qd.points} điểm`}
+                          onChange={(e) => setQ(qd.id, { question: e.target.value, auto: false })}
+                          className="w-full!"
+                        />
+                        <input
+                          value={qd.answer || ""}
+                          placeholder="Đáp án"
+                          onChange={(e) => setQ(qd.id, { answer: e.target.value, auto: false })}
+                          className="w-full! mt-1.5"
+                        />
+                        {incomplete && <p className="mt-1 text-[11px] text-mist/70">Chưa nhập nội dung</p>}
+                      </div>
+                      <button type="button" className="btn btn-danger text-xs py-1! px-2! mt-1 shrink-0" onClick={() => delQ(qd.id)}>
+                        Xóa
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
               {qs.length > shown.length && (
-                <button type="button" className="btn btn-ghost w-full text-xs py-1!" onClick={() => setVisible({ ...visible, [lv]: (visible[lv] || 0) + 20 })}>
-                  Hiện thêm (còn {qs.length - shown.length} câu)
+                <button
+                  type="button"
+                  className="mt-2.5 w-full border border-line/60 px-3 py-1.5 text-xs text-mist transition hover:border-gold/40 hover:text-white"
+                  onClick={() => setVisible({ ...visible, [lv]: (visible[lv] || 0) + 20 })}
+                >
+                  Hiện thêm ({qs.length - shown.length} câu)
                 </button>
               )}
               {qs.length === 0 && <p className="text-mist text-xs">Chưa có câu hỏi.</p>}
